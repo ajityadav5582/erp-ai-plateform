@@ -1,0 +1,35 @@
+# ERP AI Platform - Code Owners
+# Automatic review assignment
+
+# Global owners
+*                       @erpai-platform/core-team
+
+# Platform
+platform/**            @erpai-platform/platform-team
+
+# Business modules
+business/finance/**    @erpai-platform/finance-team
+business/hr/**         @erpai-platform/hr-team
+business/inventory/**  @erpai-platform/inventory-team
+business/sales/**      @erpai-platform/sales-team
+business/procurement/** @erpai-platform/procurement-team
+business/manufacturing/** @erpai-platform/manufacturing-team
+
+# AI modules
+ai/**                  @erpai-platform/ai-team
+
+# Integration
+integration/**         @erpai-platform/integration-team
+
+# Libraries
+libraries/**           @erpai-platform/platform-team
+
+# Infrastructure
+infrastructure/**      @erpai-platform/devops-team
+
+# Documentation
+docs/**                @erpai-platform/tech-writers
+
+# Security
+*/*security*           @erpai-platform/security-team
+*/*auth*               @erpai-platform/security-team

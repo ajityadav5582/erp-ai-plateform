@@ -1,0 +1,20 @@
+# Local environment overrides
+.env
+.env.local
+
+# Credentials and secrets
+*.pem
+*.key
+*.p12
+*.jks
+
+# Volumes
+postgres_data/
+redis_data/
+kafka_data/
+keycloak_data/
+minio_data/
+prometheus_data/
+grafana_data/
+tempo_data/
+loki_data/

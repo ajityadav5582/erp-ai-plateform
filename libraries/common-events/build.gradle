@@ -1,0 +1,38 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.erp.platform'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Common Core
+    api project(':libraries:common-core')
+
+    // JSON Processing (version managed by Spring Boot BOM)
+    api 'com.fasterxml.jackson.core:jackson-databind'
+    api 'com.fasterxml.jackson.core:jackson-annotations'
+
+    // Utilities
+    api "org.apache.commons:commons-lang3:${commonsLangVersion}"
+    api "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Test
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testImplementation "org.assertj:assertj-core:${assertjVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}

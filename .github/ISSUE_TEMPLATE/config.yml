@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.erpai.internal
+    about: Read the official documentation
+  - name: Security Policy
+    url: https://github.com/erpai/platform/security/policy
+    about: Report security vulnerabilities

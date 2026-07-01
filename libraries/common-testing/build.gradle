@@ -1,0 +1,67 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.erp.platform'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot (version managed by Spring Boot BOM)
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // Common Core
+    implementation project(':libraries:common-core')
+
+    // Common Security
+    implementation project(':libraries:common-security')
+
+    // Test Containers
+    implementation "org.testcontainers:testcontainers:${testcontainersVersion}"
+    implementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    implementation "org.testcontainers:postgresql:${testcontainersVersion}"
+    implementation "org.testcontainers:kafka:${testcontainersVersion}"
+
+    // Mockito
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+
+    // AssertJ
+    testImplementation "org.assertj:assertj-core:${assertjVersion}"
+
+    // JUnit
+    testImplementation platform("org.junit:junit-bom:${junitVersion}")
+    testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testImplementation "org.junit.jupiter:junit-jupiter-params"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = '0.8.11'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:-processing"
+}

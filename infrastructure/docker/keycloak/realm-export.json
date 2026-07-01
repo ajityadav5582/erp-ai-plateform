@@ -1,0 +1,244 @@
+{
+  "realm": "erpai",
+  "enabled": true,
+  "displayName": "ERP AI Platform",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>ERP AI Platform</span></div>",
+  "usersDefaultRoleId": "default-role",
+  "requiredCredentials": ["password"],
+  "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1)",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 3600,
+  "clientSessionIdleTimeout": 1800,
+  "clientSessionMaxLifespan": 3600,
+  "clientOfflineSessionIdleTimeout": 2592000,
+  "clientOfflineSessionMaxLifespan": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "ssoSessionIdleTimeoutRememberMe": 0,
+  "ssoSessionMaxLifespanRememberMe": 0,
+  "clientSessionIdleTimeoutRememberMe": 0,
+  "clientSessionMaxLifespanRememberMe": 0,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "roles": {
+    "realm": [
+      {
+        "id": "default-role",
+        "name": "user",
+        "description": "Default user role",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "erpai"
+      },
+      {
+        "id": "admin-role",
+        "name": "admin",
+        "description": "Administrator role",
+        "composite": true,
+        "clientRole": false,
+        "containerId": "erpai",
+        "composites": {
+          "realm": ["default-role"],
+          "client": {}
+        }
+      }
+    ]
+  },
+  "groups": [],
+  "defaultRole": {
+    "id": "default-role",
+    "name": "user",
+    "description": "Default user role",
+    "composite": false,
+    "clientRole": false,
+    "containerId": "erpai"
+  },
+  "requiredActions": [],
+  "browserFlow": "browser",
+  "registrationFlow": "registration",
+  "directGrantFlow": "direct grant",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients",
+  "dockerAuthenticationFlow": "docker auth",
+  "attributes": {
+    "cibaBackchannelTokenDeliveryMode": "poll",
+    "cibaExpiresIn": "120",
+    "cibaAuthRequestedUserHint": "login_hint",
+    "oauth2DeviceCodeLifespan": "600",
+    "oauth2DevicePollingInterval": "5",
+    "parRequestUriLifespan": "90",
+    "cibaGrantLifespan": "1800",
+    "cibaInterval": "5"
+  },
+  "keycloakVersion": "26.2",
+  "userManagedAccessAllowed": false,
+  "clientProfiles": {
+    "profiles": []
+  },
+  "clientPolicies": {
+    "policies": []
+  },
+  "clients": [
+    {
+      "id": "erpai-gateway",
+      "clientId": "erpai-gateway",
+      "name": "ERP AI Gateway",
+      "description": "API Gateway client for ERP AI Platform",
+      "rootUrl": "http://localhost:8080",
+      "adminUrl": "http://localhost:8080",
+      "baseUrl": "/",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": ["http://localhost:8080/*", "http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:8080", "http://localhost:3000", "+"],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "client.secret.creation.time": "0",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "client_credentials.use_refresh_token": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "backchannel.logout.session.required": "false",
+        "client_credentials.use_refresh_token": "false",
+        "use.refresh.tokens": "true"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins", "acr"],
+      "optionalClientScopes": ["address", "phone", "offline_access"]
+    }
+  ],
+  "clientScopes": [
+    {
+      "id": "openid",
+      "name": "openid",
+      "description": "OpenID Connect scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${openidScopeConsentText}"
+      }
+    },
+    {
+      "id": "profile",
+      "name": "profile",
+      "description": "OpenID Connect profile scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${profileScopeConsentText}"
+      }
+    },
+    {
+      "id": "email",
+      "name": "email",
+      "description": "OpenID Connect email scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${emailScopeConsentText}"
+      }
+    },
+    {
+      "id": "roles",
+      "name": "roles",
+      "description": "Realm roles",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${rolesScopeConsentText}",
+        "oidc.claim.value": "roles",
+        "oidc.claim.name": "roles",
+        "oidc.claim.name.space": ""
+      }
+    },
+    {
+      "id": "web-origins",
+      "name": "web-origins",
+      "description": "Web Origins",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${webOriginsScopeConsentText}"
+      }
+    },
+    {
+      "id": "acr",
+      "name": "acr",
+      "description": "Authentication Context Class Reference",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${acrScopeConsentText}"
+      }
+    },
+    {
+      "id": "offline_access",
+      "name": "offline_access",
+      "description": "Offline Access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": "${offlineAccessScopeConsentText}"
+      }
+    }
+  ],
+  "defaultDefaultClientScopes": ["openid", "profile", "email", "roles", "web-origins", "acr"],
+  "defaultOptionalClientScopes": ["address", "phone", "offline_access"],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "smtpServer": {},
+  "loginTheme": "erpai",
+  "accountTheme": "erpai",
+  "adminTheme": "erpai",
+  "emailTheme": "erpai",
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "enabledEventTypes": ["LOGIN", "LOGIN_ERROR", "LOGOUT", "REGISTER", "REGISTER_ERROR", "DELETE_ACCOUNT", "DELETE_ACCOUNT_ERROR", "UPDATE_EMAIL", "UPDATE_EMAIL_ERROR", "UPDATE_PASSWORD", "UPDATE_PASSWORD_ERROR", "UPDATE_TOTP", "UPDATE_TOTP_ERROR", "REMOVE_TOTP", "REMOVE_TOTP_ERROR", "CLIENT_LOGIN", "CLIENT_LOGIN_ERROR", "CLIENT_LOGOUT", "CLIENT_REGISTER", "CLIENT_DELETE", "CLIENT_DELETE_ERROR", "REVOKE_GRANT", "REVOKE_GRANT_ERROR", "UPDATE_CONSENT", "UPDATE_CONSENT_ERROR", "SEND_RESET_PASSWORD", "SEND_RESET_PASSWORD_ERROR", "SEND_VERIFY_EMAIL", "SEND_VERIFY_EMAIL_ERROR", "RESTART_AUTHENTICATION", "RESTART_AUTHENTICATION_ERROR", "INVALID_SIGNATURE", "FAILED_LOGIN", "CODE_TO_TOKEN", "CODE_TO_TOKEN_ERROR", "ACCESS_TOKEN_REFRESH", "ACCESS_TOKEN_REFRESH_ERROR", "CIBA_STARTED", "CIBA_STARTED_ERROR", "CIBA_TOKEN_POLLING", "CIBA_TOKEN_POLLING_ERROR", "CIBA_TOKEN_EXCHANGE", "CIBA_TOKEN_EXCHANGE_ERROR", "CIBA_TOKEN_EXCHANGE_ERROR", "REQUIRED_ACTION", "REQUIRED_ACTION_ERROR"]
+}

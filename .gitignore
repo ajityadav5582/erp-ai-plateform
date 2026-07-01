@@ -1,0 +1,101 @@
+# ERP AI Platform - Git Ignore
+# Enterprise-grade ignore patterns
+
+# Build outputs
+build/
+out/
+target/
+*.jar
+*.war
+*.ear
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.jks
+
+# Logs
+*.log
+logs/
+log/
+
+# Test
+test-results/
+coverage/
+jacoco.exec
+*.exec
+
+# Database
+*.db
+*.sql
+*.dump
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Kubernetes
+k8s/secrets/
+k8s/local/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Documentation build
+docs/_build/
+docs/.venv/
+
+# Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+coverage/
+
+# AI Models
+models/
+*.onnx
+*.pt
+*.pkl
+*.joblib
+
+# MinIO
+minio-data/
+
+# Redis
+dump.rdb
+
+# Kafka
+kafka-logs/
+
+# Keycloak
+keycloak-data/

@@ -1,0 +1,55 @@
+# ERP AI Platform - Git Attributes
+
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Java
+*.java text
+*.kt text
+*.kts text
+
+# Gradle
+*.gradle text
+*.gradle.kts text
+
+# Properties
+*.properties text
+*.xml text
+*.yml text
+*.yaml text
+
+# Documentation
+*.md text
+*.txt text
+*.rst text
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Docker
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# JSON
+*.json text
+
+# SQL
+*.sql text
+
+# Lock files
+*.lock text
+
+# Binary files
+*.jar binary
+*.war binary
+*.ear binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.tgz binary

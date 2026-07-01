@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: erpai-platform
+  labels:
+    name: erpai-platform
+    app.kubernetes.io/name: erpai-platform
+    app.kubernetes.io/part-of: erpai

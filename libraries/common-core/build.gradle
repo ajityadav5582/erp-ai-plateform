@@ -1,0 +1,62 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.erp.platform'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs.removeAll { it == '-Xlint:all' }
+    options.compilerArgs.addAll(['-Xlint:-processing'])
+}
+
+dependencies {
+    // Spring Core (version managed by Spring Boot BOM)
+    api 'org.springframework:spring-context'
+    api 'org.springframework:spring-core'
+
+    // Spring Data Commons for auditing annotations
+    api 'org.springframework.data:spring-data-commons'
+
+    // Spring Data JPA for AuditingEntityListener
+    api 'org.springframework.data:spring-data-jpa'
+
+    // Jackson for JSON (version managed by Spring Boot BOM)
+    api 'com.fasterxml.jackson.core:jackson-databind'
+    api 'com.fasterxml.jackson.core:jackson-annotations'
+
+    // Validation (version managed by Spring Boot BOM)
+    api 'jakarta.validation:jakarta.validation-api'
+
+    // JPA / Hibernate (version managed by Spring Boot BOM)
+    api 'jakarta.persistence:jakarta.persistence-api'
+    api 'org.hibernate.orm:hibernate-core'
+
+    // Swagger/OpenAPI annotations
+    api 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
+
+    // Utilities
+    api "org.apache.commons:commons-lang3:${commonsLangVersion}"
+    api "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Test
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testImplementation "org.assertj:assertj-core:${assertjVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}

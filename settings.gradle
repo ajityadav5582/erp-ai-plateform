@@ -1,0 +1,148 @@
+/*
+ * ERP AI Platform - Root Settings
+ * Enterprise-grade multi-tenant SaaS platform foundation
+ */
+
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url "https://repo.spring.io/milestone" }
+        maven { url "https://repo.spring.io/snapshot" }
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven { url "https://repo.spring.io/milestone" }
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://packages.jetbrains.team/maven/p/kt/team/teamcity" }
+    }
+}
+
+rootProject.name = "erp-ai-platform"
+
+// Platform Core
+include "platform:core:domain"
+include "platform:core:application"
+include "platform:core:infrastructure"
+include "platform:core:interfaces"
+
+// Platform Shared
+include "platform:shared:kernel"
+include "platform:shared:security"
+include "platform:shared:tenancy"
+include "platform:shared:events"
+include "platform:shared:exceptions"
+include "platform:shared:utils"
+
+// Business Modules
+include "business:finance:domain"
+include "business:finance:application"
+include "business:finance:infrastructure"
+include "business:finance:interfaces"
+
+include "business:hr:domain"
+include "business:hr:application"
+include "business:hr:infrastructure"
+include "business:hr:interfaces"
+
+include "business:inventory:domain"
+include "business:inventory:application"
+include "business:inventory:infrastructure"
+include "business:inventory:interfaces"
+
+include "business:sales:domain"
+include "business:sales:application"
+include "business:sales:infrastructure"
+include "business:sales:interfaces"
+
+include "business:procurement:domain"
+include "business:procurement:application"
+include "business:procurement:infrastructure"
+include "business:procurement:interfaces"
+
+include "business:manufacturing:domain"
+include "business:manufacturing:application"
+include "business:manufacturing:infrastructure"
+include "business:manufacturing:interfaces"
+
+// AI Modules
+include "ai:agents:domain"
+include "ai:agents:application"
+include "ai:agents:infrastructure"
+include "ai:agents:interfaces"
+
+include "ai:pipeline:domain"
+include "ai:pipeline:application"
+include "ai:pipeline:infrastructure"
+include "ai:pipeline:interfaces"
+
+include "ai:models:domain"
+include "ai:models:application"
+include "ai:models:infrastructure"
+include "ai:models:interfaces"
+
+include "ai:orchestration:domain"
+include "ai:orchestration:application"
+include "ai:orchestration:infrastructure"
+include "ai:orchestration:interfaces"
+
+// Integration Modules
+include "integration:gateway:domain"
+include "integration:gateway:application"
+include "integration:gateway:infrastructure"
+include "integration:gateway:interfaces"
+
+include "integration:events:domain"
+include "integration:events:application"
+include "integration:events:infrastructure"
+include "integration:events:interfaces"
+
+include "integration:messaging:domain"
+include "integration:messaging:application"
+include "integration:messaging:infrastructure"
+include "integration:messaging:interfaces"
+
+include "integration:external:domain"
+include "integration:external:application"
+include "integration:external:infrastructure"
+include "integration:external:interfaces"
+
+// Libraries - Common
+include "libraries:common-core"
+include "libraries:common-data"
+include "libraries:common-events"
+include "libraries:common-security"
+include "libraries:common-validation"
+include "libraries:common-testing"
+include "libraries:common-observability"
+
+// Legacy Common (kept for backward compatibility)
+include "libraries:common:kernel"
+include "libraries:common:security"
+include "libraries:common:tenancy"
+include "libraries:common:events"
+include "libraries:common:exceptions"
+include "libraries:common:utils"
+include "libraries:common:validation"
+
+// Data Libraries
+include "libraries:data:jpa"
+include "libraries:data:redis"
+include "libraries:data:kafka"
+include "libraries:data:flyway"
+include "libraries:data:minio"
+
+// Observability Libraries
+include "libraries:observability:metrics"
+include "libraries:observability:tracing"
+include "libraries:observability:logging"
+include "libraries:observability:health"
+
+// Testing Libraries
+include "libraries:testing:unit"
+include "libraries:testing:integration"
+include "libraries:testing:contract"
+include "libraries:testing:fixtures"
