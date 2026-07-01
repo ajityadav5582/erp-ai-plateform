@@ -1,22 +1,24 @@
 # =============================================================================
-# ERP AI Platform - Multi-Stage Dockerfile
-# Java 21 / Spring Boot 3.x Production Image Template
+# ERP AI Platform - Service-Level Dockerfile Template
+# For individual microservices (e.g., finance-service, hr-service)
+# Copy this file to the service's interfaces/ directory and customize
+# Build context: project root (.)
 # =============================================================================
 
 # -------------------- Build Arguments --------------------
 ARG JAVA_VERSION=21
-ARG APP_NAME=erp-ai-platform
+ARG SERVICE_NAME=service-name
+ARG SERVICE_MODULE=service:module:interfaces
 ARG APP_VERSION=0.1.0-SNAPSHOT
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
-ARG JAR_PATH=build/libs/*.jar
 
 # -------------------- Build Stage --------------------
 FROM eclipse-temurin:21-jdk-jammy AS builder
 
 LABEL maintainer="ERP AI Platform Team" \
-      org.opencontainers.image.title="${APP_NAME}" \
-      org.opencontainers.image.description="ERP AI Platform Build Image" \
+      org.opencontainers.image.title="${SERVICE_NAME}" \
+      org.opencontainers.image.description="ERP AI Platform ${SERVICE_NAME}" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}"
@@ -32,10 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY gradle/ gradle/
 COPY gradlew build.gradle settings.gradle ./
 
-# Download and cache dependencies (this layer is cached unless build files change)
+# Download and cache dependencies
 RUN ./gradlew dependencies --no-daemon --stacktrace
 
-# Copy source code
+# Copy source code for this service and shared libraries
 COPY platform/ platform/
 COPY business/ business/
 COPY ai/ ai/
@@ -43,38 +45,37 @@ COPY integration/ integration/
 COPY libraries/ libraries/
 
 # Build the application JAR (skip tests for Docker build)
-RUN ./gradlew bootJar --no-daemon -x test --stacktrace
+RUN ./gradlew :${SERVICE_MODULE}:bootJar --no-daemon -x test --stacktrace
 
 # -------------------- Runtime Stage --------------------
 FROM eclipse-temurin:21-jre-jammy AS runtime
 
 LABEL maintainer="ERP AI Platform Team" \
-      org.opencontainers.image.title="${APP_NAME}" \
-      org.opencontainers.image.description="ERP AI Platform Runtime Image" \
+      org.opencontainers.image.title="${SERVICE_NAME}" \
+      org.opencontainers.image.description="ERP AI Platform ${SERVICE_NAME} Runtime" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}"
 
-# Create non-root user with fixed UID/GID for Kubernetes compatibility
+# Create non-root user with fixed UID/GID
 RUN groupadd -r -g 1001 appgroup && \
     useradd -r -u 1001 -g appgroup -m -d /home/appuser appuser
 
 WORKDIR /app
 
-# Install wget for health checks (minimal package)
+# Install wget for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy JAR from builder with proper ownership
-# JAR_PATH can be overridden at build time for specific services
-COPY --from=builder --chown=appuser:appgroup /app/${JAR_PATH} app.jar
+COPY --from=builder --chown=appuser:appgroup /app/build/libs/*.jar app.jar
 
 # Copy health check and entrypoint scripts
 COPY --chown=appuser:appgroup infrastructure/docker/healthcheck.sh /app/healthcheck.sh
 COPY --chown=appuser:appgroup infrastructure/docker/entrypoint.sh /app/entrypoint.sh
 
-# Create directories for logs and temp with proper permissions
+# Create directories for logs and temp
 RUN mkdir -p /app/logs /app/tmp && \
     chown -R appuser:appgroup /app/logs /app/tmp && \
     chmod +x /app/healthcheck.sh /app/entrypoint.sh
@@ -85,11 +86,11 @@ USER appuser
 # Expose application port
 EXPOSE 8080
 
-# Health check - verifies application is responding
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD /app/healthcheck.sh || exit 1
 
-# Runtime environment variables with defaults
+# Runtime environment variables
 ENV JAVA_OPTS="" \
     SPRING_PROFILES_ACTIVE=prod \
     SERVER_PORT=8080 \
@@ -99,5 +100,5 @@ ENV JAVA_OPTS="" \
     MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED=true \
     MANAGEMENT_HEALTH_READINESS_STATE_ENABLED=true
 
-# Entrypoint with JVM container optimizations and signal handling
+# Entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

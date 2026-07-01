@@ -1,19 +1,24 @@
+# =============================================================================
 # ERP AI Platform - Docker Ignore
+# Optimized for multi-module Gradle / Java 21 project
+# =============================================================================
 
-# Build artifacts
+# -------------------- Build Artifacts --------------------
+# Gradle build outputs
 build/
 out/
 target/
 *.jar
 *.war
 *.ear
+*.class
 
-# Gradle
+# -------------------- Gradle --------------------
 .gradle/
 gradle-app.setting
 !gradle/wrapper/gradle-wrapper.jar
 
-# IDE
+# -------------------- IDE --------------------
 .idea/
 *.iml
 *.ipr
@@ -26,12 +31,12 @@ gradle-app.setting
 .classpath
 .settings/
 
-# OS
+# -------------------- OS --------------------
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Environment
+# -------------------- Environment & Secrets --------------------
 .env
 .env.local
 .env.*.local
@@ -39,68 +44,100 @@ desktop.ini
 *.key
 *.p12
 *.jks
+*.p12
 
-# Logs
+# -------------------- Logs --------------------
 *.log
 logs/
 log/
 
-# Test
+# -------------------- Test Artifacts --------------------
 test-results/
 coverage/
 jacoco.exec
 *.exec
+build/reports/
+build/test-results/
 
-# Database
+# -------------------- Database --------------------
 *.db
 *.sql
 *.dump
+*.h2.db
 
-# Temporary
+# -------------------- Temporary Files --------------------
 tmp/
 temp/
 *.tmp
+*.temp
 
-# Documentation build
+# -------------------- Documentation Build --------------------
 docs/_build/
 docs/.venv/
+docs/site/
 
-# Frontend
+# -------------------- Frontend --------------------
 node_modules/
 dist/
 .next/
 .nuxt/
+build/
 coverage/
 
-# AI Models
+# -------------------- AI Models --------------------
 models/
 *.onnx
 *.pt
 *.pkl
 *.joblib
+*.safetensors
 
-# MinIO
+# -------------------- Data Services --------------------
 minio-data/
-
-# Redis
 dump.rdb
-
-# Kafka
 kafka-logs/
-
-# Keycloak
 keycloak-data/
+zookeeper-data/
 
-# Git
+# -------------------- Git --------------------
 .git/
 .gitignore
 
-# Documentation
+# -------------------- Documentation (keep README) --------------------
 *.md
 !README.md
+!docs/standards/16-docker-standards.md
 
-# Scripts
+# -------------------- Scripts (not needed in image) --------------------
 scripts/
 
-# Infrastructure
-infrastructure/
+# -------------------- Infrastructure (keep Docker scripts) --------------------
+# Exclude most infrastructure but keep Docker build scripts
+infrastructure/terraform/
+infrastructure/k8s/
+!infrastructure/docker/
+!infrastructure/docker/*.sh
+!infrastructure/docker/*.config
+!infrastructure/docker/.env.example
+
+# -------------------- CI/CD --------------------
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# -------------------- Docker Files (not needed in image) --------------------
+docker-compose.yml
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# -------------------- Misc --------------------
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+ENV/
+env/

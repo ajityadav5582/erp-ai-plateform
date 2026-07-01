@@ -11,6 +11,7 @@ These standards ensure consistent, secure, and efficient containerization across
 - **Layer caching:** Optimize Dockerfile layer ordering
 - **Reproducibility:** Pin versions, use digests
 - **Multi-stage builds:** Separate build and runtime environments
+- **Java 21:** All services use Java 21 with Spring Boot 3.x
 
 ## 3. Base Image Standards
 
@@ -18,33 +19,32 @@ These standards ensure consistent, secure, and efficient containerization across
 
 | Image | Use Case | Tag Pattern |
 |-------|----------|-------------|
-| `eclipse-temurin:17-jre` | Java runtime | `17-jre` or `17-jre-alpine` |
-| `eclipse-temurin:17-jdk` | Java build | `17-jdk` or `17-jdk-alpine` |
-| `postgres:15` | PostgreSQL | `15-alpine` |
-| `redis:7-alpine` | Redis | `7-alpine` |
+| `eclipse-temurin:21-jdk-jammy` | Java build | `21-jdk-jammy` |
+| `eclipse-temurin:21-jre-jammy` | Java runtime | `21-jre-jammy` |
+| `eclipse-temurin:21-jdk-alpine` | Java build ( Alpine ) | `21-jdk-alpine` |
+| `eclipse-temurin:21-jre-alpine` | Java runtime ( Alpine ) | `21-jre-alpine` |
 | `nginx:alpine` | Nginx proxy | `alpine` |
 | `prom/prometheus` | Prometheus | `latest` |
 | `grafana/grafana` | Grafana | `latest` |
-| `confluentinc/cp-kafka` | Kafka | `latest` |
 
 ### 3.2 Image Tagging
 
-- **Production:** Use specific version tags (e.g., `17-jre:17.0.9_11-jre`)
-- **Staging:** Use minor version tags (e.g., `17-jre:17.0`)
-- **Development:** Use major version tags (e.g., `17-jre:17`)
+- **Production:** Use specific version tags with digest (e.g., `21-jre-jammy@sha256:...`)
+- **Staging:** Use minor version tags (e.g., `21-jre-jammy`)
+- **Development:** Use major version tags (e.g., `21-jre`)
 - **Never:** Use `latest` tag in production
 
 ### 3.3 Image Pinning
 
 ```dockerfile
 # GOOD: Pinned digest
-FROM eclipse-temurin:17-jre@sha256:abc123...
+FROM eclipse-temurin:21-jre-jammy@sha256:abc123...
 
 # GOOD: Pinned version
-FROM eclipse-temurin:17-jre:17.0.9_11-jre
+FROM eclipse-temurin:21-jre-jammy:21.0.3_9-jre
 
 # BAD: Floating tag
-FROM eclipse-temurin:17-jre:latest
+FROM eclipse-temurin:21-jre:latest
 ```
 
 ## 4. Dockerfile Standards
@@ -53,24 +53,28 @@ FROM eclipse-temurin:17-jre:latest
 
 ```dockerfile
 # Build stage
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /app
 
 # Copy dependency files first for caching
-COPY build.gradle settings.gradle gradlew ./
-COPY gradle gradle
+COPY gradle/ gradle/
+COPY gradlew build.gradle settings.gradle ./
 RUN ./gradlew dependencies --no-daemon
 
 # Copy source and build
-COPY src src
+COPY platform/ platform/
+COPY business/ business/
+COPY ai/ ai/
+COPY integration/ integration/
+COPY libraries/ libraries/
 RUN ./gradlew bootJar --no-daemon -x test
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine:17.0.9_11-jre
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
+RUN groupadd -r -g 1001 appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
 # Copy JAR from builder
@@ -83,21 +87,25 @@ USER appuser
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /app/healthcheck.sh || exit 1
 
 # Run application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 ```
 
 ### 4.2 Layer Optimization
 
 ```dockerfile
 # GOOD: Dependencies cached separately
-COPY build.gradle settings.gradle gradlew ./
-COPY gradle gradle
+COPY gradle/ gradle/
+COPY gradlew build.gradle settings.gradle ./
 RUN ./gradlew dependencies --no-daemon
-COPY src src
+COPY platform/ platform/
+COPY business/ business/
+COPY ai/ ai/
+COPY integration/ integration/
+COPY libraries/ libraries/
 RUN ./gradlew bootJar --no-daemon
 
 # BAD: Everything copied at once
@@ -109,30 +117,26 @@ RUN ./gradlew bootJar --no-daemon
 
 ```dockerfile
 # Use specific user, not root
-RUN addgroup -g 1001 -S appgroup && \
+RUN groupadd -r -g 1001 appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 USER appuser
 
 # Read-only root filesystem
-RUN mkdir -p /tmp/app && chown appuser:appgroup /tmp/app
-VOLUME ["/tmp/app"]
+RUN mkdir -p /app/tmp && chown appuser:appgroup /app/tmp
 
-# No new privileges
-# (Set in Kubernetes securityContext)
-
-# Drop all capabilities
-# (Set in Kubernetes securityContext)
+# No new privileges (set in Kubernetes securityContext)
+# Drop all capabilities (set in Kubernetes securityContext)
 ```
 
 ### 4.4 Environment Variables
 
 ```dockerfile
 # Use ARG for build-time variables
-ARG JAVA_VERSION=17
+ARG JAVA_VERSION=21
 ARG APP_VERSION=1.0.0
 
 # Use ENV for runtime variables with defaults
-ENV JAVA_OPTS="-Xmx512m -Xms256m"
+ENV JAVA_OPTS=""
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV SERVER_PORT=8080
 
@@ -145,45 +149,37 @@ ENV JAVA_OPTS=""
 ### 5.1 Service Definition
 
 ```yaml
-version: '3.8'
+version: '3.9'
 
 services:
-  invoice-service:
+  finance-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: business/finance/interfaces/Dockerfile
       args:
-        JAVA_VERSION: 17
+        SERVICE_NAME: finance-service
+        SERVICE_MODULE: business:finance:interfaces
         APP_VERSION: ${APP_VERSION:-latest}
-    image: erp/invoice-service:${APP_VERSION:-latest}
-    container_name: invoice-service
+    image: erpai/finance-service:${APP_VERSION:-latest}
+    container_name: finance-service
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/invoice
-      - SPRING_REDIS_HOST=redis
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JAVA_OPTS=-Xmx512m -Xms256m
     env_file:
       - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "/app/healthcheck.sh"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     networks:
-      - erp-network
+      - erpai-network
     volumes:
-      - invoice-logs:/app/logs
+      - finance-logs:/app/logs
     deploy:
       resources:
         limits:
@@ -193,85 +189,12 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_DB=erp
-      - POSTGRES_USER=${POSTGRES_USER:-erp}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    container_name: kafka
-    restart: unless-stopped
-    environment:
-      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    networks:
-      - erp-network
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper
-    restart: unless-stopped
-    environment:
-      - ZOOKEEPER_CLIENT_PORT=2181
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp-network
-
 volumes:
-  postgres-data:
-  redis-data:
-  kafka-data:
-  invoice-logs:
+  finance-logs:
+    driver: local
 
 networks:
-  erp-network:
+  erpai-network:
     driver: bridge
 ```
 
@@ -279,21 +202,16 @@ networks:
 
 ```bash
 # .env.example
-# Database
-POSTGRES_DB=erp
-POSTGRES_USER=erp
-POSTGRES_PASSWORD=changeme
-
 # Application
+APP_NAME=erp-ai-platform
 APP_VERSION=1.0.0
 SPRING_PROFILES_ACTIVE=prod
 
 # JVM
 JAVA_OPTS=-Xmx512m -Xms256m
 
-# External Services
-KEYCLOAK_URL=http://keycloak:8080
-MINIO_URL=http://minio:9000
+# Registry
+REGISTRY=registry.example.com
 ```
 
 ## 6. Security Standards
@@ -302,18 +220,18 @@ MINIO_URL=http://minio:9000
 
 ```bash
 # Scan with Trivy
-trivy image erp/invoice-service:1.0.0
+trivy image erpai/finance-service:1.0.0
 
 # Scan with Grype
-grype erp/invoice-service:1.0.0
+grype erpai/finance-service:1.0.0
 
 # Fail on high/critical vulnerabilities
-trivy image --severity HIGH,CRITICAL erp/invoice-service:1.0.0
+trivy image --severity HIGH,CRITICAL erpai/finance-service:1.0.0
 ```
 
 ### 6.2 Security Best Practices
 
-- **Non-root user:** Always run as non-root
+- **Non-root user:** Always run as non-root (UID 1001)
 - **Read-only filesystem:** Mount writable volumes only where needed
 - **No secrets in images:** Use environment variables or secrets management
 - **Minimal packages:** Install only required packages
@@ -340,8 +258,8 @@ EXPOSE 8080  # OK - application
 ### 7.1 Application Health
 
 ```dockerfile
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /app/healthcheck.sh || exit 1
 ```
 
 ### 7.2 Spring Boot Actuator
@@ -365,6 +283,13 @@ management:
       enabled: true
 ```
 
+### 7.3 Health Check Script
+
+The health check script (`infrastructure/docker/healthcheck.sh`) supports:
+- Configurable URL, timeout, retries, and delay
+- Fallback between wget and curl
+- Detailed logging for debugging
+
 ## 8. Logging
 
 ### 8.1 Log Configuration
@@ -382,7 +307,7 @@ ENV LOGGING_FILE_NAME=/app/logs/app.log
 
 ```yaml
 services:
-  invoice-service:
+  finance-service:
     logging:
       driver: json-file
       options:
@@ -398,7 +323,7 @@ services:
 
 ```yaml
 services:
-  invoice-service:
+  finance-service:
     deploy:
       resources:
         limits:
@@ -445,9 +370,7 @@ EXPOSE 8080
 
 ```yaml
 volumes:
-  postgres-data:
-    driver: local
-  redis-data:
+  finance-logs:
     driver: local
 ```
 
@@ -455,7 +378,7 @@ volumes:
 
 ```yaml
 services:
-  invoice-service:
+  finance-service:
     volumes:
       - ./src:/app/src  # Development only
 ```
@@ -480,14 +403,14 @@ target/
 
 # Documentation
 *.md
-docs/
+!README.md
 
 # Tests (if not needed in image)
 src/test/
 **/*Test.java
 
 # Gradle
-gradle/
+.gradle/
 gradlew
 gradlew.bat
 settings.gradle
@@ -525,34 +448,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
       - name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: ./business/finance/interfaces/Dockerfile
           push: true
-          tags: erp/invoice-service:${{ github.sha }}
-          cache-from: type=registry,ref=erp/invoice-service:buildcache
-          cache-to: type=registry,ref=erp/invoice-service:buildcache,mode=max
-      
+          tags: erpai/finance-service:${{ github.sha }}
+          cache-from: type=registry,ref=erpai/finance-service:buildcache
+          cache-to: type=registry,ref=erpai/finance-service:buildcache,mode=max
+
       - name: Scan image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: erp/invoice-service:${{ github.sha }}
+          image-ref: erpai/finance-service:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload scan results
         uses: github/codeql-action/upload-sarif@v2
         with:
@@ -562,7 +485,7 @@ jobs:
 ## 14. Docker Checklist
 
 - [ ] Multi-stage build used
-- [ ] Non-root user configured
+- [ ] Non-root user configured (UID 1001)
 - [ ] Base image pinned to version
 - [ ] Layer caching optimized
 - [ ] Health check configured
@@ -573,3 +496,5 @@ jobs:
 - [ ] Logs go to stdout/stderr
 - [ ] Graceful shutdown supported
 - [ ] Health endpoint exposed
+- [ ] Java 21 runtime used
+- [ ] JVM container optimizations applied
