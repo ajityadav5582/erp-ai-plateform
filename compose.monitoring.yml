@@ -1,0 +1,91 @@
+# =============================================================================
+# ERP AI Platform - Monitoring Services
+# Observability stack: Prometheus, Grafana, Tempo, Loki.
+# =============================================================================
+# Start with:
+#   docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.monitoring.yml --profile infrastructure --profile monitoring up
+
+services:
+  # ===========================================================================
+  # Metrics Collection
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: erpai-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - erpai-network
+    profiles:
+      - monitoring
+
+  # ===========================================================================
+  # Visualization
+  # ===========================================================================
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: erpai-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - erpai-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # ===========================================================================
+  # Distributed Tracing
+  # ===========================================================================
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: erpai-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+      - "3200:3200"  # Tempo Query
+    volumes:
+      - ./infrastructure/docker/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/tmp/tempo
+    networks:
+      - erpai-network
+    profiles:
+      - monitoring
+
+  # ===========================================================================
+  # Log Aggregation
+  # ===========================================================================
+
+  loki:
+    image: grafana/loki:latest
+    container_name: erpai-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infrastructure/docker/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - erpai-network
+    profiles:
+      - monitoring

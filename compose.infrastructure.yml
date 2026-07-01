@@ -1,23 +1,10 @@
 # =============================================================================
-# ERP AI Platform - Docker Compose
-# Enterprise-grade local development environment
+# ERP AI Platform - Infrastructure Services
+# Databases, cache, message broker, identity provider, and object storage.
 # =============================================================================
-# This file provides backward compatibility by including all services.
-# For modular usage, see:
-#   - compose.base.yml
-#   - compose.infrastructure.yml
-#   - compose.monitoring.yml
-#   - compose.development.yml
-#
-# Quick start (all services):
-#   docker compose up
-#
-# Modular usage examples:
+# These are core services that run by default.
+# Start with:
 #   docker compose -f compose.base.yml -f compose.infrastructure.yml up
-#   docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.monitoring.yml --profile monitoring up
-#   docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up
-
-version: '3.9'
 
 services:
   # ===========================================================================
@@ -32,15 +19,6 @@ services:
       POSTGRES_DB: erpai_platform
       POSTGRES_USER: erpai
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
-      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
-    command:
-      - "postgres"
-      - "-c"
-      - "log_statement=all"
-      - "-c"
-      - "log_duration=on"
-      - "-c"
-      - "log_min_messages=info"
     ports:
       - "5432:5432"
     volumes:
@@ -61,14 +39,7 @@ services:
     image: redis:7-alpine
     container_name: erpai-redis
     restart: unless-stopped
-    command: >
-      redis-server
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-erpai_dev_password}
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save 60 1
-      --loglevel notice
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-erpai_dev_password}
     ports:
       - "6379:6379"
     volumes:
@@ -103,9 +74,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 12
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
     ports:
       - "29092:29092"
     volumes:
@@ -130,7 +98,6 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      SCHEMA_REGISTRY_DEBUG: "true"
     ports:
       - "8081:8081"
     networks:
@@ -147,13 +114,12 @@ services:
     image: quay.io/keycloak/keycloak:26.2
     container_name: erpai-keycloak
     restart: unless-stopped
-    command: start-dev --import-realm --log-level=DEBUG
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: dev-mem
       KC_HTTP_RELATIVE_PATH: /
-      KC_LOG_LEVEL: DEBUG
     ports:
       - "8080:8080"
     volumes:
@@ -175,11 +141,10 @@ services:
     image: minio/minio:latest
     container_name: erpai-minio
     restart: unless-stopped
-    command: server /data --console-address ":9001" --certs-dir /certs
+    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_REGION: us-east-1
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -192,130 +157,3 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # ===========================================================================
-  # Metrics Collection
-  # ===========================================================================
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: erpai-prometheus
-    restart: unless-stopped
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - erpai-network
-
-  # ===========================================================================
-  # Visualization
-  # ===========================================================================
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: erpai-grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
-    networks:
-      - erpai-network
-    depends_on:
-      - prometheus
-
-  # ===========================================================================
-  # Distributed Tracing
-  # ===========================================================================
-
-  tempo:
-    image: grafana/tempo:latest
-    container_name: erpai-tempo
-    restart: unless-stopped
-    command: ["-config.file=/etc/tempo/tempo.yml"]
-    ports:
-      - "4317:4317"  # OTLP gRPC
-      - "4318:4318"  # OTLP HTTP
-      - "3200:3200"  # Tempo Query
-    volumes:
-      - ./infrastructure/docker/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
-      - tempo_data:/tmp/tempo
-    networks:
-      - erpai-network
-
-  # ===========================================================================
-  # Log Aggregation
-  # ===========================================================================
-
-  loki:
-    image: grafana/loki:latest
-    container_name: erpai-loki
-    restart: unless-stopped
-    command: -config.file=/etc/loki/local-config.yaml
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./infrastructure/docker/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
-    networks:
-      - erpai-network
-
-  # ===========================================================================
-  # Development Tools
-  # ===========================================================================
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: erpai-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@erpai.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - erpai-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  kafka_data:
-    driver: local
-  keycloak_data:
-    driver: local
-  minio_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  tempo_data:
-    driver: local
-  loki_data:
-    driver: local
-  pgadmin_data:
-    driver: local
-
-networks:
-  erpai-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16

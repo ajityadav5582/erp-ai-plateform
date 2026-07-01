@@ -1,0 +1,73 @@
+# =============================================================================
+# ERP AI Platform - Docker Compose Base
+# Shared networks, volumes, extensions, and environment configuration.
+# =============================================================================
+
+name: erpai-platform
+
+# =============================================================================
+# Reusable Extensions
+# =============================================================================
+
+x-network: &erpai-network
+  erpai-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+x-volumes: &erpai-volumes
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+  keycloak_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  tempo_data:
+    driver: local
+  loki_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+x-environment: &default-env
+  TZ: ${TZ:-Asia/Kathmandu}
+  LANG: ${LANG:-en_US.UTF-8}
+
+x-deploy: &default-deploy
+  resources:
+    limits:
+      memory: ${MEMORY_LIMIT:-1G}
+      cpus: '${CPU_LIMIT:-1.0}'
+    reservations:
+      memory: ${MEMORY_REQUEST:-512M}
+      cpus: '${CPU_REQUEST:-0.5}'
+
+x-healthcheck: &default-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+# =============================================================================
+# Environment Variables
+# =============================================================================
+# Docker Compose automatically loads .env from the project root.
+# Additional environment files can be loaded per-service using env_file.
+# For build-time variables, see infrastructure/docker/.env.example.
+
+# =============================================================================
+# Shared Infrastructure
+# =============================================================================
+
+networks: *erpai-network
+
+volumes: *erpai-volumes
