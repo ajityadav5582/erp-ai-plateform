@@ -91,6 +91,8 @@ services:
       --maxmemory-policy allkeys-lru
       --save 60 1
       --loglevel notice
+    volumes:
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
 
   # ===========================================================================
   # Kafka Development Overrides

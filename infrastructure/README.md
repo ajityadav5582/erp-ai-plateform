@@ -23,27 +23,33 @@ infrastructure/
 │   ├── configmap.yaml         # ConfigMap
 │   └── secret.yaml            # Secrets template
 ├── postgres/                  # PostgreSQL infrastructure
-│   ├── init/                  # Database initialization scripts
-│   │   ├── 01-create-databases.sql
-│   │   ├── 02-create-users.sql
-│   │   └── 03-create-extensions.sql
-│   ├── flyway/                # Flyway migrations
-│   │   ├── flyway.conf
-│   │   ├── platform/
-│   │   ├── finance/
-│   │   ├── hr/
-│   │   ├── inventory/
-│   │   ├── manufacturing/
-│   │   ├── procurement/
-│   │   ├── sales/
-│   │   ├── ai/
-│   │   ├── integration/
-│   │   └── gateway/
-│   ├── backups/               # Backup scripts and docs
-│   │   ├── README.md
-│   │   └── backup.sh
-│   └── README.md              # PostgreSQL documentation
-└── terraform/                 # Terraform IaC
+ │   ├── init/                  # Database initialization scripts
+ │   │   ├── 01-create-databases.sql
+ │   │   ├── 02-create-users.sql
+ │   │   └── 03-create-extensions.sql
+ │   ├── flyway/                # Flyway migrations
+ │   │   ├── flyway.conf
+ │   │   ├── platform/
+ │   │   ├── finance/
+ │   │   ├── hr/
+ │   │   ├── inventory/
+ │   │   ├── manufacturing/
+ │   │   ├── procurement/
+ │   │   ├── sales/
+ │   │   ├── ai/
+ │   │   ├── integration/
+ │   │   └── gateway/
+ │   ├── backups/               # Backup scripts and docs
+ │   │   ├── README.md
+ │   │   └── backup.sh
+ │   └── README.md              # PostgreSQL documentation
+ ├── redis/                     # Redis infrastructure
+ │   ├── redis.conf             # Redis server configuration
+ │   ├── backups/               # Backup scripts and docs
+ │   │   ├── README.md
+ │   │   └── backup.sh
+ │   └── README.md              # Redis documentation
+ └── terraform/                 # Terraform IaC
     ├── main.tf                # Main configuration
     ├── README.md              # Terraform documentation
     └── modules/               # Terraform modules
@@ -82,6 +88,19 @@ docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.deve
 
 # Access PostgreSQL
 docker compose exec postgres psql -U erpai -d erpai_platform
+```
+
+### Redis
+
+```bash
+# Start Redis only
+docker compose -f compose.base.yml -f compose.infrastructure.yml up redis
+
+# Test Redis connection
+docker compose exec redis redis-cli -a $REDIS_PASSWORD ping
+
+# Access Redis CLI
+docker compose exec redis redis-cli -a $REDIS_PASSWORD
 ```
 
 ### Terraform (AWS)
@@ -183,7 +202,9 @@ bash infrastructure/postgres/backups/backup.sh
 ## Documentation
 
 - [PostgreSQL Infrastructure](postgres/README.md)
-- [Backup & Recovery](postgres/backups/README.md)
+- [Redis Infrastructure](redis/README.md)
+- [Redis Backup & Recovery](redis/backups/README.md)
+- [PostgreSQL Backup & Recovery](postgres/backups/README.md)
 - [Docker Standards](../docs/standards/16-docker-standards.md)
 - [Database Standards](../docs/standards/04-database-standards.md)
 - [Terraform Documentation](terraform/README.md)

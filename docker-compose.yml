@@ -134,25 +134,45 @@ services:
     image: redis:7-alpine
     container_name: erpai-redis
     restart: unless-stopped
+    user: redis
     command: >
       redis-server
-      --appendonly yes
+      /usr/local/etc/redis/redis.conf
       --requirepass ${REDIS_PASSWORD:-erpai_dev_password}
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
-      --save 60 1
-      --loglevel notice
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - erpai-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-erpai_dev_password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
 
   # ===========================================================================
   # Message Broker
