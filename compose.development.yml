@@ -19,11 +19,64 @@ services:
     command:
       - "postgres"
       - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
       - "log_statement=all"
       - "-c"
       - "log_duration=on"
       - "-c"
       - "log_min_messages=info"
+      - "-c"
+      - "log_checkpoints=on"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_disconnections=on"
+      - "-c"
+      - "log_lock_waits=on"
+      - "-c"
+      - "log_temp_files=0"
+      - "-c"
+      - "log_line_prefix='%t [%p-%l] %q%u@%d '"
+
+  # ===========================================================================
+  # Flyway Development Overrides
+  # ===========================================================================
+
+  flyway:
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/
+      FLYWAY_USER: erpai
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      FLYWAY_SCHEMAS: public
+      FLYWAY_DEFAULT_SCHEMA: public
+      FLYWAY_CREATE_SCHEMAS: "true"
+      FLYWAY_CLEAN_DISABLED: "true"
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "1"
+      FLYWAY_VALIDATE_ON_MIGRATE: "true"
+      FLYWAY_OUT_OF_ORDER: "false"
+      FLYWAY_PLACEHOLDER_REPLACEMENT: "true"
+      FLYWAY_LOCATIONS: "filesystem:infrastructure/postgres/flyway/{service}"
+      FLYWAY_GROUP: "false"
+    profiles:
+      - development
 
   # ===========================================================================
   # Redis Development Overrides
@@ -120,3 +173,7 @@ services:
         condition: service_healthy
     profiles:
       - development
+
+volumes:
+  pgadmin_data:
+    driver: local

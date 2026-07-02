@@ -19,6 +19,8 @@ x-network: &erpai-network
 x-volumes: &erpai-volumes
   postgres_data:
     driver: local
+  postgres_wal:
+    driver: local
   redis_data:
     driver: local
   kafka_data:
