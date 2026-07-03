@@ -339,11 +339,13 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data
+      - ./infrastructure/minio/config:/etc/minio:ro
     networks:
       - erpai-network
     healthcheck:
@@ -351,6 +353,39 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+   # ===========================================================================
+   # MinIO Bucket Initializer
+   # ===========================================================================
+
+   minio-init:
+     image: minio/mc:latest
+     container_name: erpai-minio-init
+     restart: "no"
+     environment:
+       MINIO_ENDPOINT: http://minio:9000
+       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+     volumes:
+       - ./infrastructure/minio/scripts:/scripts:ro
+       - ./infrastructure/minio/config/policy:/policies:ro
+     networks:
+       - erpai-network
+     depends_on:
+       minio:
+         condition: service_healthy
+     profiles:
+       - infrastructure
+     command: >
+       /bin/sh /scripts/init-buckets.sh
 
 
 volumes:

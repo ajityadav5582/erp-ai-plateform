@@ -65,15 +65,28 @@ infrastructure/
  │   ├── DLQ_STRATEGY.md
  │   └── README.md              # Kafka documentation
  ├── keycloak/                  # Keycloak infrastructure
- │   ├── config/                # Keycloak configuration
- │   │   ├── realm.json         # Realm configuration
- │   │   ├── keycloak-postgres.env
- │   │   └── keycloak-dev.env
- │   ├── themes/                # Custom themes
- │   ├── backups/               # Backup scripts and docs
- │   │   └── README.md
- │   └── README.md              # Keycloak documentation
- └── terraform/                 # Terraform IaC
+  │   ├── config/                # Keycloak configuration
+  │   │   ├── realm.json         # Realm configuration
+  │   │   ├── keycloak-postgres.env
+  │   │   └── keycloak-dev.env
+  │   ├── themes/                # Custom themes
+  │   ├── backups/               # Backup scripts and docs
+  │   │   └── README.md
+  │   └── README.md              # Keycloak documentation
+  ├── minio/                     # MinIO infrastructure
+  │   ├── config/                # MinIO configuration
+  │   │   ├── minio.env          # Environment configuration
+  │   │   ├── minio-client.json  # MinIO client config
+  │   │   └── policy/            # Bucket policies
+  │   │       ├── public-read.json
+  │   │       └── private.json
+  │   ├── scripts/               # Management scripts
+  │   │   ├── healthcheck.sh
+  │   │   └── init-buckets.sh
+  │   ├── backups/               # Backup scripts and docs
+  │   │   └── README.md
+  │   └── README.md              # MinIO documentation
+  └── terraform/                 # Terraform IaC
     ├── main.tf                # Main configuration
     ├── README.md              # Terraform documentation
     └── modules/               # Terraform modules
@@ -259,7 +272,42 @@ The following infrastructure topics are created automatically:
  - [Keycloak Infrastructure](keycloak/README.md)
  - [Keycloak Configuration](keycloak/config/realm.json)
  
- ## PostgreSQL Databases
+  ## MinIO
+ 
+  ### Quick Start
+ 
+  ```bash
+  # Start MinIO
+  docker compose -f compose.base.yml -f compose.infrastructure.yml up minio
+ 
+  # Access MinIO Console
+  open http://localhost:9001/
+ 
+  # Initialize buckets
+  docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile infrastructure up minio-init
+  ```
+ 
+  ### Infrastructure Buckets
+ 
+  The following infrastructure buckets are created automatically:
+ 
+  | Bucket | Access | Purpose |
+  |--------|--------|---------|
+  | `dev.tenant.documents` | Private | Document storage |
+  | `dev.tenant.attachments` | Private | File attachments |
+  | `dev.tenant.imports` | Private | Data import files |
+  | `dev.tenant.exports` | Private | Data export files |
+  | `dev.tenant.templates` | Public | Document templates |
+  | `dev.tenant.reports` | Private | Generated reports |
+  | `dev.tenant.backups` | Private | System backups |
+  | `dev.tenant.avatars` | Public | User avatars |
+ 
+  ### Documentation
+ 
+  - [MinIO Infrastructure](minio/README.md)
+  - [MinIO Backup & Recovery](minio/backups/README.md)
+ 
+  ## PostgreSQL Databases
  
  The platform uses multiple PostgreSQL databases, one per microservice:
  
