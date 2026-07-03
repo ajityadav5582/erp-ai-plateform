@@ -153,6 +153,17 @@ services:
       MINIO_REGION: us-east-1
 
   # ===========================================================================
+  # Kafka UI Development Overrides
+  # ===========================================================================
+
+  kafka-ui:
+    environment:
+      KAFKA_CLUSTERS_0_NAME: erpai-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      KAFKA_CLUSTERS_0_KAFKACONFIGS_SECURITY_PROTOCOL: PLAINTEXT
+
+  # ===========================================================================
   # Development Tools
   # ===========================================================================
 

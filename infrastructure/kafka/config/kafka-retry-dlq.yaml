@@ -1,0 +1,77 @@
+# =============================================================================
+# Kafka Retry and DLQ Configuration
+# Spring Kafka configuration for retry and dead letter queue handling
+# =============================================================================
+
+spring:
+  kafka:
+    bootstrap-servers: kafka:9092
+    producer:
+      key-serializer: org.springframework.kafka.support.serializer.StringOrBytesSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 5
+      retry-backoff-ms: 1000
+      properties:
+        enable:
+          idempotence: true
+        acks: all
+        max:
+          in:
+            flight:
+              requests:
+                per:
+                  connection: 5
+
+    consumer:
+      key-deserializer: org.springframework.kafka.support.serializer.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "com.erp.platform.*"
+        max:
+          poll:
+            records: 100
+        fetch:
+          max:
+            wait:
+              ms: 500
+            bytes: 52428800
+
+# =============================================================================
+# Retry Configuration
+# =============================================================================
+
+kafka:
+  retry:
+    # Infrastructure topics
+    topics:
+      events: dev.retry.events
+      commands: dev.retry.commands
+
+    # DLQ topics
+    dlq:
+      topics:
+        events: dev.dlq.events
+        commands: dev.dlq.commands
+
+    # System topics
+    system:
+      topics:
+        health-up: dev.system.health.service-up
+        health-down: dev.system.health.service-down
+        metrics: dev.system.metrics
+        audit: dev.audit.events
+
+    # Retry settings
+    max-attempts: 5
+    initial-delay: 1000
+    multiplier: 2.0
+    max-delay: 60000
+
+    # DLQ settings
+    dlq-retention-ms: 2592000000
+    retry-retention-ms: 86400000
