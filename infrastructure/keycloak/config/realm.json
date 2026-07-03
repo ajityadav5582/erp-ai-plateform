@@ -29,10 +29,6 @@
   "oauth2DevicePollingInterval": 5,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
-  "ssoSessionIdleTimeoutRememberMe": 0,
-  "ssoSessionMaxLifespanRememberMe": 0,
-  "clientSessionIdleTimeoutRememberMe": 0,
-  "clientSessionMaxLifespanRememberMe": 0,
   "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
@@ -280,17 +276,6 @@
         "include.in.token.scope": "false",
         "display.on.consent.screen": "false",
         "consent.screen.text": "${acrScopeConsentText}"
-      }
-    },
-    {
-      "id": "offline_access",
-      "name": "offline_access",
-      "description": "Offline Access",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "false",
-        "display.on.consent.screen": "false",
-        "consent.screen.text": "${offlineAccessScopeConsentText}"
       }
     }
   ],

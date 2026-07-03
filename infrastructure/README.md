@@ -44,27 +44,36 @@ infrastructure/
 │   │   └── backup.sh
 │   └── README.md              # PostgreSQL documentation
 ├── redis/                     # Redis infrastructure
-│   ├── redis.conf             # Redis server configuration
-│   ├── backups/               # Backup scripts and docs
-│   │   ├── README.md
-│   │   └── backup.sh
-│   └── README.md              # Redis documentation
-├── kafka/                     # Kafka infrastructure
-│   ├── config/                # Kafka configuration
-│   │   ├── kraft/             # KRaft mode configuration
-│   │   │   └── server.properties
-│   │   ├── kafka-retry-dlq.yaml
-│   │   └── KafkaRetryConfiguration.java
-│   ├── scripts/               # Management scripts
-│   │   ├── healthcheck.sh
-│   │   └── init-topics.sh
-│   ├── backups/               # Backup scripts and docs
-│   │   └── README.md
-│   ├── TOPIC_NAMING_STANDARDS.md
-│   ├── RETRY_STRATEGY.md
-│   ├── DLQ_STRATEGY.md
-│   └── README.md              # Kafka documentation
-└── terraform/                 # Terraform IaC
+ │   ├── redis.conf             # Redis server configuration
+ │   ├── backups/               # Backup scripts and docs
+ │   │   ├── README.md
+ │   │   └── backup.sh
+ │   └── README.md              # Redis documentation
+ ├── kafka/                     # Kafka infrastructure
+ │   ├── config/                # Kafka configuration
+ │   │   ├── kraft/             # KRaft mode configuration
+ │   │   │   └── server.properties
+ │   │   ├── kafka-retry-dlq.yaml
+ │   │   └── KafkaRetryConfiguration.java
+ │   ├── scripts/               # Management scripts
+ │   │   ├── healthcheck.sh
+ │   │   └── init-topics.sh
+ │   ├── backups/               # Backup scripts and docs
+ │   │   └── README.md
+ │   ├── TOPIC_NAMING_STANDARDS.md
+ │   ├── RETRY_STRATEGY.md
+ │   ├── DLQ_STRATEGY.md
+ │   └── README.md              # Kafka documentation
+ ├── keycloak/                  # Keycloak infrastructure
+ │   ├── config/                # Keycloak configuration
+ │   │   ├── realm.json         # Realm configuration
+ │   │   ├── keycloak-postgres.env
+ │   │   └── keycloak-dev.env
+ │   ├── themes/                # Custom themes
+ │   ├── backups/               # Backup scripts and docs
+ │   │   └── README.md
+ │   └── README.md              # Keycloak documentation
+ └── terraform/                 # Terraform IaC
     ├── main.tf                # Main configuration
     ├── README.md              # Terraform documentation
     └── modules/               # Terraform modules
@@ -220,6 +229,35 @@ The following infrastructure topics are created automatically:
  - [Topic Naming Standards](kafka/TOPIC_NAMING_STANDARDS.md)
  - [Retry Strategy](kafka/RETRY_STRATEGY.md)
  - [Dead Letter Queue Strategy](kafka/DLQ_STRATEGY.md)
+ - [Keycloak Infrastructure](keycloak/README.md)
+ 
+ ## Keycloak
+ 
+ ### Quick Start
+ 
+ ```bash
+ # Start Keycloak
+ docker compose -f compose.base.yml -f compose.infrastructure.yml up keycloak
+ 
+ # Access Admin Console
+ open http://localhost:8080/
+ ```
+ 
+ ### Client Placeholders
+ 
+ The following clients are configured as placeholders (no business users):
+ 
+ | Client ID | Type | Purpose |
+ |-----------|------|---------|
+ | `erpai-gateway` | confidential | API Gateway (backend services) |
+ | `erpai-web` | public | Web application |
+ | `erpai-mobile` | public | Mobile application |
+ | `erpai-services` | confidential | Service-to-service communication |
+ 
+ ### Documentation
+ 
+ - [Keycloak Infrastructure](keycloak/README.md)
+ - [Keycloak Configuration](keycloak/config/realm.json)
  
  ## PostgreSQL Databases
  
