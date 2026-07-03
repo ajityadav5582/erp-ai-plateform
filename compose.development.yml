@@ -167,6 +167,18 @@ services:
   # Development Tools
   # ===========================================================================
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: erpai-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - erpai-network
+    profiles:
+      - development
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: erpai-pgadmin
@@ -188,5 +200,7 @@ services:
       - development
 
 volumes:
+  mailhog_data:
+    driver: local
   pgadmin_data:
     driver: local

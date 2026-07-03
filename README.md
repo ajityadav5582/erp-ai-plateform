@@ -141,6 +141,7 @@ docker compose up -d
 |---------|-----|-------------|
 | Grafana | http://localhost:3000 | admin/admin |
 | Keycloak | http://localhost:8080 | admin/admin |
+| MailHog | http://localhost:8025 | - |
 | MinIO | http://localhost:9001 | minioadmin/minioadmin |
 | Prometheus | http://localhost:9090 | - |
 
@@ -151,6 +152,7 @@ docker compose up -d
 - [Deployment Guide](docs/deployment/README.md) - Deployment instructions
 - [Development Guide](docs/development/README.md) - Development practices
 - [Runbooks](docs/runbooks/README.md) - Operational procedures
+- [MailHog Documentation](infrastructure/mailhog/README.md) - Email testing setup and usage
 
 ## Contributing
 

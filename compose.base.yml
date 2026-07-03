@@ -37,6 +37,8 @@ x-volumes: &erpai-volumes
     driver: local
   loki_data:
     driver: local
+  mailhog_data:
+    driver: local
   pgadmin_data:
     driver: local
 

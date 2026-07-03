@@ -1,0 +1,55 @@
+package com.erp.platform.shared.email.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+/**
+ * Type-safe configuration properties for email settings.
+ *
+ * <p>Bind this class to application configuration using:
+ * <pre>{@code
+ * @Configuration
+ * @EnableConfigurationProperties(EmailProperties.class)
+ * public class EmailConfig {
+ * }
+ * }</pre>
+ *
+ * <p>Configuration in application.yml:
+ * <pre>{@code
+ * app:
+ *   email:
+ *     from: noreply@erpai.local
+ *     from-name: ERP AI Platform
+ *     reply-to: support@erpai.local
+ * }</pre>
+ *
+ * @since 1.0.0
+ */
+@Validated
+@ConfigurationProperties(prefix = "app.email")
+public record EmailProperties(
+
+    @NotBlank(message = "Email from address is required")
+    @Email(message = "Email from address must be valid")
+    String from,
+
+    @NotBlank(message = "Email from name is required")
+    String fromName,
+
+    @Email(message = "Email reply-to address must be valid")
+    String replyTo
+) {
+
+    /**
+     * Creates a formatted from address with display name.
+     *
+     * @return formatted from address (e.g., "ERP AI Platform <noreply@erpai.local>")
+     */
+    public String getFormattedFrom() {
+        return "%s <%s>".formatted(fromName, from);
+    }
+}

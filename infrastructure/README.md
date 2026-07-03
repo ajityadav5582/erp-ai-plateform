@@ -86,6 +86,12 @@ infrastructure/
   │   ├── backups/               # Backup scripts and docs
   │   │   └── README.md
   │   └── README.md              # MinIO documentation
+  ├── mailhog/                   # MailHog email testing
+  │   ├── README.md              # MailHog documentation
+  │   ├── application.yml.example # SMTP configuration example
+  │   ├── EmailService.java.example # Email service example
+  │   ├── EmailProperties.java.example # Email config properties
+  │   └── welcome-email.html.example # Email template example
   └── terraform/                 # Terraform IaC
     ├── main.tf                # Main configuration
     ├── README.md              # Terraform documentation
@@ -188,6 +194,12 @@ terraform apply -var-file="environments/dev.tfvars"
   | Service | Image | Port | Purpose |
   |---------|-------|------|---------|
   | MinIO | minio/minio:latest | 9000, 9001 | Object storage |
+  
+  ### Email Testing
+  
+  | Service | Image | Port | Purpose |
+  |---------|-------|------|---------|
+  | MailHog | mailhog/mailhog:latest | 1025, 8025 | Email testing (SMTP + Web UI) |
   
   ### Monitoring
   
@@ -303,10 +315,45 @@ The following infrastructure topics are created automatically:
   | `dev.tenant.avatars` | Public | User avatars |
  
   ### Documentation
- 
+  
   - [MinIO Infrastructure](minio/README.md)
   - [MinIO Backup & Recovery](minio/backups/README.md)
- 
+  
+   ## MailHog
+  
+   ### Quick Start
+  
+   ```bash
+   # Start MailHog with development profile
+   docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up mailhog
+   
+   # Access MailHog UI
+   open http://localhost:8025
+   ```
+  
+   ### SMTP Configuration
+  
+   Configure your Spring Boot application to use MailHog:
+  
+   ```yaml
+   spring:
+     mail:
+       host: mailhog
+       port: 1025
+       username: test
+       password: test
+       properties:
+         mail:
+           smtp:
+             auth: false
+             starttls:
+               enable: false
+   ```
+  
+   ### Documentation
+  
+   - [MailHog Documentation](mailhog/README.md)
+  
   ## PostgreSQL Databases
  
  The platform uses multiple PostgreSQL databases, one per microservice:

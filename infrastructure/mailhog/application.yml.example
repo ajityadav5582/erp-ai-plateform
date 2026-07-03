@@ -1,0 +1,29 @@
+# =============================================================================
+# ERP AI Platform - MailHog SMTP Configuration Example
+# Copy this configuration to your application.yml for development
+# =============================================================================
+
+spring:
+  mail:
+    host: ${MAIL_HOST:mailhog}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:test}
+    password: ${MAIL_PASSWORD:test}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    default-encoding: UTF-8
+
+# Application-specific email settings
+app:
+  email:
+    from: ${MAIL_FROM:noreply@erpai.local}
+    from-name: ${MAIL_FROM_NAME:ERP AI Platform}
+    reply-to: ${MAIL_REPLY_TO:support@erpai.local}

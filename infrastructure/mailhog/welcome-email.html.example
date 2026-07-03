@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ERP AI Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f8fafc;
+            padding: 30px;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 th:text="${platformName}">ERP AI Platform</h1>
+    </div>
+    <div class="content">
+        <h2>Welcome, <span th:text="${userName}">User</span>!</h2>
+
+        <p>Thank you for joining the <strong th:text="${platformName}">ERP AI Platform</strong>.</p>
+
+        <p>Your account has been successfully created. You can now:</p>
+        <ul>
+            <li>Access all platform features</li>
+            <li>Configure your profile settings</li>
+            <li>Start exploring the dashboard</li>
+        </ul>
+
+        <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+
+        <a href="https://erpai.local/dashboard" class="button">Go to Dashboard</a>
+
+        <p>Best regards,<br>
+        <strong th:text="${platformName}">ERP AI Platform</strong> Team</p>
+    </div>
+    <div class="footer">
+        <p>&copy; 2024 ERP AI Platform. All rights reserved.</p>
+        <p>This is an automated email. Please do not reply to this message.</p>
+    </div>
+</body>
+</html>
