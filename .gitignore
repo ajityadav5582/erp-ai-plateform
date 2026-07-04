@@ -36,6 +36,10 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+.env.development
+.env.testing
+.env.staging
+.env.production
 *.pem
 *.key
 *.p12
