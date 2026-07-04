@@ -1,0 +1,25 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Distributed Traces",
+    "tags": ["traces", "jaeger", "tempo"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Trace Overview",
+        "type": "trace",
+        "gridPos": {"h": 24, "w": 24, "x": 0, "y": 0},
+        "datasource": "Tempo",
+        "targets": [
+          {
+            "query": "{serviceName=~\".*\"}",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "30s"
+  }
+}

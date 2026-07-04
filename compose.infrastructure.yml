@@ -401,6 +401,22 @@ volumes:
     driver: local
   minio_data:
     driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  tempo_data:
+    driver: local
+  loki_data:
+    driver: local
+  jaeger_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  postgres_exporter_data:
+    driver: local
+  redis_exporter_data:
+    driver: local
 
 networks:
   erpai-network:

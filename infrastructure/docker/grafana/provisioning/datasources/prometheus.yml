@@ -20,6 +20,20 @@ datasources:
       httpMethod: GET
       serviceMap:
         datasourceUid: prometheus
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ["service", "job"]
+        mappedTags: [{"key": "service", "value": "service"}, {"key": "job", "value": "job"}]
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ["service", "job"]
+        mappedTags: [{"key": "service", "value": "service"}, {"key": "job", "value": "job"}]
 
   - name: Loki
     type: loki

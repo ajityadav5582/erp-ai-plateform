@@ -5,29 +5,82 @@ global:
     cluster: 'erpai-local'
     environment: 'development'
 
+# Alertmanager configuration (optional - can be added later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load rules files
+rule_files:
+  - 'alerting_rules.yml'
+
 scrape_configs:
+  # ===========================================================================
+  # Self-monitoring
+  # ===========================================================================
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
+  # ===========================================================================
+  # Application Services
+  # ===========================================================================
+
   - job_name: 'gateway'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['gateway:8080']
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
 
   - job_name: 'keycloak'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['keycloak:8080']
     metrics_path: '/realms/erpai/metrics'
+    scrape_interval: 30s
+
+  # ===========================================================================
+  # Infrastructure Services
+  # ===========================================================================
 
   - job_name: 'postgres'
     static_configs:
-      - targets: ['host.docker.internal:9187']
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['host.docker.internal:9121']
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
 
   - job_name: 'kafka'
     static_configs:
       - targets: ['kafka:9308']
+    scrape_interval: 15s
+
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 30s
+
+  # ===========================================================================
+  # Monitoring Services
+  # ===========================================================================
+
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo:3200']
+    scrape_interval: 15s
+
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+    scrape_interval: 15s

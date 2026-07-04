@@ -1,33 +1,52 @@
 # ERP AI Platform - Infrastructure
 
-Enterprise-grade infrastructure for the ERP AI Platform, including databases, messaging, identity, and deployment configurations.
+Enterprise-grade infrastructure for the ERP AI Platform, including databases, messaging, identity, storage, and observability.
 
 ## Directory Structure
 
 ```
 infrastructure/
-├── docker/                    # Docker configuration
-│   ├── .env.example           # Build environment variables
-│   ├── Dockerfile.service     # Service Dockerfile template
-│   ├── build-service.sh       # Docker build script
-│   ├── entrypoint.sh          # Container entrypoint
-│   ├── healthcheck.sh         # Health check script
-│   ├── jvm.config             # JVM configuration
-│   ├── grafana/               # Grafana provisioning
-│   ├── keycloak/              # Keycloak realm export
-│   ├── loki/                  # Loki configuration
-│   ├── prometheus/            # Prometheus configuration
-│   └── tempo/                 # Tempo configuration
-├── k8s/                       # Kubernetes manifests
-│   ├── namespace.yaml         # Namespace definition
-│   ├── configmap.yaml         # ConfigMap
-│   └── secret.yaml            # Secrets template
-├── postgres/                  # PostgreSQL infrastructure
-│   ├── init/                  # Database initialization scripts
+├── README.md                    # This file - overview of all components
+├── docker/                      # Docker configuration and monitoring
+│   ├── README.md               # Docker setup and monitoring guide
+│   ├── DEVELOPER_GUIDE.md      # Developer guide for Java/React
+│   ├── .env.example            # Build environment variables
+│   ├── Dockerfile.service      # Service Dockerfile template
+│   ├── build-service.sh        # Docker build script
+│   ├── entrypoint.sh           # Container entrypoint
+│   ├── healthcheck.sh          # Health check script
+│   ├── jvm.config              # JVM configuration
+│   ├── grafana/                # Grafana provisioning
+│   │   ├── provisioning/
+│   │   │   ├── datasources/
+│   │   │   │   └── prometheus.yml
+│   │   │   └── dashboards/
+│   │   │       ├── dashboards.yml
+│   │   │       ├── infrastructure-overview.json
+│   │   │       ├── jvm-metrics.json
+│   │   │       ├── application-metrics.json
+│   │   │       ├── database-metrics.json
+│   │   │       ├── kafka-metrics.json
+│   │   │       ├── traces.json
+│   │   │       └── logs.json
+│   ├── keycloak/               # Keycloak realm export
+│   ├── loki/                   # Loki configuration
+│   │   └── local-config.yaml
+│   ├── prometheus/             # Prometheus configuration
+│   │   ├── prometheus.yml
+│   │   └── alerting_rules.yml
+│   └── tempo/                  # Tempo configuration
+│       └── tempo.yml
+├── k8s/                         # Kubernetes manifests
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   └── secret.yaml
+├── postgres/                    # PostgreSQL database
+│   ├── init/                    # Database initialization scripts
 │   │   ├── 01-create-databases.sql
 │   │   ├── 02-create-users.sql
 │   │   └── 03-create-extensions.sql
-│   ├── flyway/                # Flyway migrations
+│   ├── flyway/                  # Flyway migrations
 │   │   ├── flyway.conf
 │   │   ├── platform/
 │   │   ├── finance/
@@ -39,63 +58,63 @@ infrastructure/
 │   │   ├── ai/
 │   │   ├── integration/
 │   │   └── gateway/
-│   ├── backups/               # Backup scripts and docs
+│   ├── backups/                 # Backup scripts and docs
 │   │   ├── README.md
 │   │   └── backup.sh
-│   └── README.md              # PostgreSQL documentation
-├── redis/                     # Redis infrastructure
- │   ├── redis.conf             # Redis server configuration
- │   ├── backups/               # Backup scripts and docs
- │   │   ├── README.md
- │   │   └── backup.sh
- │   └── README.md              # Redis documentation
- ├── kafka/                     # Kafka infrastructure
- │   ├── config/                # Kafka configuration
- │   │   ├── kraft/             # KRaft mode configuration
- │   │   │   └── server.properties
- │   │   ├── kafka-retry-dlq.yaml
- │   │   └── KafkaRetryConfiguration.java
- │   ├── scripts/               # Management scripts
- │   │   ├── healthcheck.sh
- │   │   └── init-topics.sh
- │   ├── backups/               # Backup scripts and docs
- │   │   └── README.md
- │   ├── TOPIC_NAMING_STANDARDS.md
- │   ├── RETRY_STRATEGY.md
- │   ├── DLQ_STRATEGY.md
- │   └── README.md              # Kafka documentation
- ├── keycloak/                  # Keycloak infrastructure
-  │   ├── config/                # Keycloak configuration
-  │   │   ├── realm.json         # Realm configuration
-  │   │   ├── keycloak-postgres.env
-  │   │   └── keycloak-dev.env
-  │   ├── themes/                # Custom themes
-  │   ├── backups/               # Backup scripts and docs
-  │   │   └── README.md
-  │   └── README.md              # Keycloak documentation
-  ├── minio/                     # MinIO infrastructure
-  │   ├── config/                # MinIO configuration
-  │   │   ├── minio.env          # Environment configuration
-  │   │   ├── minio-client.json  # MinIO client config
-  │   │   └── policy/            # Bucket policies
-  │   │       ├── public-read.json
-  │   │       └── private.json
-  │   ├── scripts/               # Management scripts
-  │   │   ├── healthcheck.sh
-  │   │   └── init-buckets.sh
-  │   ├── backups/               # Backup scripts and docs
-  │   │   └── README.md
-  │   └── README.md              # MinIO documentation
-  ├── mailhog/                   # MailHog email testing
-  │   ├── README.md              # MailHog documentation
-  │   ├── application.yml.example # SMTP configuration example
-  │   ├── EmailService.java.example # Email service example
-  │   ├── EmailProperties.java.example # Email config properties
-  │   └── welcome-email.html.example # Email template example
-  └── terraform/                 # Terraform IaC
-    ├── main.tf                # Main configuration
-    ├── README.md              # Terraform documentation
-    └── modules/               # Terraform modules
+│   └── README.md                # PostgreSQL documentation
+├── redis/                       # Redis cache and session store
+│   ├── redis.conf               # Redis server configuration
+│   ├── backups/                 # Backup scripts and docs
+│   │   ├── README.md
+│   │   └── backup.sh
+│   └── README.md                # Redis documentation
+├── kafka/                       # Apache Kafka event streaming
+│   ├── config/                  # Kafka configuration
+│   │   ├── kraft/               # KRaft mode configuration
+│   │   │   └── server.properties
+│   │   ├── kafka-retry-dlq.yaml
+│   │   └── KafkaRetryConfiguration.java
+│   ├── scripts/                 # Management scripts
+│   │   ├── healthcheck.sh
+│   │   └── init-topics.sh
+│   ├── backups/                 # Backup scripts and docs
+│   │   └── README.md
+│   ├── TOPIC_NAMING_STANDARDS.md
+│   ├── RETRY_STRATEGY.md
+│   ├── DLQ_STRATEGY.md
+│   └── README.md                # Kafka documentation
+├── keycloak/                    # Keycloak identity provider
+│   ├── config/                  # Keycloak configuration
+│   │   ├── realm.json           # Realm configuration
+│   │   ├── keycloak-postgres.env
+│   │   └── keycloak-dev.env
+│   ├── themes/                  # Custom themes
+│   ├── backups/                 # Backup scripts and docs
+│   │   └── README.md
+│   └── README.md                # Keycloak documentation
+├── minio/                       # MinIO object storage
+│   ├── config/                  # MinIO configuration
+│   │   ├── minio.env            # Environment configuration
+│   │   ├── minio-client.json    # MinIO client config
+│   │   └── policy/              # Bucket policies
+│   │       ├── public-read.json
+│   │       └── private.json
+│   ├── scripts/                 # Management scripts
+│   │   ├── healthcheck.sh
+│   │   └── init-buckets.sh
+│   ├── backups/                 # Backup scripts and docs
+│   │   └── README.md
+│   └── README.md                # MinIO documentation
+├── mailhog/                     # MailHog email testing
+│   ├── README.md                # MailHog documentation
+│   ├── application.yml.example  # SMTP configuration example
+│   ├── EmailService.java.example # Email service example
+│   ├── EmailProperties.java.example # Email config properties
+│   └── welcome-email.html.example # Email template example
+└── terraform/                   # Terraform IaC
+    ├── main.tf                  # Main configuration
+    ├── README.md                # Terraform documentation
+    └── modules/                 # Terraform modules
         ├── vpc/
         ├── eks/
         ├── rds/
@@ -105,300 +124,184 @@ infrastructure/
         └── security/
 ```
 
+## Component Overview
+
+### Core Services
+
+| Component | Purpose | Ports | Documentation |
+|-----------|---------|-------|---------------|
+| **PostgreSQL** | Primary database | 5432 | [README](postgres/README.md) |
+| **Redis** | Cache, sessions, rate limiting | 6379 | [README](redis/README.md) |
+| **Kafka** | Event streaming, async communication | 9092 | [README](kafka/README.md) |
+| **Keycloak** | Identity and access management | 8080 | [README](keycloak/README.md) |
+| **MinIO** | Object storage (S3-compatible) | 9000, 9001 | [README](minio/README.md) |
+| **MailHog** | Email testing (development) | 1025, 8025 | [README](mailhog/README.md) |
+
+### Monitoring Stack
+
+| Component | Purpose | Ports | Documentation |
+|-----------|---------|-------|---------------|
+| **Prometheus** | Metrics collection | 9090 | [README](docker/README.md) |
+| **Grafana** | Metrics visualization | 3000 | [README](docker/README.md) |
+| **Tempo** | Distributed tracing | 3200, 4317, 4318 | [README](docker/README.md) |
+| **Jaeger** | Trace visualization | 16686 | [README](docker/README.md) |
+| **Loki** | Log aggregation | 3100 | [README](docker/README.md) |
+| **Alertmanager** | Alert routing | 9093 | [README](docker/README.md) |
+| **Postgres Exporter** | PostgreSQL metrics | 9187 | [README](docker/README.md) |
+| **Redis Exporter** | Redis metrics | 9121 | [README](docker/README.md) |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            ERP AI Platform                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  PostgreSQL  │  │    Redis    │  │    Kafka    │  │   Keycloak  │        │
+│  │   (5432)    │  │   (6379)    │  │   (9092)    │  │   (8080)    │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │                │               │
+│         ▼                ▼                ▼                ▼               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        Microservices                                 │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                         Monitoring Stack                                    │
+│                                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  Prometheus  │  │   Grafana   │  │    Loki     │  │  Tempo/Jaeger│       │
+│  │   (9090)    │  │   (3000)    │  │   (3100)    │  │  (3200/16686)│       │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │                │               │
+│         ▼                ▼                ▼                ▼               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Observability Platform                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ## Quick Start
 
-### Docker Compose
+### Start All Infrastructure
 
 ```bash
-# Start all infrastructure services
-docker compose -f compose.base.yml -f compose.infrastructure.yml up
+# Start core infrastructure services
+docker compose -f compose.base.yml -f compose.infrastructure.yml up -d
 
-# Start with development tools (pgAdmin, etc.)
-docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up
+# Start with development profile (includes MailHog, pgAdmin)
+docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up -d
 
-# Start with monitoring
-docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.monitoring.yml --profile monitoring up
+# Start with monitoring profile
+docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.monitoring.yml --profile monitoring up -d
 ```
 
-### PostgreSQL
+### Start Everything
 
 ```bash
-# Start PostgreSQL only
-docker compose -f compose.base.yml -f compose.infrastructure.yml up postgres
-
-# Run Flyway migrations
-docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up flyway
-
-# Access PostgreSQL
-docker compose exec postgres psql -U erpai -d erpai_platform
+# Start all services including application
+docker compose up -d
 ```
 
-### Redis
+## Access URLs
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Grafana** | http://localhost:3000 | admin/admin |
+| **Prometheus** | http://localhost:9090 | - |
+| **Jaeger** | http://localhost:16686 | - |
+| **Keycloak** | http://localhost:8080 | admin/admin |
+| **pgAdmin** | http://localhost:5050 | admin@erpai.com/admin |
+| **MailHog** | http://localhost:8025 | - |
+| **MinIO Console** | http://localhost:9001 | minioadmin/minioadmin |
+
+## Configuration Files
+
+### Docker Compose Files
+
+| File | Purpose |
+|------|---------|
+| `compose.base.yml` | Base configuration shared by all profiles |
+| `compose.infrastructure.yml` | Core infrastructure services |
+| `compose.development.yml` | Development tools (MailHog, pgAdmin) |
+| `compose.monitoring.yml` | Monitoring stack (Prometheus, Grafana, etc.) |
+| `docker-compose.yml` | Main compose file (includes all) |
+
+### Monitoring Configuration
+
+| File | Purpose |
+|------|---------|
+| `docker/prometheus/prometheus.yml` | Prometheus scrape configuration |
+| `docker/prometheus/alerting_rules.yml` | Alerting rules |
+| `docker/grafana/provisioning/datasources/prometheus.yml` | Grafana datasources |
+| `docker/grafana/provisioning/dashboards/dashboards.yml` | Dashboard provisioning |
+| `docker/tempo/tempo.yml` | Tempo tracing configuration |
+| `docker/loki/local-config.yaml` | Loki logging configuration |
+
+## Environment Variables
+
+All environment variables are defined in `infrastructure/docker/.env.example`. Copy to `.env` and customize:
 
 ```bash
-# Start Redis only
-docker compose -f compose.base.yml -f compose.infrastructure.yml up redis
-
-# Test Redis connection
-docker compose exec redis redis-cli -a $REDIS_PASSWORD ping
-
-# Access Redis CLI
-docker compose exec redis redis-cli -a $REDIS_PASSWORD
+cp infrastructure/docker/.env.example infrastructure/docker/.env
 ```
 
-### Terraform (AWS)
+Key variables:
+- `POSTGRES_PASSWORD` - PostgreSQL password
+- `REDIS_PASSWORD` - Redis password
+- `KAFKA_PASSWORD` - Kafka password
+- `KEYCLOAK_ADMIN_PASSWORD` - Keycloak admin password
+- `MINIO_ROOT_PASSWORD` - MinIO root password
+- `GRAFANA_ADMIN_PASSWORD` - Grafana admin password
+
+## Health Checks
+
+All services include health checks. Check status with:
 
 ```bash
-# Initialize Terraform
-cd infrastructure/terraform
-terraform init
-
-# Plan changes
-terraform plan -var-file="environments/dev.tfvars"
-
-# Apply changes
-terraform apply -var-file="environments/dev.tfvars"
+docker compose -f compose.base.yml -f compose.infrastructure.yml ps
 ```
 
-## Services
-  
-  ### Databases
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | PostgreSQL | postgres:16-alpine | 5432 | Primary database |
-  | Flyway | flyway/flyway:10.12-alpine | - | Database migrations |
-  
-  ### Cache
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | Redis | redis:7-alpine | 6379 | Caching and sessions |
-  
-  ### Messaging
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | Kafka | confluentinc/cp-kafka:7.7.0 | 29092 | Message broker |
-  | Schema Registry | confluentinc/cp-schema-registry:7.7.0 | 8081 | Schema management |
-  | Kafka UI | provectuslabs/kafka-ui:latest | 8082 | Kafka web UI |
-  
-  ### Identity
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | Keycloak | quay.io/keycloak/keycloak:26.2 | 8080 | Identity provider |
-  
-  ### Storage
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | MinIO | minio/minio:latest | 9000, 9001 | Object storage |
-  
-  ### Email Testing
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | MailHog | mailhog/mailhog:latest | 1025, 8025 | Email testing (SMTP + Web UI) |
-  
-  ### Monitoring
-  
-  | Service | Image | Port | Purpose |
-  |---------|-------|------|---------|
-  | Prometheus | prom/prometheus:latest | 9090 | Metrics collection |
-  | Grafana | grafana/grafana:latest | 3000 | Visualization |
-  | Tempo | grafana/tempo:latest | 4317, 4318, 3200 | Distributed tracing |
-  | Loki | grafana/loki:latest | 3100 | Log aggregation |
+## Backups
 
-## Kafka
+Backup scripts and documentation are in [`backups/`](backups/). Each component has its own backup strategy.
 
-### Quick Start
+## Troubleshooting
+
+### Services Won't Start
 
 ```bash
-# Start Kafka with infrastructure services
-docker compose -f compose.base.yml -f compose.infrastructure.yml up kafka
+# Check logs
+docker compose -f compose.base.yml -f compose.infrastructure.yml logs <service-name>
 
-# Start with Kafka UI
-docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile infrastructure up kafka kafka-ui
-
-# Initialize infrastructure topics
-docker compose -f compose.base.yml -f compose.infrastructure.yml up kafka-init
+# Check port conflicts
+lsof -i :5432  # PostgreSQL
+lsof -i :6379  # Redis
+lsof -i :9092  # Kafka
 ```
 
-### Kafka UI
+### Reset Everything
 
-Access Kafka UI at http://localhost:8082 to:
-- View topics and partitions
-- Browse messages
-- Monitor consumer groups
-- View schema registry
-
-### Infrastructure Topics
-
-The following infrastructure topics are created automatically:
-
-| Topic | Partitions | Purpose |
-|-------|------------|---------|
-| `dev.system.health.service-up` | 6 | Service health events |
-| `dev.system.health.service-down` | 6 | Service down events |
-| `dev.system.metrics` | 6 | System metrics |
-| `dev.dlq.events` | 6 | Failed events (30 day retention) |
-| `dev.dlq.commands` | 6 | Failed commands (30 day retention) |
-| `dev.retry.events` | 6 | Events for retry (1 day retention) |
-| `dev.retry.commands` | 6 | Commands for retry (1 day retention) |
-| `dev.audit.events` | 6 | Audit trail |
-
-### Documentation
- 
- - [Kafka Infrastructure](kafka/README.md)
- - [Topic Naming Standards](kafka/TOPIC_NAMING_STANDARDS.md)
- - [Retry Strategy](kafka/RETRY_STRATEGY.md)
- - [Dead Letter Queue Strategy](kafka/DLQ_STRATEGY.md)
- - [Keycloak Infrastructure](keycloak/README.md)
- 
- ## Keycloak
- 
- ### Quick Start
- 
- ```bash
- # Start Keycloak
- docker compose -f compose.base.yml -f compose.infrastructure.yml up keycloak
- 
- # Access Admin Console
- open http://localhost:8080/
- ```
- 
- ### Client Placeholders
- 
- The following clients are configured as placeholders (no business users):
- 
- | Client ID | Type | Purpose |
- |-----------|------|---------|
- | `erpai-gateway` | confidential | API Gateway (backend services) |
- | `erpai-web` | public | Web application |
- | `erpai-mobile` | public | Mobile application |
- | `erpai-services` | confidential | Service-to-service communication |
- 
- ### Documentation
- 
- - [Keycloak Infrastructure](keycloak/README.md)
- - [Keycloak Configuration](keycloak/config/realm.json)
- 
-  ## MinIO
- 
-  ### Quick Start
- 
-  ```bash
-  # Start MinIO
-  docker compose -f compose.base.yml -f compose.infrastructure.yml up minio
- 
-  # Access MinIO Console
-  open http://localhost:9001/
- 
-  # Initialize buckets
-  docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile infrastructure up minio-init
-  ```
- 
-  ### Infrastructure Buckets
- 
-  The following infrastructure buckets are created automatically:
- 
-  | Bucket | Access | Purpose |
-  |--------|--------|---------|
-  | `dev.tenant.documents` | Private | Document storage |
-  | `dev.tenant.attachments` | Private | File attachments |
-  | `dev.tenant.imports` | Private | Data import files |
-  | `dev.tenant.exports` | Private | Data export files |
-  | `dev.tenant.templates` | Public | Document templates |
-  | `dev.tenant.reports` | Private | Generated reports |
-  | `dev.tenant.backups` | Private | System backups |
-  | `dev.tenant.avatars` | Public | User avatars |
- 
-  ### Documentation
-  
-  - [MinIO Infrastructure](minio/README.md)
-  - [MinIO Backup & Recovery](minio/backups/README.md)
-  
-   ## MailHog
-  
-   ### Quick Start
-  
-   ```bash
-   # Start MailHog with development profile
-   docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up mailhog
-   
-   # Access MailHog UI
-   open http://localhost:8025
-   ```
-  
-   ### SMTP Configuration
-  
-   Configure your Spring Boot application to use MailHog:
-  
-   ```yaml
-   spring:
-     mail:
-       host: mailhog
-       port: 1025
-       username: test
-       password: test
-       properties:
-         mail:
-           smtp:
-             auth: false
-             starttls:
-               enable: false
-   ```
-  
-   ### Documentation
-  
-   - [MailHog Documentation](mailhog/README.md)
-  
-  ## PostgreSQL Databases
- 
- The platform uses multiple PostgreSQL databases, one per microservice:
- 
- | Database | Service | Description |
- |----------|---------|-------------|
- | `erpai_platform` | Platform | Shared infrastructure |
- | `erpai_finance` | Finance | Finance domain |
- | `erpai_hr` | HR | Human resources |
- | `erpai_inventory` | Inventory | Stock management |
- | `erpai_manufacturing` | Manufacturing | Production |
- | `erpai_procurement` | Procurement | Purchasing |
- | `erpai_sales` | Sales | Sales orders |
- | `erpai_ai` | AI/ML | AI models and predictions |
- | `erpai_integration` | Integration | External integrations |
- | `erpai_gateway` | Gateway | API gateway config |
-
-## Flyway Migrations
-
-Each microservice has its own Flyway migration directory under `infrastructure/postgres/flyway/`. Migrations follow the naming convention:
-
-```
-V{version}__{description}.sql
-```
-
-Example:
-- `V001__create_invoices_table.sql`
-- `V002__add_payment_methods.sql`
-
-## Backup & Recovery
-
-See [`postgres/backups/README.md`](postgres/backups/README.md) for detailed backup procedures.
-
-Quick backup:
 ```bash
-# Run backup script
-bash infrastructure/postgres/backups/backup.sh
+# Stop and remove all containers and volumes
+docker compose -f compose.base.yml -f compose.infrastructure.yml down -v
+
+# Start fresh
+docker compose -f compose.base.yml -f compose.infrastructure.yml up -d
 ```
 
-## Documentation
+## Contributing
 
-- [PostgreSQL Infrastructure](postgres/README.md)
-- [Redis Infrastructure](redis/README.md)
-- [Redis Backup & Recovery](redis/backups/README.md)
-- [PostgreSQL Backup & Recovery](postgres/backups/README.md)
-- [Docker Standards](../docs/standards/16-docker-standards.md)
-- [Database Standards](../docs/standards/04-database-standards.md)
-- [Terraform Documentation](terraform/README.md)
+When adding new infrastructure components:
+
+1. Create a new directory under `infrastructure/`
+2. Add a `README.md` with component documentation
+3. Update `compose.base.yml` or `compose.infrastructure.yml`
+4. Add health checks
+5. Update this README with the new component
+
+## License
+
+See [LICENSE](../LICENSE) in the project root.
