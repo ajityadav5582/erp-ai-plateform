@@ -1,7 +1,7 @@
 package com.erp.platform.security.context;
 
 import com.erp.platform.security.authentication.AuthenticatedUser;
-import com.erp.platform.security.tenant.TenantPrincipal;
+import com.erp.platform.security.principal.TenantPrincipal;
 
 /**
  * Security context abstraction.

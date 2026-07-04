@@ -4,7 +4,7 @@ import com.erp.platform.common.model.vo.Email;
 import com.erp.platform.common.model.vo.Money;
 import com.erp.platform.common.model.vo.Name;
 import com.erp.platform.common.model.vo.Phone;
-import com.erp.platform.security.principal.AuthenticatedUser;
+import com.erp.platform.security.authentication.AuthenticatedUser;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -35,6 +35,11 @@ public class MockFactory {
         return new AuthenticatedUser() {
             @Override
             public String getUserId() {
+                return userId;
+            }
+
+            @Override
+            public String getUsername() {
                 return userId;
             }
 

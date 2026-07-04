@@ -16,8 +16,8 @@ services:
     container_name: erpai-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: erpai_platform
-      POSTGRES_USER: erpai
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     command:
@@ -65,9 +65,9 @@ services:
       - postgres_wal:/var/lib/postgresql/wal
       - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erpai -d erpai_platform"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erpai} -d ${POSTGRES_DB:-erpai_platform}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,6 +80,7 @@ services:
         reservations:
           memory: 1G
           cpus: '0.5'
+    profiles: ["infrastructure"]
 
   # ===========================================================================
   # Flyway - Database Migration
@@ -91,7 +92,7 @@ services:
     restart: unless-stopped
     environment:
       FLYWAY_URL: jdbc:postgresql://postgres:5432/
-      FLYWAY_USER: erpai
+      FLYWAY_USER: ${POSTGRES_USER:-erpai}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       FLYWAY_SCHEMAS: public
       FLYWAY_DEFAULT_SCHEMA: public
@@ -107,12 +108,11 @@ services:
     volumes:
       - ./infrastructure/postgres/flyway:/flyway/sql:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       postgres:
         condition: service_healthy
-    profiles:
-      - infrastructure
+    profiles: ["infrastructure"]
     command: >
       -connectRetries=5
       -baselineOnMigrate=true
@@ -133,14 +133,14 @@ services:
       /usr/local/etc/redis/redis.conf
       --requirepass ${REDIS_PASSWORD:-erpai_dev_password}
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy volatile-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
       - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-erpai_dev_password}", "ping"]
       interval: 10s
@@ -166,6 +166,7 @@ services:
     tmpfs:
       - /tmp
       - /var/run
+    profiles: ["infrastructure"]
 
   # ===========================================================================
   # Message Broker - Kafka (KRaft Mode)
@@ -201,7 +202,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 30s
@@ -216,6 +217,7 @@ services:
         reservations:
           memory: 1G
           cpus: '0.5'
+    profiles: ["infrastructure"]
 
   # ===========================================================================
   # Kafka UI
@@ -233,12 +235,11 @@ services:
     ports:
       - "8082:8080"
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       kafka:
         condition: service_healthy
-    profiles:
-      - infrastructure
+    profiles: ["infrastructure"]
     deploy:
       resources:
         limits:
@@ -261,12 +262,11 @@ services:
     volumes:
       - ./infrastructure/kafka/scripts:/scripts:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       kafka:
         condition: service_healthy
-    profiles:
-      - infrastructure
+    profiles: ["infrastructure"]
     command: >
       bash /scripts/init-topics.sh
 
@@ -285,7 +285,7 @@ services:
     ports:
       - "8081:8081"
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       kafka:
         condition: service_healthy
@@ -298,18 +298,19 @@ services:
     image: quay.io/keycloak/keycloak:26.2
     container_name: erpai-keycloak
     restart: unless-stopped
-    command: start-dev --import-realm
+    command: start-dev --import-realm --log-level=DEBUG
     environment:
-      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_DB: dev-mem
+      KC_DB: ${KC_DB:-dev-mem}
       KC_HTTP_RELATIVE_PATH: /
-      KC_HOSTNAME: keycloak.localhost
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-DEBUG}
+      KC_HOSTNAME: ${KC_HOSTNAME:-keycloak.localhost}
     ports:
       - "8080:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./infrastructure/keycloak/config/realm.json:/opt/keycloak/data/import/realm.json:ro
+      - ./infrastructure/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     networks:
       - erpai-network
     healthcheck:
@@ -326,6 +327,7 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
+    profiles: ["infrastructure"]
 
   # ===========================================================================
   # Object Storage
@@ -335,7 +337,7 @@ services:
     image: minio/minio:latest
     container_name: erpai-minio
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9001" --certs-dir /certs
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -345,7 +347,6 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-      - ./infrastructure/minio/config:/etc/minio:ro
     networks:
       - erpai-network
     healthcheck:
@@ -361,6 +362,7 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
+    profiles: ["infrastructure"]
 
    # ===========================================================================
    # MinIO Bucket Initializer
@@ -382,45 +384,56 @@ services:
      depends_on:
        minio:
          condition: service_healthy
-     profiles:
-       - infrastructure
+     profiles: ["infrastructure"]
      command: >
        /bin/sh /scripts/init-buckets.sh
 
+  # ===========================================================================
+  # Metrics Exporters
+  # ===========================================================================
 
-volumes:
-  postgres_data:
-    driver: local
-  postgres_wal:
-    driver: local
-  redis_data:
-    driver: local
-  kafka_data:
-    driver: local
-  keycloak_data:
-    driver: local
-  minio_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  tempo_data:
-    driver: local
-  loki_data:
-    driver: local
-  jaeger_data:
-    driver: local
-  alertmanager_data:
-    driver: local
-  postgres_exporter_data:
-    driver: local
-  redis_exporter_data:
-    driver: local
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: erpai-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgres://${POSTGRES_USER:-erpai}:${POSTGRES_PASSWORD:-erpai_dev_password}@postgres:5432/${POSTGRES_DB:-erpai_platform}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - erpai-data-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["monitoring"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
-networks:
-  erpai-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: erpai-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://:${REDIS_PASSWORD:-erpai_dev_password}@redis:6379"
+    ports:
+      - "9121:9121"
+    networks:
+      - erpai-data-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles: ["monitoring"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'

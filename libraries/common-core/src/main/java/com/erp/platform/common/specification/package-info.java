@@ -5,7 +5,6 @@
  * for complex query building and filtering.
  *
  * @see com.erp.platform.common.specification.Specification
- * @see com.erp.platform.common.specification.SpecificationBuilder
  * @since 1.0.0
  */
 package com.erp.platform.common.specification;

@@ -29,8 +29,8 @@ services:
     container_name: erpai-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: erpai_platform
-      POSTGRES_USER: erpai
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     command:
@@ -78,9 +78,9 @@ services:
       - postgres_wal:/var/lib/postgresql/wal
       - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erpai -d erpai_platform"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erpai} -d ${POSTGRES_DB:-erpai_platform}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -94,13 +94,17 @@ services:
           memory: 1G
           cpus: '0.5'
 
+  # ===========================================================================
+  # Database Migration
+  # ===========================================================================
+
   flyway:
     image: flyway/flyway:10.12-alpine
     container_name: erpai-flyway
     restart: unless-stopped
     environment:
       FLYWAY_URL: jdbc:postgresql://postgres:5432/
-      FLYWAY_USER: erpai
+      FLYWAY_USER: ${POSTGRES_USER:-erpai}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       FLYWAY_SCHEMAS: public
       FLYWAY_DEFAULT_SCHEMA: public
@@ -116,7 +120,7 @@ services:
     volumes:
       - ./infrastructure/postgres/flyway:/flyway/sql:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,14 +144,14 @@ services:
       /usr/local/etc/redis/redis.conf
       --requirepass ${REDIS_PASSWORD:-erpai_dev_password}
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy volatile-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
       - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-erpai_dev_password}", "ping"]
       interval: 10s
@@ -199,17 +203,30 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 1048576
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 1048576
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
     ports:
       - "29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
-      - erpai-network
+      - erpai-data-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
 
   # ===========================================================================
   # Schema Registry
@@ -223,11 +240,10 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      SCHEMA_REGISTRY_DEBUG: "true"
     ports:
       - "8081:8081"
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       kafka:
         condition: service_healthy
@@ -242,11 +258,12 @@ services:
     restart: unless-stopped
     command: start-dev --import-realm --log-level=DEBUG
     environment:
-      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_DB: dev-mem
+      KC_DB: ${KC_DB:-dev-mem}
       KC_HTTP_RELATIVE_PATH: /
-      KC_LOG_LEVEL: DEBUG
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-DEBUG}
+      KC_HOSTNAME: ${KC_HOSTNAME:-keycloak.localhost}
     ports:
       - "8080:8080"
     volumes:
@@ -258,7 +275,16 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
   # ===========================================================================
   # Object Storage
@@ -272,7 +298,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_REGION: us-east-1
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -285,6 +311,37 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+   # ===========================================================================
+   # MinIO Bucket Initializer
+   # ===========================================================================
+
+   minio-init:
+     image: minio/mc:latest
+     container_name: erpai-minio-init
+     restart: "no"
+     environment:
+       MINIO_ENDPOINT: http://minio:9000
+       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+     volumes:
+       - ./infrastructure/minio/scripts:/scripts:ro
+       - ./infrastructure/minio/config/policy:/policies:ro
+     networks:
+       - erpai-network
+     depends_on:
+       minio:
+         condition: service_healthy
+     command: >
+       /bin/sh /scripts/init-buckets.sh
 
   # ===========================================================================
   # Metrics Exporters
@@ -295,14 +352,22 @@ services:
     container_name: erpai-postgres-exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgres://erpai:${POSTGRES_PASSWORD:-erpai_dev_password}@postgres:5432/erpai_platform?sslmode=disable"
+      DATA_SOURCE_NAME: "postgres://${POSTGRES_USER:-erpai}:${POSTGRES_PASSWORD:-erpai_dev_password}@postgres:5432/${POSTGRES_DB:-erpai_platform}?sslmode=disable"
     ports:
       - "9187:9187"
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
   redis-exporter:
     image: oliver006/redis_exporter:latest
@@ -313,10 +378,18 @@ services:
     ports:
       - "9121:9121"
     networks:
-      - erpai-network
+      - erpai-data-network
     depends_on:
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
   # ===========================================================================
   # Metrics Collection
@@ -339,13 +412,21 @@ services:
       - ./infrastructure/docker/prometheus/alerting_rules.yml:/etc/prometheus/alerting_rules.yml:ro
       - prometheus_data:/prometheus
     networks:
-      - erpai-network
+      - erpai-monitoring-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
   # ===========================================================================
   # Alertmanager
@@ -362,11 +443,20 @@ services:
       - "9093:9093"
     volumes:
       - alertmanager_data:/alertmanager
+      - ./infrastructure/docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     networks:
-      - erpai-network
+      - erpai-monitoring-network
     depends_on:
       prometheus:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
   # ===========================================================================
   # Visualization
@@ -385,7 +475,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
-      - erpai-network
+      - erpai-monitoring-network
     depends_on:
       prometheus:
         condition: service_healthy
@@ -395,6 +485,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   # ===========================================================================
   # Distributed Tracing
@@ -413,40 +511,21 @@ services:
       - ./infrastructure/docker/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempo_data:/tmp/tempo
     networks:
-      - erpai-network
+      - erpai-monitoring-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3200/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: erpai-jaeger
-    restart: unless-stopped
-    environment:
-      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
-      QUERY_BASE_PATH: /jaeger
-    ports:
-      - "5775:5775/udp"  # Zipkin compact Thrift
-      - "6831:6831/udp"  # Jaeger Thrift
-      - "6832:6832/udp"  # Jaeger Thrift
-      - "5778:5778"      # Config
-      - "16686:16686"    # Jaeger UI
-      - "14268:14268"    # Jaeger HTTP
-      - "14250:14250"    # gRPC
-      - "9411:9411"      # Zipkin
-    volumes:
-      - jaeger_data:/data
-    networks:
-      - erpai-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:16686/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
   # ===========================================================================
   # Log Aggregation
@@ -463,13 +542,21 @@ services:
       - ./infrastructure/docker/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     networks:
-      - erpai-network
+      - erpai-monitoring-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   # ===========================================================================
   # Development Tools
@@ -486,6 +573,12 @@ services:
       - mailhog_data:/data
     networks:
       - erpai-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8025 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -504,6 +597,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   postgres_data:
@@ -526,13 +625,7 @@ volumes:
     driver: local
   loki_data:
     driver: local
-  jaeger_data:
-    driver: local
   alertmanager_data:
-    driver: local
-  postgres_exporter_data:
-    driver: local
-  redis_exporter_data:
     driver: local
   mailhog_data:
     driver: local
@@ -545,3 +638,13 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
+  erpai-data-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24
+  erpai-monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.2.0/24

@@ -33,13 +33,11 @@ Thumbs.db
 desktop.ini
 
 # Environment
-.env
-.env.local
-.env.*.local
-.env.development
-.env.testing
-.env.staging
-.env.production
+ .env
+ .env.local
+ .env.*.local
+ # .env.development is kept as a reference file for local development
+ # .env.testing, .env.staging, .env.production are environment-specific and should be created as needed
 *.pem
 *.key
 *.p12

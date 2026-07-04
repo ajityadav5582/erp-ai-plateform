@@ -49,7 +49,7 @@ public interface AuthenticatedUser {
      *
      * @return the tenant ID
      */
-    String getTenantId();
+    Long getTenantId();
 
     /**
      * Returns the roles assigned to the user.
