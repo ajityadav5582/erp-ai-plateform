@@ -51,7 +51,7 @@ dependencies {
     api 'org.hibernate.orm:hibernate-core'
 
     // Swagger/OpenAPI annotations
-    api 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
+    api 'org.springdoc:springdoc-openapi-starter-common:3.0.3'
 
     // Utilities
     api "org.apache.commons:commons-lang3:${commonsLangVersion}"
