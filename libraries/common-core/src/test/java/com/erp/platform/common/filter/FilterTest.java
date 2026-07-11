@@ -41,7 +41,7 @@ class FilterTest {
 
     @Test
     void add_shouldSupportChaining() {
-        Filter<TestEntity> filter = Filter.empty()
+        Filter<TestEntity> filter = Filter.<TestEntity>empty()
             .add(new Filter.Criterion("status", Filter.Operator.EQUALS, "active"))
             .add(new Filter.Criterion("tenantId", Filter.Operator.EQUALS, 1L));
 

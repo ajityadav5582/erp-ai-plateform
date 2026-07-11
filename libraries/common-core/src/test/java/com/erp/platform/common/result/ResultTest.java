@@ -2,6 +2,8 @@ package com.erp.platform.common.result;
 
 import org.junit.jupiter.api.Test;
 
+import com.erp.platform.common.dto.Result;
+
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;

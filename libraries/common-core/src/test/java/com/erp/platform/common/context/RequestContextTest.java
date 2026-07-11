@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for {@link RequestContext}.
@@ -56,21 +57,22 @@ class RequestContextTest {
     void setAndGetAttribute_shouldWork() {
         RequestContext.setAttribute("customKey", "customValue");
 
-        assertThat(RequestContext.getAttribute("customKey")).isEqualTo("customValue");
+        String customKey = RequestContext.getAttribute("customKey");
+        assertThat(customKey).isEqualTo("customValue");
     }
 
     @Test
     void getAttribute_shouldReturnNullForMissingKey() {
-        assertThat(RequestContext.getAttribute("missing")).isNull();
+        Object missing = RequestContext.getAttribute("missing");
+        assertThat(missing).isNull();
     }
 
     @Test
-    void getAttributes_shouldReturnUnmodifiableMap() {
+    void getAttribute_shouldReturnStoredValue() {
         RequestContext.setAttribute("key1", "value1");
 
-        var attributes = RequestContext.getHolder().getAttributes();
-
-        assertThat(attributes).containsEntry("key1", "value1");
+        Object key1Value = RequestContext.getAttribute("key1");
+        assertThat(key1Value).isEqualTo("value1");
     }
 
     @Test
@@ -85,7 +87,8 @@ class RequestContextTest {
         assertThat(RequestContext.getRequestId()).isNull();
         assertThat(RequestContext.getCorrelationId()).isNull();
         assertThat(RequestContext.getUserId()).isNull();
-        assertThat(RequestContext.getAttribute("key")).isNull();
+        Object keyValue = RequestContext.getAttribute("key");
+        assertThat(keyValue).isNull();
     }
 
     @Test

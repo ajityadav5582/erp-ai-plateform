@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'io.spring.dependency-management'
 }
 
 group = 'com.erp.platform'
@@ -19,6 +20,12 @@ java {
 tasks.withType(JavaCompile) {
     options.compilerArgs.removeAll { it == '-Xlint:all' }
     options.compilerArgs.addAll(['-Xlint:-processing'])
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+    }
 }
 
 dependencies {

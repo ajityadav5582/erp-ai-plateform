@@ -23,20 +23,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "erp-ai-platform"
 
-// Platform Core
-include "platform:core:domain"
-include "platform:core:application"
-include "platform:core:infrastructure"
-include "platform:core:interfaces"
-
-// Platform Shared
-include "platform:shared:kernel"
-include "platform:shared:security"
-include "platform:shared:tenancy"
-include "platform:shared:events"
-include "platform:shared:exceptions"
-include "platform:shared:utils"
-
 // Business Modules
 include "business:finance:domain"
 include "business:finance:application"
@@ -119,30 +105,8 @@ include "libraries:common-validation"
 include "libraries:common-testing"
 include "libraries:common-observability"
 
-// Legacy Common (kept for backward compatibility)
-include "libraries:common:kernel"
-include "libraries:common:security"
-include "libraries:common:tenancy"
-include "libraries:common:events"
-include "libraries:common:exceptions"
-include "libraries:common:utils"
-include "libraries:common:validation"
+// Platform Services
+include "platform:tenant"
+include "platform:identity"
 
-// Data Libraries
-include "libraries:data:jpa"
-include "libraries:data:redis"
-include "libraries:data:kafka"
-include "libraries:data:flyway"
-include "libraries:data:minio"
-
-// Observability Libraries
-include "libraries:observability:metrics"
-include "libraries:observability:tracing"
-include "libraries:observability:logging"
-include "libraries:observability:health"
-
-// Testing Libraries
-include "libraries:testing:unit"
-include "libraries:testing:integration"
-include "libraries:testing:contract"
-include "libraries:testing:fixtures"
+// Legacy Common modules removed - functionality moved to common-* libraries

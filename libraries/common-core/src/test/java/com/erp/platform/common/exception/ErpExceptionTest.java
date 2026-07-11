@@ -30,7 +30,8 @@ class ErpExceptionTest {
         ErpException exception = new BusinessException("TEST_CODE", "Test message", details);
 
         assertThat(exception.getDetails()).isEqualTo(details);
-        assertThat(exception.getDetail("key")).isEqualTo("value");
+        String detail = exception.getDetail("key");
+        assertThat(detail).isEqualTo("value");
     }
 
     @Test
@@ -45,14 +46,16 @@ class ErpExceptionTest {
     void getDetail_shouldReturnNullForMissingKey() {
         ErpException exception = new BusinessException("TEST_CODE", "Test message");
 
-        assertThat(exception.getDetail("missing")).isNull();
+        Object missingDetail = exception.getDetail("missing");
+        assertThat(missingDetail).isNull();
     }
 
     @Test
     void getDetail_shouldReturnNullWhenDetailsIsNull() {
         ErpException exception = new BusinessException("TEST_CODE", "Test message");
 
-        assertThat(exception.getDetail("key")).isNull();
+        Object keyDetail = exception.getDetail("key");
+        assertThat(keyDetail).isNull();
     }
 
     @Test
@@ -67,27 +70,27 @@ class ErpExceptionTest {
 
     @Test
     void validationException_shouldExtendErpException() {
-        assertThat(new ValidationException("CODE", "msg")).isInstanceOf(ErpException.class);
+        assertThat(new ValidationException("msg")).isInstanceOf(ErpException.class);
     }
 
     @Test
     void conflictException_shouldExtendErpException() {
-        assertThat(new ConflictException("CODE", "msg")).isInstanceOf(ErpException.class);
+        assertThat(new ConflictException("msg")).isInstanceOf(ErpException.class);
     }
 
     @Test
     void unauthorizedException_shouldExtendErpException() {
-        assertThat(new UnauthorizedException("CODE", "msg")).isInstanceOf(ErpException.class);
+        assertThat(new UnauthorizedException("msg")).isInstanceOf(ErpException.class);
     }
 
     @Test
     void forbiddenException_shouldExtendErpException() {
-        assertThat(new ForbiddenException("CODE", "msg")).isInstanceOf(ErpException.class);
+        assertThat(new ForbiddenException("msg")).isInstanceOf(ErpException.class);
     }
 
     @Test
     void erpSystemException_shouldExtendErpException() {
-        assertThat(new ErpSystemException("CODE", "msg")).isInstanceOf(ErpException.class);
+        assertThat(new ErpSystemException("msg")).isInstanceOf(ErpException.class);
     }
 
     @Test

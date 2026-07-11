@@ -9,7 +9,7 @@
  * <ul>
  *   <li>{@link com.erp.platform.security.authentication.AuthenticatedUser} - Authenticated user abstraction</li>
  *   <li>{@link com.erp.platform.security.authorization.Permission} - Permission abstraction</li>
- *   <li>{@link com.erp.platform.security.tenant.TenantPrincipal} - Tenant principal</li>
+ *   <li>{@link com.erp.platform.security.principal.TenantPrincipal} - Tenant principal</li>
  *   <li>{@link com.erp.platform.security.context.SecurityContext} - Security context abstraction</li>
  *   <li>{@link com.erp.platform.security.authorization.HasPermission} - Authorization annotation</li>
  *   <li>{@link com.erp.platform.security.authorization.HasRole} - Role-based authorization annotation</li>

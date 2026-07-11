@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode (toggled by next-themes via the `.dark` class). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens exposed to Tailwind utilities via the `@theme` block.
+ * These become available as e.g. `bg-background`, `text-foreground`,
+ * `bg-primary`, etc. Adjust to match the ERP AI Platform brand.
+ */
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #0a0a0a;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0a0a0a;
+
+  --color-primary: #1d4ed8;
+  --color-primary-foreground: #f8fafc;
+
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-accent: #e0e7ff;
+  --color-accent-foreground: #1e3a8a;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #f8fafc;
+
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #1d4ed8;
+
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-sm: 0.25rem;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Dark mode token overrides. */
+.dark {
+  --color-background: #0a0a0a;
+  --color-foreground: #f8fafc;
+
+  --color-card: #111827;
+  --color-card-foreground: #f8fafc;
+
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #0a0a0a;
+
+  --color-secondary: #1e293b;
+  --color-secondary-foreground: #f8fafc;
+
+  --color-muted: #1e293b;
+  --color-muted-foreground: #94a3b8;
+
+  --color-accent: #1e3a8a;
+  --color-accent-foreground: #e0e7ff;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #0a0a0a;
+
+  --color-border: #1e293b;
+  --color-input: #1e293b;
+  --color-ring: #3b82f6;
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
