@@ -75,7 +75,7 @@ ext {
 
     // Database
     h2Version = "2.3.232"
-    flywayVersion = "10.15.0"
+    flywayVersion = "12.10.0"
     postgresqlVersion = "42.7.3"
 
     // Observability
