@@ -38,8 +38,14 @@
 #   # Run health check
 #   ./scripts/docker/docker.sh health-check
 #
+#   # Clean up database and Docker infrastructure
+#   ./scripts/docker/docker.sh cleanup
+#
 #   # Start with development profile
 #   ./scripts/docker/docker.sh start --profile development
+#
+#   # Kill conflicting ports before starting
+#   ./scripts/docker/docker.sh start --profile development --kill-ports
 #
 # Prerequisites:
 #   - Docker Engine 24.0+
@@ -115,6 +121,7 @@ Commands:
     kafka-reset     Reset only Kafka (delete topics + recreate)
     keycloak-import Import Keycloak realm configuration
     health-check    Check health of all services
+    cleanup         Clean database, Flyway history, and Docker infrastructure
     help            Show this help message
 
 Options:
@@ -131,12 +138,17 @@ Examples:
     $(basename "$0") kafka-reset --no-recreate                # Delete topics only
     $(basename "$0") keycloak-import --force                  # Force import realm
     $(basename "$0") health-check --services postgres kafka   # Check specific services
+    $(basename "$0") cleanup                                  # Clean DB + Docker + images
+
+    # Kill conflicting ports before starting
+    $(basename "$0") start --profile development --kill-ports
 
 Quick Reference:
     Start:   ./scripts/docker/docker.sh start
     Stop:    ./scripts/docker/docker.sh stop
     Restart: ./scripts/docker/docker.sh restart
     Reset:   ./scripts/docker/docker.sh reset
+    Cleanup: ./scripts/docker/docker.sh cleanup
     Health:  ./scripts/docker/docker.sh health-check
 EOF
 }
@@ -201,7 +213,7 @@ COMMAND=$1
 shift
 
 case $COMMAND in
-    start|stop|restart|reset|database-reset|kafka-reset|keycloak-import|health-check)
+    start|stop|restart|reset|database-reset|kafka-reset|keycloak-import|health-check|cleanup)
         print_banner
         run_command "$COMMAND" "$@"
         ;;

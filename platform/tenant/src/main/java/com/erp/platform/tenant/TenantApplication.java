@@ -2,6 +2,7 @@ package com.erp.platform.tenant;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
 /**
  * Main application class for the Tenant Service.
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @since 1.0.0
  */
 @SpringBootApplication
+@Import(com.erp.platform.data.audit.AuditingConfig.class)
 public class TenantApplication {
 
     public static void main(String[] args) {

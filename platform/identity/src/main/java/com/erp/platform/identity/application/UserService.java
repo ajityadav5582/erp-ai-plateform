@@ -4,10 +4,10 @@ import com.erp.platform.identity.application.dto.CreateUserRequest;
 import com.erp.platform.identity.application.dto.UpdateUserRequest;
 import com.erp.platform.identity.application.dto.UserListResponse;
 import com.erp.platform.identity.application.dto.UserResponse;
+import com.erp.platform.identity.domain.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.UUID;
 
 /**
  * Service interface for user management operations.
@@ -29,20 +29,20 @@ public interface UserService {
      * Update an existing user.
      *
      * @param tenantId the tenant ID
-     * @param userId the user UUID
+     * @param userId the user ID
      * @param request the update user request
      * @return the updated user response
      */
-    UserResponse updateUser(Long tenantId, UUID userId, UpdateUserRequest request);
+    UserResponse updateUser(Long tenantId, Long userId, UpdateUserRequest request);
 
     /**
      * Get user by ID.
      *
      * @param tenantId the tenant ID
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return the user response
      */
-    UserResponse getUserById(Long tenantId, UUID userId);
+    UserResponse getUserById(Long tenantId, Long userId);
 
     /**
      * Get user by email.
@@ -52,6 +52,17 @@ public interface UserService {
      * @return the user response
      */
     UserResponse getUserByEmail(Long tenantId, String email);
+
+    /**
+     * List all users for a tenant with pagination, search, and status filtering.
+     *
+     * @param tenantId the tenant ID
+     * @param search optional search string (matches username, email, firstName, lastName)
+     * @param status optional user status filter
+     * @param pageable the pagination parameters
+     * @return page of user list responses
+     */
+    Page<UserListResponse> listUsers(Long tenantId, String search, UserStatus status, Pageable pageable);
 
     /**
      * List all users for a tenant with pagination.
@@ -86,25 +97,25 @@ public interface UserService {
      * Activate a user.
      *
      * @param tenantId the tenant ID
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return the activated user response
      */
-    UserResponse activateUser(Long tenantId, UUID userId);
+    UserResponse activateUser(Long tenantId, Long userId);
 
     /**
      * Deactivate a user.
      *
      * @param tenantId the tenant ID
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return the deactivated user response
      */
-    UserResponse deactivateUser(Long tenantId, UUID userId);
+    UserResponse deactivateUser(Long tenantId, Long userId);
 
     /**
      * Delete a user (soft delete).
      *
      * @param tenantId the tenant ID
-     * @param userId the user UUID
+     * @param userId the user ID
      */
-    void deleteUser(Long tenantId, UUID userId);
+    void deleteUser(Long tenantId, Long userId);
 }

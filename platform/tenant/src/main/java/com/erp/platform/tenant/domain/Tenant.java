@@ -48,14 +48,6 @@ public class Tenant extends OptimisticLock<Long> {
     private static final long serialVersionUID = 1L;
 
     /**
-     * The unique business identifier for the tenant.
-     * Used for API access, subdomain routing, and external references.
-     * This is a UUID (not String) as per requirements.
-     */
-    @Column(name = "tenant_id", nullable = false, unique = true, updatable = false)
-    private UUID tenantId;
-
-    /**
      * Human-readable unique code for the tenant.
      * Used for display purposes and easier identification.
      * Must be unique across all tenants.
@@ -221,7 +213,6 @@ public class Tenant extends OptimisticLock<Long> {
      * @return a new Tenant instance in PENDING status
      */
     public static Tenant create(
-            UUID tenantId,
             String tenantCode,
             String legalName,
             String displayName,
@@ -233,7 +224,6 @@ public class Tenant extends OptimisticLock<Long> {
             String language,
             IsolationStrategy isolationStrategy) {
         return Tenant.builder()
-                .tenantId(tenantId)
                 .tenantCode(tenantCode)
                 .legalName(legalName)
                 .displayName(displayName)
@@ -262,16 +252,16 @@ public class Tenant extends OptimisticLock<Long> {
      */
     public void activate(Instant activatedAt) {
         if (this.status == TenantStatus.ACTIVE) {
-            throw new CannotActivateTenantException(this.tenantId, this.status);
+            throw new CannotActivateTenantException(this.tenantCode, this.status);
         }
         if (this.status == TenantStatus.SUSPENDED) {
-            throw new CannotActivateTenantException(this.tenantId, this.status);
+            throw new CannotActivateTenantException(this.tenantCode, this.status);
         }
         if (this.status == TenantStatus.DEACTIVATED) {
-            throw new CannotActivateTenantException(this.tenantId, this.status);
+            throw new CannotActivateTenantException(this.tenantCode, this.status);
         }
         if (this.status == TenantStatus.ARCHIVED) {
-            throw new CannotActivateTenantException(this.tenantId, this.status);
+            throw new CannotActivateTenantException(this.tenantCode, this.status);
         }
 
         this.status = TenantStatus.ACTIVE;
@@ -292,7 +282,7 @@ public class Tenant extends OptimisticLock<Long> {
      */
     public void suspend(Instant suspendedAt) {
         if (this.status != TenantStatus.ACTIVE) {
-            throw new CannotSuspendTenantException(this.tenantId, this.status);
+            throw new CannotSuspendTenantException(this.tenantCode, this.status);
         }
 
         this.status = TenantStatus.SUSPENDED;
@@ -312,7 +302,7 @@ public class Tenant extends OptimisticLock<Long> {
      */
     public void reactivate(Instant reactivatedAt) {
         if (this.status != TenantStatus.SUSPENDED) {
-            throw new CannotReactivateTenantException(this.tenantId, this.status);
+            throw new CannotReactivateTenantException(this.tenantCode, this.status);
         }
 
         this.status = TenantStatus.ACTIVE;
@@ -333,7 +323,7 @@ public class Tenant extends OptimisticLock<Long> {
      */
     public void deactivate(Instant deactivatedAt) {
         if (this.status != TenantStatus.ACTIVE && this.status != TenantStatus.SUSPENDED) {
-            throw new CannotDeactivateTenantException(this.tenantId, this.status);
+            throw new CannotDeactivateTenantException(this.tenantCode, this.status);
         }
 
         this.status = TenantStatus.DEACTIVATED;

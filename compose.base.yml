@@ -12,17 +12,17 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 10.0.0.0/16
   erpai-data-network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.1.0/24
+        - subnet: 10.1.0.0/16
   erpai-monitoring-network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.2.0/24
+        - subnet: 10.2.0.0/16
 
 volumes:
   postgres_data:

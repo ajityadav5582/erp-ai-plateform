@@ -1,9 +1,8 @@
 package com.erp.platform.identity.application.dto;
 
+import com.erp.platform.common.enums.Status;
 import com.erp.platform.identity.domain.RoleType;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Set;
 
 /**
  * Response DTO for role data.
@@ -12,18 +11,21 @@ import java.util.UUID;
  */
 public record RoleResponse(
     Long id,
-    UUID roleId,
     Long tenantId,
     String roleCode,
     String roleName,
     String description,
     RoleType roleType,
+    Status status,
+    Boolean isEditable,
+    Boolean isDeletable,
     boolean isSystemRole,
     boolean isActive,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt,
-    String createdBy,
-    String updatedBy,
-    Integer version
+    Set<Long> permissionIds
 ) {
+    public RoleResponse(Long id, Long tenantId, String roleCode, String roleName, String description,
+                        RoleType roleType, Status status, Boolean isEditable, Boolean isDeletable,
+                        boolean isSystemRole, boolean isActive) {
+        this(id, tenantId, roleCode, roleName, description, roleType, status, isEditable, isDeletable, isSystemRole, isActive, Set.of());
+    }
 }

@@ -26,7 +26,7 @@ public class TenantEventPublisher {
 
     @EventListener
     public void handle(TenantCreatedEvent event) {
-        log.info("Publishing tenant created event: {}", event.tenantId());
-        kafkaTemplate.send("tenant.created", event.tenantId().toString(), event);
+        log.info("Publishing tenant created event: {}", event.tenantCode());
+        kafkaTemplate.send("tenant.created", event.tenantCode(), event);
     }
 }

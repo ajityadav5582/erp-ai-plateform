@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Command handler for creating tenants.
@@ -33,7 +32,6 @@ public class CreateTenantCommandHandler {
 
         // Create tenant
         Tenant tenant = Tenant.create(
-                UUID.randomUUID(),
                 request.tenantCode(),
                 request.legalName(),
                 request.displayName(),
@@ -51,7 +49,6 @@ public class CreateTenantCommandHandler {
 
         // Publish event (timestamp provided by application layer)
         TenantCreatedEvent event = TenantCreatedEvent.of(
-                savedTenant.getTenantId(),
                 savedTenant.getTenantCode(),
                 savedTenant.getLegalName(),
                 savedTenant.getDisplayName(),

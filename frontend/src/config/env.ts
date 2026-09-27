@@ -12,6 +12,7 @@ import { z } from "zod";
 const envSchema = z.object({
   // Public
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_API_BASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_ENABLE_DEBUG_LOGGING: z
     .enum(["true", "false"])
     .default("false")
@@ -22,7 +23,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "staging", "production"])
     .default("development"),
-  API_BASE_URL: z.string().url().default("http://localhost:8080/api/v1"),
+  API_BASE_URL: z.string().url().default("http://localhost:8082/api/v1"),
   API_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 });
 
@@ -39,7 +40,15 @@ export function getEnv(): Env {
     return cachedEnv;
   }
 
-  const parsed = envSchema.safeParse(process.env);
+  const rawEnv = {
+    ...process.env,
+    API_BASE_URL:
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.API_BASE_URL ||
+      "http://localhost:8082/api/v1",
+  };
+
+  const parsed = envSchema.safeParse(rawEnv);
 
   if (!parsed.success) {
     const issues = parsed.error.issues

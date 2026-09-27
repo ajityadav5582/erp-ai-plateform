@@ -1,0 +1,26 @@
+# =============================================================================
+# ERP AI Platform - Tenant Service: Test Profile
+# Activated when SPRING_PROFILES_ACTIVE=test
+# =============================================================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-erpai_platform_test}
+    username: ${DB_USERNAME:-${POSTGRES_USER:-erpai}}
+    password: ${DB_PASSWORD:-${POSTGRES_PASSWORD:-erpai_dev_password}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    com.erp.platform.tenant: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

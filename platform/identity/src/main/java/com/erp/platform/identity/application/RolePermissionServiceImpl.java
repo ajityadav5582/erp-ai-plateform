@@ -20,9 +20,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Service implementation for managing role-permission assignments.
@@ -43,44 +42,63 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     private final RolePermissionRepository rolePermissionRepository;
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
+    private final CurrentTenantProvider currentTenantProvider;
 
     public RolePermissionServiceImpl(
             RolePermissionRepository rolePermissionRepository,
             RoleRepository roleRepository,
-            PermissionRepository permissionRepository) {
+            PermissionRepository permissionRepository,
+            CurrentTenantProvider currentTenantProvider) {
         this.rolePermissionRepository = rolePermissionRepository;
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
+        this.currentTenantProvider = currentTenantProvider;
     }
 
     @Override
     @Transactional
     public RolePermissionResponse assignPermission(AssignPermissionRequest request) {
-        // Validate role exists
-        if (!roleRepository.existsById(request.roleId())) {
-            throw RoleNotFoundException.byRoleId(request.roleId());
-        }
+
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+
+        // Validate role exists and belongs to current tenant
+        roleRepository.findByIdAndTenantId(request.roleId(), tenantId)
+                .orElseThrow(() -> RoleNotFoundException.byRoleId(request.roleId()));
 
         // Validate permission exists
         Permission permission = permissionRepository.findById(request.permissionId())
                 .orElseThrow(() -> PermissionNotFoundException.byId(request.permissionId()));
 
-        // Check if already assigned
-        if (rolePermissionRepository.existsByRoleIdAndPermissionId(request.roleId(), request.permissionId())) {
+        // New assignments may only use active global permissions
+        if (!permission.isActive()) {
+            throw new PermissionOperationException(
+                    "Only active permissions can be assigned to roles");
+        }
+
+        // Check if already assigned within the tenant
+        if (rolePermissionRepository.existsByRoleIdAndTenantIdAndPermissionId(
+                request.roleId(), tenantId, request.permissionId())) {
             throw new PermissionOperationException(
                     "Permission is already assigned to this role");
         }
 
-        // Create the assignment
-        RolePermission rolePermission = RolePermission.assign(
-                UUID.randomUUID(),
+        // Idempotent insert: uses database-level ON CONFLICT DO NOTHING
+        int inserted = rolePermissionRepository.insertOnConflictDoNothing(
                 request.roleId(),
                 request.permissionId(),
                 request.assignedBy(),
-                Instant.now()
+                LocalDateTime.now()
         );
 
-        RolePermission saved = rolePermissionRepository.save(rolePermission);
+        if (inserted == 0) {
+            throw new PermissionOperationException(
+                    "Permission is already assigned to this role");
+        }
+
+        RolePermission saved = rolePermissionRepository.findByTenantIdRoleIdAndPermissionId(
+                tenantId, request.roleId(), request.permissionId())
+                .orElseThrow(() -> new PermissionOperationException(
+                        "Failed to assign permission to role"));
 
         return RolePermissionMapper.toResponse(saved, permission);
     }
@@ -88,25 +106,38 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     @Override
     @Transactional
     public void removePermission(RemovePermissionRequest request) {
-        // Validate the assignment exists
-        if (!rolePermissionRepository.existsByRoleIdAndPermissionId(request.roleId(), request.permissionId())) {
+
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+
+        // Validate role exists and belongs to current tenant
+        if (!roleRepository.findByIdAndTenantId(request.roleId(), tenantId).isPresent()) {
+            throw RoleNotFoundException.byRoleId(request.roleId());
+        }
+
+        // Validate the assignment exists within the tenant
+        if (!rolePermissionRepository.existsByRoleIdAndTenantIdAndPermissionId(
+                request.roleId(), tenantId, request.permissionId())) {
             throw new PermissionOperationException(
                     "Permission is not assigned to this role");
         }
 
-        rolePermissionRepository.deleteByRoleIdAndPermissionId(request.roleId(), request.permissionId());
+        rolePermissionRepository.deleteByRoleIdAndTenantIdAndPermissionId(
+                request.roleId(), tenantId, request.permissionId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public RolePermissionListResponse findPermissionsByRoleId(Long roleId, int page, int size) {
-        // Validate role exists
-        if (!roleRepository.existsById(roleId)) {
+
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+
+        // Validate role exists and belongs to current tenant
+        if (!roleRepository.findByIdAndTenantId(roleId, tenantId).isPresent()) {
             throw RoleNotFoundException.byRoleId(roleId);
         }
 
         Pageable pageable = PageRequest.of(page, size, DEFAULT_SORT);
-        Page<RolePermission> rolePermissions = rolePermissionRepository.findByRoleId(roleId, pageable);
+        Page<RolePermission> rolePermissions = rolePermissionRepository.findByRoleIdAndTenantId(roleId, tenantId, pageable);
 
         List<RolePermissionResponse> responses = rolePermissions.getContent().stream()
                 .map(rp -> {
@@ -129,13 +160,23 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasPermission(Long roleId, Long permissionId) {
-        return rolePermissionRepository.existsByRoleIdAndPermissionId(roleId, permissionId);
+
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+
+        // Validate role exists and belongs to current tenant
+        if (!roleRepository.findByIdAndTenantId(roleId, tenantId).isPresent()) {
+            return false;
+        }
+
+        return rolePermissionRepository.existsByRoleIdAndTenantIdAndPermissionId(roleId, tenantId, permissionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public RolePermissionResponse findByRolePermissionId(UUID rolePermissionId) {
-        return rolePermissionRepository.findByRolePermissionId(rolePermissionId)
+    public RolePermissionResponse findById(Long id) {
+
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        return rolePermissionRepository.findByIdAndTenantId(id, tenantId)
                 .map(rp -> {
                     Permission permission = permissionRepository.findById(rp.getPermissionId()).orElse(null);
                     return RolePermissionMapper.toResponse(rp, permission);

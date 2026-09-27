@@ -1,108 +1,30 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
-import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
-import { getEnv } from "@/config/env";
+import type { AxiosError, AxiosRequestConfig } from "axios";
+import { axiosInstance } from "./http-client";
+import { setupInterceptors } from "./interceptors";
 
-/**
- * Axios instance configured for the ERP AI Platform API.
- *
- * - Base URL comes from `API_BASE_URL` env var.
- * - Timeout comes from `API_TIMEOUT_MS` env var.
- * - JSON content type is set by default.
- */
-export const axiosInstance = axios.create({
-  baseURL: getEnv().API_BASE_URL,
-  timeout: getEnv().API_TIMEOUT_MS,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-/**
- * Request interceptor: injects the access token from cookies (if present)
- * and the tenant identifier header required by the multi-tenant backend.
- */
-axiosInstance.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Attach access token from httpOnly cookie via a helper (server can read it,
-    // client cannot; this is a placeholder for a token-refresh flow or a
-    // client-side token store if using a non-httpOnly strategy).
-    const token = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("access_token="))
-      ?.split("=")[1];
-
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Multi-tenant header: the backend expects the tenant ID in this header.
-    // The value is set by the tenant resolver middleware on the server.
-    const tenantId = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("tenant_id="))
-      ?.split("=")[1];
-
-    if (tenantId && config.headers) {
-      config.headers["X-Tenant-ID"] = tenantId;
-    }
-
-    return config;
-  },
-  (error: AxiosError) => Promise.reject(error)
-);
-
-/**
- * Response interceptor: normalizes error handling and refreshes the access
- * token when a 401 is received (if a refresh token is available).
- */
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("refresh_token="))
-          ?.split("=")[1];
-
-        if (refreshToken) {
-          const { data } = await axios.post(
-            `${getEnv().API_BASE_URL}/auth/refresh`,
-            { refreshToken }
-          );
-
-          const newAccessToken = data?.access_token;
-          if (newAccessToken) {
-            document.cookie = `access_token=${newAccessToken}; path=/; max-age=900; SameSite=Strict`;
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-            }
-            return axiosInstance(originalRequest);
-          }
-        }
-      } catch {
-        // Refresh failed — clear tokens and redirect to login
-        document.cookie =
-          "access_token=; refresh_token=; tenant_id=; path=/; max-age=0; SameSite=Strict";
-        window.location.href = "/login";
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
+// Attach the JWT request/response interceptors (token injection + refresh)
+// to the shared Axios instance exactly once, at module load.
+setupInterceptors();
 
 /**
  * API error type returned by the custom base query.
+ *
+ * Mirrors the backend `ApiError` record from `GlobalExceptionHandler`:
+ * - `code`      machine-readable error code (e.g. "INVALID_CREDENTIALS")
+ * - `message`   human-readable error message
+ * - `path`      the request path that produced the error
+ * - `timestamp` occurrence time (ISO-8601)
  */
 export interface ApiError {
   status?: number;
-  data?: { message?: string };
+  data?: {
+    code?: string;
+    message?: string;
+    path?: string;
+    timestamp?: string;
+  };
   error: string;
 }
 
@@ -110,7 +32,9 @@ export interface ApiError {
  * Custom base query that wraps Axios for RTK Query.
  *
  * This gives us full control over request/response handling while still
- * leveraging RTK Query's caching, polling, and optimistic updates.
+ * leveraging RTK Query's caching, polling, and optimistic updates. The
+ * underlying Axios instance carries the auth interceptors, so every request
+ * is automatically authenticated and transparently refreshed on expiry.
  */
 const axiosBaseQuery =
   (): BaseQueryFn<
@@ -159,15 +83,21 @@ export const api = createApi({
   tagTypes: [
     "Auth",
     "User",
+    "Company",
+    "CompanyFiscalYear",
     "Role",
     "Permission",
     "Department",
+    "Branch",
     "Tenant",
     "Finance",
     "Inventory",
     "HR",
     "Manufacturing",
     "AI",
+    "Province",
+    "District",
+    "LocalLevel",
   ],
   endpoints: () => ({}),
 });

@@ -198,12 +198,16 @@ docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.deve
 docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.monitoring.yml --profile monitoring up -d
 ```
 
-### Start Everything
+### Start Everything (Minimal Default)
 
 ```bash
-# Start all services including application
+# Start the minimal local-dev stack (PostgreSQL + application)
 docker compose up -d
 ```
+
+> The default `docker-compose.yml` runs only PostgreSQL and the application.
+> For the full stack (Redis, Kafka, Keycloak, MinIO, monitoring, etc.), use the
+> modular compose files or `./scripts/docker/start.sh`.
 
 ## Access URLs
 
@@ -227,7 +231,7 @@ docker compose up -d
 | `compose.infrastructure.yml` | Core infrastructure services |
 | `compose.development.yml` | Development tools (MailHog, pgAdmin) |
 | `compose.monitoring.yml` | Monitoring stack (Prometheus, Grafana, etc.) |
-| `docker-compose.yml` | Main compose file (includes all) |
+| `docker-compose.yml` | Minimal local-dev default (PostgreSQL + application) |
 
 ### Monitoring Configuration
 

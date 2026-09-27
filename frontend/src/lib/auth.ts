@@ -59,19 +59,37 @@ export function clearAuthCookies(): void {
 }
 
 /**
+ * Options for {@link setAuthCookies}.
+ */
+export interface SetAuthCookiesOptions {
+  /** Access-token lifetime in seconds (default 900 = 15 minutes). */
+  accessTokenMaxAge?: number;
+  /** Refresh-token lifetime in seconds (default 604800 = 7 days). */
+  refreshTokenMaxAge?: number;
+}
+
+/**
  * Sets authentication cookies.
  *
  * Note: In production, httpOnly cookies should be set by the server.
  * This function is provided for development/testing purposes.
  */
-export function setAuthCookies(accessToken: string, refreshToken: string, tenantId: string): void {
+export function setAuthCookies(
+  accessToken: string,
+  refreshToken: string,
+  tenantId: string,
+  options?: SetAuthCookiesOptions
+): void {
   if (typeof document === "undefined") return;
 
   const isProduction = process.env.NODE_ENV === "production";
   const secure = isProduction ? "; Secure" : "";
   const sameSite = "; SameSite=Strict";
 
-  document.cookie = `access_token=${accessToken}; path=/; max-age=900${secure}${sameSite}`;
-  document.cookie = `refresh_token=${refreshToken}; path=/; max-age=604800${secure}${sameSite}`;
-  document.cookie = `tenant_id=${tenantId}; path=/; max-age=604800${secure}${sameSite}`;
+  const accessTokenMaxAge = options?.accessTokenMaxAge ?? 900;
+  const refreshTokenMaxAge = options?.refreshTokenMaxAge ?? 604800;
+
+  document.cookie = `access_token=${accessToken}; path=/; max-age=${accessTokenMaxAge}${secure}${sameSite}`;
+  document.cookie = `refresh_token=${refreshToken}; path=/; max-age=${refreshTokenMaxAge}${secure}${sameSite}`;
+  document.cookie = `tenant_id=${tenantId}; path=/; max-age=${refreshTokenMaxAge}${secure}${sameSite}`;
 }

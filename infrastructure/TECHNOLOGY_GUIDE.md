@@ -79,16 +79,14 @@ PostgreSQL is the primary relational database for all business data. It's chosen
 - Enables full-text search and similarity matching
 
 ### Real Project Scenario
-The Finance service needs to store invoices and payments. When the platform starts:
+The Identity service needs to store users and roles. When the platform starts:
 
 ```bash
-# PostgreSQL automatically creates databases on first run
-# 01-create-databases.sql creates: erpai_finance, erpai_hr, etc.
-# 02-create-users.sql creates dedicated users with least-privilege access
-# 03-create-extensions.sql enables uuid-ossp, pg_trgm, pgcrypto, etc.
+# PostgreSQL automatically creates the database on first run
+# 01-create-extensions.sql enables uuid-ossp, pg_trgm, pgcrypto, etc.
 
-# Connect to the finance database
-docker compose exec postgres psql -U erpai -d erpai_finance
+# Connect to the database
+docker compose exec postgres psql -U erpai -d erpai_platform
 
 # Run migrations to create tables
 docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up flyway
@@ -664,10 +662,9 @@ This section provides a detailed explanation of all commands used in this guide,
 | Command | Description |
 |---------|-------------|
 | `docker compose exec postgres psql -U erpai -d erpai_platform` | Connects to the PostgreSQL database using the `psql` CLI. `-U` specifies the username, `-d` specifies the database name. |
-| `docker compose exec postgres psql -U erpai -d erpai_finance` | Connects to the finance-specific database. Each microservice has its own database (e.g., `erpai_finance`, `erpai_hr`). |
 | `docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up flyway` | Runs Flyway database migrations inside a temporary container to create/update database schemas. |
-| `bash infrastructure/postgres/backups/backup.sh` | Executes the backup script to create a backup of all PostgreSQL databases. |
-| `docker compose exec postgres psql -U erpai -d erpai_platform -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname LIKE 'erpai_%';"` | Queries all databases matching the `erpai_` pattern and displays their sizes in human-readable format. |
+| `bash infrastructure/postgres/backups/backup.sh` | Executes the backup script to create a backup of the PostgreSQL database. |
+| `docker compose exec postgres psql -U erpai -d erpai_platform -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname NOT IN ('postgres', 'template0', 'template1');"` | Queries all user databases and displays their sizes in human-readable format. |
 
 ### Redis Commands
 
@@ -784,3 +781,4 @@ This section provides a detailed explanation of all commands used in this guide,
 | `curl -G` | Sends an HTTP GET request with query parameters. The `--data-urlencode` flag is often used with this to encode parameters. |
 | `bash <script>` | Executes a shell script. Used to run automation scripts like backups. |
 | `cd <directory>` | Changes the current working directory. Used to navigate into project folders before running commands. |
+

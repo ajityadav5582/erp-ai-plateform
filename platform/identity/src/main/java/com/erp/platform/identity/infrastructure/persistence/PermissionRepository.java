@@ -1,16 +1,13 @@
 package com.erp.platform.identity.infrastructure.persistence;
 
-import com.erp.platform.identity.domain.Action;
 import com.erp.platform.identity.domain.Permission;
 import com.erp.platform.identity.domain.PermissionStatus;
-import com.erp.platform.identity.domain.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Repository interface for Permission aggregate.
@@ -20,21 +17,28 @@ import java.util.UUID;
 @Repository
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
 
-    Optional<Permission> findByPermissionId(UUID permissionId);
+    Optional<Permission> findById(Long id);
 
     Optional<Permission> findByPermissionCode(String permissionCode);
 
-    Page<Permission> findByResource(Resource resource, Pageable pageable);
+    Page<Permission> findByResourceCode(String resourceCode, Pageable pageable);
 
     Page<Permission> findByStatus(PermissionStatus status, Pageable pageable);
 
-    Page<Permission> findByResourceAndStatus(Resource resource, PermissionStatus status, Pageable pageable);
+    Page<Permission> findByResourceCodeAndStatus(String resourceCode, PermissionStatus status, Pageable pageable);
 
-    Page<Permission> findByAction(Action action, Pageable pageable);
+    Page<Permission> findByActionCode(String actionCode, Pageable pageable);
 
     boolean existsByPermissionCode(String permissionCode);
 
-    boolean existsByPermissionId(UUID permissionId);
+    boolean existsByResourceCodeAndActionCode(String resourceCode, String actionCode);
 
-    boolean existsByResourceAndAction(Resource resource, Action action);
+    /**
+     * Finds a permission by its resource and action.
+     *
+     * @param resource the resource
+     * @param action the action
+     * @return the permission if found, empty otherwise
+     */
+    Optional<Permission> findByResourceCodeAndActionCode(String resourceCode, String actionCode);
 }

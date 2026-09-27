@@ -6,9 +6,6 @@ import com.erp.platform.identity.domain.Role;
 import com.erp.platform.identity.domain.UserRole;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -29,20 +26,15 @@ public class UserRoleMapper {
     public UserRoleResponse toResponse(UserRole userRole, Role role) {
         return new UserRoleResponse(
                 userRole.getId(),
-                userRole.getUserRoleId(),
                 userRole.getUserId(),
                 userRole.getRoleId(),
                 role != null ? role.getRoleName() : null,
                 role != null ? role.getRoleCode() : null,
-                userRole.getTenantId(),
                 userRole.getAssignedBy(),
-                toLocalDateTime(userRole.getAssignedAt()),
-                toLocalDateTime(userRole.getExpiresAt()),
+                userRole.getAssignedAt(),
+                userRole.getExpiresAt(),
                 userRole.isPrimaryRole(),
-                toLocalDateTime(userRole.getRevokedAt()),
-                userRole.getRevokedBy(),
-                userRole.getRevokeReason(),
-                userRole.getVersion()
+                userRole.isActive()
         );
     }
 
@@ -77,13 +69,4 @@ public class UserRoleMapper {
         return UserRoleListResponse.of(userRoles, totalElements, totalPages, currentPage, pageSize);
     }
 
-    /**
-     * Convert Instant to LocalDateTime.
-     *
-     * @param instant the instant to convert
-     * @return the local date time
-     */
-    private LocalDateTime toLocalDateTime(Instant instant) {
-        return instant != null ? LocalDateTime.ofInstant(instant, ZoneId.systemDefault()) : null;
-    }
 }

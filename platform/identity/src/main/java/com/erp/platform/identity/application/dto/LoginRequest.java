@@ -7,7 +7,8 @@ import jakarta.validation.constraints.Size;
 /**
  * Request to authenticate a user and obtain tokens.
  *
- * @param tenantId   the tenant the user belongs to (multi-tenant isolation)
+ * @param tenantId   the tenant the user belongs to (optional; if omitted the
+ *                   backend searches across all tenants for the user)
  * @param username   the user's username or email
  * @param password   the user's raw password (never logged)
  * @param deviceInfo optional best-effort device description (stored on the refresh token)
@@ -16,7 +17,6 @@ import jakarta.validation.constraints.Size;
  * @since 1.0.0
  */
 public record LoginRequest(
-        @NotNull(message = "Tenant ID is required")
         Long tenantId,
 
         @NotBlank(message = "Username is required")

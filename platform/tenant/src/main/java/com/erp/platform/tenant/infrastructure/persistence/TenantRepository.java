@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Repository interface for Tenant aggregate.
@@ -18,7 +17,6 @@ import java.util.UUID;
 @Repository
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
-    Optional<Tenant> findByTenantId(UUID tenantId);
 
     Optional<Tenant> findByTenantCode(String tenantCode);
 
@@ -26,5 +24,4 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     boolean existsByTenantCode(String tenantCode);
 
-    boolean existsByTenantId(UUID tenantId);
 }

@@ -59,7 +59,7 @@ services:
       - "-c"
       - "log_line_prefix='%t [%p-%l] %q%u@%d '"
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - postgres_wal:/var/lib/postgresql/wal
@@ -67,7 +67,7 @@ services:
     networks:
       - erpai-data-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erpai} -d ${POSTGRES_DB:-erpai_platform}"]
+      test: ["CMD-SHELL", "test -S /var/run/postgresql/.s.PGSQL.5432"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,7 +91,7 @@ services:
     container_name: erpai-flyway
     restart: unless-stopped
     environment:
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-erpai_platform}
       FLYWAY_USER: ${POSTGRES_USER:-erpai}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       FLYWAY_SCHEMAS: public
@@ -103,7 +103,7 @@ services:
       FLYWAY_VALIDATE_ON_MIGRATE: "true"
       FLYWAY_OUT_OF_ORDER: "false"
       FLYWAY_PLACEHOLDER_REPLACEMENT: "true"
-      FLYWAY_LOCATIONS: "filesystem:infrastructure/postgres/flyway/{service}"
+      FLYWAY_LOCATIONS: "filesystem:infrastructure/postgres/flyway/${FLYWAY_SERVICE:-platform}"
       FLYWAY_GROUP: "false"
     volumes:
       - ./infrastructure/postgres/flyway:/flyway/sql:ro
@@ -173,10 +173,11 @@ services:
   # ===========================================================================
 
   kafka:
-    image: confluentinc/cp-kafka:7.7.0
+    image: confluentinc/cp-kafka:7.6.1
     container_name: erpai-kafka
     restart: unless-stopped
     environment:
+      CLUSTER_ID: erpai-kafka-cluster-001
       KAFKA_NODE_ID: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9098
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST_ADVERTISED:PLAINTEXT
@@ -201,14 +202,10 @@ services:
       - "29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
+      - ./infrastructure/kafka/config/kraft/server.properties:/etc/kafka/server.properties:ro
+      - ./infrastructure/kafka/config/kraft/cluster.id:/etc/kafka/cluster.id:ro
     networks:
       - erpai-data-network
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
     deploy:
       resources:
         limits:
@@ -237,8 +234,7 @@ services:
     networks:
       - erpai-data-network
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     profiles: ["infrastructure"]
     deploy:
       resources:
@@ -264,8 +260,7 @@ services:
     networks:
       - erpai-data-network
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     profiles: ["infrastructure"]
     command: >
       bash /scripts/init-topics.sh
@@ -287,8 +282,7 @@ services:
     networks:
       - erpai-data-network
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
 
   # ===========================================================================
   # Identity Provider
@@ -364,11 +358,11 @@ services:
           cpus: '0.25'
     profiles: ["infrastructure"]
 
-   # ===========================================================================
-   # MinIO Bucket Initializer
-   # ===========================================================================
+  # ===========================================================================
+  # MinIO Bucket Initializer
+  # ===========================================================================
 
-   minio-init:
+  minio-init:
      image: minio/mc:latest
      container_name: erpai-minio-init
      restart: "no"

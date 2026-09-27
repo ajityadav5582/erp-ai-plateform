@@ -7,13 +7,13 @@ import jakarta.validation.constraints.Size;
 /**
  * Request to initiate a password reset for a user identified by email within a tenant.
  *
- * @param tenantId the tenant the user belongs to (multi-tenant isolation)
+ * @param tenantId the tenant the user belongs to (optional; if omitted the
+ *                 backend searches across all tenants for the user)
  * @param email    the user's email address
  *
  * @since 1.0.0
  */
 public record PasswordResetRequest(
-        @NotNull(message = "Tenant ID is required")
         Long tenantId,
 
         @Email(message = "Email must be valid")

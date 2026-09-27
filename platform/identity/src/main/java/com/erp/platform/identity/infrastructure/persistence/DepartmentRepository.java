@@ -23,14 +23,6 @@ import java.util.UUID;
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     /**
-     * Finds a department by its unique business identifier.
-     *
-     * @param departmentId the UUID business identifier
-     * @return the department if found, empty otherwise
-     */
-    Optional<Department> findByDepartmentId(UUID departmentId);
-
-    /**
      * Finds a department by tenant ID and its unique business identifier.
      *
      * @param tenantId the tenant ID
@@ -81,46 +73,52 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     Page<Department> findByTenantId(Long tenantId, Pageable pageable);
 
     /**
-     * Finds all departments for a specific branch.
+     * Finds all departments for a specific tenant and branch.
      *
+     * @param tenantId the tenant ID
      * @param branchId the branch ID
-     * @return list of departments for the branch
+     * @return list of departments for the branch in the tenant
      */
-    List<Department> findByBranchId(Long branchId);
+    List<Department> findByTenantIdAndBranchId(Long tenantId, Long branchId);
 
     /**
-     * Finds all active departments for a specific branch.
+     * Finds all active departments for a specific branch in a tenant.
      *
      * <p>Used for operational queries and dropdown selections.
      *
+     * @param tenantId the tenant ID
      * @param branchId the branch ID
-     * @return list of active departments for the branch
+     * @param status the department status
+     * @return list of active departments for the branch in the tenant
      */
-    List<Department> findByBranchIdAndStatus(Long branchId, DepartmentStatus status);
+    List<Department> findByTenantIdAndBranchIdAndStatus(Long tenantId, Long branchId, DepartmentStatus status);
 
     /**
-     * Finds all departments managed by a specific user.
+     * Finds all departments managed by a specific user in a tenant.
      *
+     * @param tenantId the tenant ID
      * @param managerId the user ID of the manager
-     * @return list of departments managed by the user
+     * @return list of departments managed by the user in the tenant
      */
-    List<Department> findByManagerId(Long managerId);
+    List<Department> findByTenantIdAndManagerId(Long tenantId, Long managerId);
 
     /**
-     * Finds all root departments (departments without a parent) for a specific branch.
+     * Finds all root departments (departments without a parent) for a specific tenant and branch.
      *
+     * @param tenantId the tenant ID
      * @param branchId the branch ID
-     * @return list of root departments
+     * @return list of root departments in the tenant
      */
-    List<Department> findByBranchIdAndParentDepartmentIdIsNull(Long branchId);
+    List<Department> findByTenantIdAndBranchIdAndParentDepartmentIdIsNull(Long tenantId, Long branchId);
 
     /**
-     * Finds all child departments of a specific parent department.
+     * Finds all child departments of a specific parent department in a tenant.
      *
+     * @param tenantId the tenant ID
      * @param parentDepartmentId the parent department ID
-     * @return list of child departments
+     * @return list of child departments in the tenant
      */
-    List<Department> findByParentDepartmentId(Long parentDepartmentId);
+    List<Department> findByTenantIdAndParentDepartmentId(Long tenantId, Long parentDepartmentId);
 
     /**
      * Checks if a department code exists within a branch.
@@ -208,7 +206,9 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
      * Finds the hierarchy path from a root department to the specified department.
      *
      * <p>Returns the chain of parent departments from root to the given department.
+     * The query is scoped to a specific tenant to ensure data isolation.
      *
+     * @param tenantId the tenant ID
      * @param departmentId the department ID to find the path for
      * @return list of departments in the hierarchy path (root first)
      */
@@ -218,15 +218,16 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
                    description, manager_id, parent_department_id, status,
                    created_at, updated_at, created_by, updated_by, version
             FROM departments
-            WHERE id = :departmentId
+            WHERE id = :departmentId AND tenant_id = :tenantId
             UNION ALL
             SELECT d.id, d.department_id, d.tenant_id, d.branch_id, d.department_code, d.department_name,
                    d.description, d.manager_id, d.parent_department_id, d.status,
                    d.created_at, d.updated_at, d.created_by, d.updated_by, d.version
             FROM departments d
             INNER JOIN dept_hierarchy dh ON d.id = dh.parent_department_id
+            WHERE d.tenant_id = :tenantId
         )
         SELECT * FROM dept_hierarchy ORDER BY parent_department_id NULLS FIRST
         """, nativeQuery = true)
-    List<Department> findHierarchyPath(@Param("departmentId") Long departmentId);
+    List<Department> findHierarchyPath(@Param("tenantId") Long tenantId, @Param("departmentId") Long departmentId);
 }

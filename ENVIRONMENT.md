@@ -94,7 +94,7 @@ Edit `.env` and replace placeholder values with your actual configuration.
 ### 4. Start Services
 
 ```bash
-# Start all infrastructure services
+# Start the minimal local development stack (PostgreSQL + application)
 docker compose up
 
 # Start with specific profile

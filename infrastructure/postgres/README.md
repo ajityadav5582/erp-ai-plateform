@@ -1,6 +1,6 @@
 # PostgreSQL Infrastructure
 
-PostgreSQL is the primary relational database for the ERP AI Platform. Each microservice has its own dedicated database for data isolation and independent scaling.
+PostgreSQL is the primary relational database for the ERP AI Platform. All microservices share a single database (`erpai_platform`) with separate schemas/tables for data organization.
 
 ## Overview
 
@@ -12,22 +12,13 @@ PostgreSQL is the primary relational database for the ERP AI Platform. Each micr
 | **Purpose** | Primary relational database |
 | **Owner** | Platform Team |
 
-## Databases
+## Database
 
-The platform uses multiple PostgreSQL databases, one per microservice:
+The platform uses a single PostgreSQL database for all microservices:
 
-| Database | Service | Description |
-|----------|---------|-------------|
-| `erpai_platform` | Platform | Shared infrastructure (users, tenants, settings) |
-| `erpai_finance` | Finance | Finance domain (invoices, payments, accounts) |
-| `erpai_hr` | HR | Human resources (employees, attendance, payroll) |
-| `erpai_inventory` | Inventory | Stock management (products, warehouses, stock) |
-| `erpai_manufacturing` | Manufacturing | Production (BOM, work orders, routing) |
-| `erpai_procurement` | Procurement | Purchasing (PO, vendors, RFQ) |
-| `erpai_sales` | Sales | Sales orders, customers, quotations |
-| `erpai_ai` | AI/ML | AI models, predictions, training data |
-| `erpai_integration` | Integration | External integrations, sync logs |
-| `erpai_gateway` | Gateway | API gateway configuration, rate limits |
+| Database | Purpose |
+|----------|---------|
+| `erpai_platform` | Single database for all services (identity, tenant, and future services) |
 
 ## Configuration
 
@@ -69,15 +60,13 @@ log_line_prefix = '%t [%p-%l] %q%u@%d '
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        PostgreSQL                               │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │ erpai_platform│  │ erpai_finance│  │ erpai_hr    │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │erpai_inventory│ │erpai_manufact│ │erpai_procure│             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │ erpai_sales │  │ erpai_ai    │  │erpai_integration│          │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│  ┌─────────────────────────────────────────┐                     │
+│  │         erpai_platform                   │                     │
+│  │  ┌─────────────┐  ┌─────────────┐        │                     │
+│  │  │ identity    │  │ tenant      │  ...   │                     │
+│  │  │ tables      │  │ tables      │        │                     │
+│  │  └─────────────┘  └─────────────┘        │                     │
+│  └─────────────────────────────────────────┘                     │
 │                                                                 │
 │  ▲                                                               │
 │  │                                                               │
@@ -93,7 +82,7 @@ log_line_prefix = '%t [%p-%l] %q%u@%d '
 | Component | Relationship |
 |-----------|--------------|
 | **Flyway** | Runs database migrations on startup |
-| **All Microservices** | Each service connects to its own database |
+| **All Microservices** | All services connect to the same `erpai_platform` database |
 | **Postgres Exporter** | Scrapes metrics for Prometheus |
 | **pgAdmin** | Web UI for database management (development) |
 | **Keycloak** | Stores user identities and realm data (in dev-mem mode) |
@@ -116,7 +105,7 @@ docker compose exec postgres psql -U erpai -c "\l"
 
 ## Flyway Migrations
 
-Each microservice has its own Flyway migration directory under `infrastructure/postgres/flyway/`. Migrations follow the naming convention:
+Each microservice has its own Flyway migration directory under its service module (e.g., `platform/identity/src/main/resources/db/migration/`). Migrations follow the naming convention:
 
 ```
 V{version}__{description}.sql
@@ -130,9 +119,6 @@ Example:
 
 ```bash
 # Run all migrations
-docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up flyway
-
-# Run migrations for a specific service
 docker compose -f compose.base.yml -f compose.infrastructure.yml -f compose.development.yml --profile development up flyway
 ```
 

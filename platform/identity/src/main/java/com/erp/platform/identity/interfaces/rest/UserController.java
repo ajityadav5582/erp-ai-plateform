@@ -1,11 +1,12 @@
 package com.erp.platform.identity.interfaces.rest;
 
-import com.erp.platform.common.tenancy.TenantContext;
+import com.erp.platform.identity.application.CurrentTenantProvider;
 import com.erp.platform.identity.application.UserService;
 import com.erp.platform.identity.application.dto.CreateUserRequest;
 import com.erp.platform.identity.application.dto.UpdateUserRequest;
 import com.erp.platform.identity.application.dto.UserListResponse;
 import com.erp.platform.identity.application.dto.UserResponse;
+import com.erp.platform.identity.application.security.RequirePermission;
 import com.erp.platform.identity.domain.UserStatus;
 import com.erp.platform.identity.domain.exception.CannotActivateUserException;
 import com.erp.platform.identity.domain.exception.CannotDeactivateUserException;
@@ -20,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.UUID;
 
 /**
  * REST controller for user management.
@@ -43,6 +43,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final CurrentTenantProvider currentTenantProvider;
 
     /**
      * Creates a new user.
@@ -51,10 +52,11 @@ public class UserController {
      * @return 201 Created with the created user and a {@code Location} header
      */
     @PostMapping
+    @RequirePermission("USER_CREATE")
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody CreateUserRequest request,
             UriComponentsBuilder uriBuilder) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.createUser(tenantId, request);
         return ResponseEntity
                 .created(uriBuilder.path("/api/v1/users/{id}").buildAndExpand(response.userId()).toUri())
@@ -62,15 +64,21 @@ public class UserController {
     }
 
     /**
-     * Lists all users for the current tenant with pagination.
+     * Lists all users for the current tenant with pagination, search, and status filter.
      *
+     * @param search optional search term (username, email, name)
+     * @param status optional status filter (ACTIVE, INACTIVE, etc.)
      * @param pageable pagination and sorting parameters (e.g. {@code ?page=0&size=20&sort=createdAt,desc})
      * @return 200 OK with a page of users
      */
     @GetMapping
-    public ResponseEntity<Page<UserListResponse>> listUsers(Pageable pageable) {
-        Long tenantId = getTenantId();
-        Page<UserListResponse> page = userService.listUsers(tenantId, pageable);
+    @RequirePermission("USER_READ")
+    public ResponseEntity<Page<UserListResponse>> listUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UserStatus status,
+            Pageable pageable) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        Page<UserListResponse> page = userService.listUsers(tenantId, search, status, pageable);
         return ResponseEntity.ok(page);
     }
 
@@ -82,10 +90,11 @@ public class UserController {
      * @return 200 OK with a page of users
      */
     @GetMapping("/by-branch")
+    @RequirePermission("USER_READ")
     public ResponseEntity<Page<UserListResponse>> listUsersByBranch(
             @RequestParam Long branchId,
             Pageable pageable) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         Page<UserListResponse> page = userService.listUsersByBranch(tenantId, branchId, pageable);
         return ResponseEntity.ok(page);
     }
@@ -98,23 +107,25 @@ public class UserController {
      * @return 200 OK with a page of users
      */
     @GetMapping("/by-department")
+    @RequirePermission("USER_READ")
     public ResponseEntity<Page<UserListResponse>> listUsersByDepartment(
             @RequestParam Long departmentId,
             Pageable pageable) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         Page<UserListResponse> page = userService.listUsersByDepartment(tenantId, departmentId, pageable);
         return ResponseEntity.ok(page);
     }
 
     /**
-     * Gets a user by their UUID.
+     * Gets a user by its numeric ID.
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return 200 OK with the user
      */
     @GetMapping("/{userId}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID userId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("USER_READ")
+    public ResponseEntity<UserResponse> getUserById(@PathVariable Long userId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.getUserById(tenantId, userId);
         return ResponseEntity.ok(response);
     }
@@ -126,8 +137,9 @@ public class UserController {
      * @return 200 OK with the user
      */
     @GetMapping("/by-email")
+    @RequirePermission("USER_READ")
     public ResponseEntity<UserResponse> getUserByEmail(@RequestParam String email) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.getUserByEmail(tenantId, email);
         return ResponseEntity.ok(response);
     }
@@ -135,15 +147,16 @@ public class UserController {
     /**
      * Fully updates a user.
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @param request the update request (only non-null fields are applied)
      * @return 200 OK with the updated user
      */
     @PutMapping("/{userId}")
+    @RequirePermission("USER_UPDATE")
     public ResponseEntity<UserResponse> updateUser(
-            @PathVariable UUID userId,
+            @PathVariable Long userId,
             @Valid @RequestBody UpdateUserRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.updateUser(tenantId, userId, request);
         return ResponseEntity.ok(response);
     }
@@ -151,15 +164,16 @@ public class UserController {
     /**
      * Partially updates a user.
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @param request the partial update request
      * @return 200 OK with the updated user
      */
     @PatchMapping("/{userId}")
+    @RequirePermission("USER_UPDATE")
     public ResponseEntity<UserResponse> patchUser(
-            @PathVariable UUID userId,
+            @PathVariable Long userId,
             @RequestBody UpdateUserRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.updateUser(tenantId, userId, request);
         return ResponseEntity.ok(response);
     }
@@ -167,12 +181,13 @@ public class UserController {
     /**
      * Deletes a user (soft delete).
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return 204 No Content
      */
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUser(@PathVariable UUID userId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("USER_DELETE")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         userService.deleteUser(tenantId, userId);
         return ResponseEntity.noContent().build();
     }
@@ -180,12 +195,13 @@ public class UserController {
     /**
      * Activates a user (INACTIVE → ACTIVE).
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return 200 OK with the activated user
      */
     @PostMapping("/{userId}/activate")
-    public ResponseEntity<UserResponse> activateUser(@PathVariable UUID userId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("USER_UPDATE")
+    public ResponseEntity<UserResponse> activateUser(@PathVariable Long userId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.activateUser(tenantId, userId);
         return ResponseEntity.ok(response);
     }
@@ -193,27 +209,15 @@ public class UserController {
     /**
      * Deactivates a user (ACTIVE → INACTIVE).
      *
-     * @param userId the user UUID
+     * @param userId the user ID
      * @return 200 OK with the deactivated user
      */
     @PostMapping("/{userId}/deactivate")
-    public ResponseEntity<UserResponse> deactivateUser(@PathVariable UUID userId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("USER_UPDATE")
+    public ResponseEntity<UserResponse> deactivateUser(@PathVariable Long userId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.deactivateUser(tenantId, userId);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Extracts the tenant ID from the current request context.
-     *
-     * @return the tenant ID as a {@link Long}
-     * @throws IllegalStateException if the tenant context is not set
-     */
-    private Long getTenantId() {
-        String tenantId = TenantContext.getTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            throw new IllegalStateException("Tenant context is not set");
-        }
-        return Long.parseLong(tenantId);
-    }
 }

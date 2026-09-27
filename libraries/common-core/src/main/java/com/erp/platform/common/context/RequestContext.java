@@ -73,6 +73,24 @@ public final class RequestContext {
     }
 
     /**
+     * Sets the tenant ID.
+     *
+     * @param tenantId the tenant ID
+     */
+    public static void setTenantId(String tenantId) {
+        getHolder().setTenantId(tenantId);
+    }
+
+    /**
+     * Returns the tenant ID.
+     *
+     * @return the tenant ID, or null if not set
+     */
+    public static String getTenantId() {
+        return getHolder().getTenantId();
+    }
+
+    /**
      * Sets the client IP address.
      *
      * @param clientIp the client IP
@@ -152,6 +170,7 @@ public final class RequestContext {
         private String requestId;
         private String correlationId;
         private String userId;
+        private String tenantId;
         private String clientIp;
         private String userAgent;
         private final java.util.Map<String, Object> attributes = new java.util.concurrent.ConcurrentHashMap<>();
@@ -178,6 +197,14 @@ public final class RequestContext {
 
         public void setUserId(String userId) {
             this.userId = userId;
+        }
+
+        public String getTenantId() {
+            return tenantId;
+        }
+
+        public void setTenantId(String tenantId) {
+            this.tenantId = tenantId;
         }
 
         public String getClientIp() {
@@ -212,6 +239,7 @@ public final class RequestContext {
             requestId = null;
             correlationId = null;
             userId = null;
+            tenantId = null;
             clientIp = null;
             userAgent = null;
             attributes.clear();

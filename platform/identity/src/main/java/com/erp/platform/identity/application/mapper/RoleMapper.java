@@ -6,10 +6,7 @@ import com.erp.platform.identity.application.dto.RoleResponse;
 import com.erp.platform.identity.domain.Role;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.UUID;
+import java.util.Set;
 
 /**
  * Mapper for converting between Role entity and DTOs.
@@ -23,12 +20,11 @@ public class RoleMapper {
      * Convert CreateRoleRequest to Role entity.
      *
      * @param request the create role request
-     * @param tenantId the tenant ID (null for system roles)
+     * @param tenantId the tenant ID
      * @return the Role entity
      */
     public Role toEntity(CreateRoleRequest request, Long tenantId) {
         return Role.createCustom(
-            UUID.randomUUID(),
             tenantId,
             request.roleCode(),
             request.roleName(),
@@ -43,21 +39,30 @@ public class RoleMapper {
      * @return the RoleResponse
      */
     public RoleResponse toResponse(Role role) {
+        return toResponse(role, Set.of());
+    }
+
+    /**
+     * Convert Role entity and permission IDs to RoleResponse.
+     *
+     * @param role the role entity
+     * @param permissionIds assigned permission IDs
+     * @return the RoleResponse
+     */
+    public RoleResponse toResponse(Role role, Set<Long> permissionIds) {
         return new RoleResponse(
             role.getId(),
-            role.getRoleId(),
             role.getTenantId(),
             role.getRoleCode(),
             role.getRoleName(),
             role.getDescription(),
             role.getRoleType(),
+            role.getStatus(),
+            role.canBeModified(),
+            role.canBeDeactivated(),
             role.isSystemRole(),
             role.isActive(),
-            toLocalDateTime(role.getCreatedAt()),
-            toLocalDateTime(role.getUpdatedAt()),
-            role.getCreatedBy(),
-            role.getUpdatedBy(),
-            role.getVersion()
+            permissionIds != null ? permissionIds : Set.of()
         );
     }
 
@@ -70,24 +75,15 @@ public class RoleMapper {
     public RoleListResponse toListResponse(Role role) {
         return new RoleListResponse(
             role.getId(),
-            role.getRoleId(),
             role.getRoleCode(),
             role.getRoleName(),
             role.getDescription(),
             role.getRoleType(),
+            role.getStatus(),
+            role.canBeModified(),
+            role.canBeDeactivated(),
             role.isSystemRole(),
-            role.isActive(),
-            toLocalDateTime(role.getCreatedAt())
+            role.isActive()
         );
-    }
-
-    /**
-     * Convert Instant to LocalDateTime.
-     *
-     * @param instant the instant to convert
-     * @return the local date time
-     */
-    private LocalDateTime toLocalDateTime(Instant instant) {
-        return instant != null ? LocalDateTime.ofInstant(instant, ZoneId.systemDefault()) : null;
     }
 }

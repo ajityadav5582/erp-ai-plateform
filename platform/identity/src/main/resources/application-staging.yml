@@ -1,0 +1,26 @@
+# =============================================================================
+# ERP AI Platform - Identity Service: Staging Profile
+# Activated when SPRING_PROFILES_ACTIVE=staging
+# =============================================================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-erpai_platform}
+    username: ${DB_USERNAME:-${POSTGRES_USER:-erpai}}
+    password: ${DB_PASSWORD:-${POSTGRES_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    com.erp.platform.identity: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

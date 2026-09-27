@@ -5,8 +5,6 @@ import com.erp.platform.identity.application.dto.RemovePermissionRequest;
 import com.erp.platform.identity.application.dto.RolePermissionListResponse;
 import com.erp.platform.identity.application.dto.RolePermissionResponse;
 
-import java.util.UUID;
-
 /**
  * Service interface for managing role-permission assignments.
  *
@@ -56,10 +54,10 @@ public interface RolePermissionService {
     boolean hasPermission(Long roleId, Long permissionId);
 
     /**
-     * Finds a role permission assignment by its business identifier.
+     * Finds a role permission assignment by its database identifier.
      *
-     * @param rolePermissionId the role permission assignment UUID
+     * @param id the role permission assignment ID
      * @return the role permission response, or null if not found
      */
-    RolePermissionResponse findByRolePermissionId(UUID rolePermissionId);
+    RolePermissionResponse findById(Long id);
 }

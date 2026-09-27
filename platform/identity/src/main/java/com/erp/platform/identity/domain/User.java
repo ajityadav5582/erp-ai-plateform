@@ -3,10 +3,8 @@ package com.erp.platform.identity.domain;
 import com.erp.platform.data.lock.OptimisticLock;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * User aggregate root for identity and access management.
@@ -42,14 +40,6 @@ import java.util.UUID;
 public class User extends OptimisticLock<Long> {
 
     private static final long serialVersionUID = 1L;
-
-    /**
-     * The unique business identifier for the user.
-     * Used for API access, external references, and audit trails.
-     * This is a UUID (not String) as per requirements.
-     */
-    @Column(name = "user_id", nullable = false, unique = true, updatable = false)
-    private UUID userId;
 
     /**
      * Reference to the tenant this user belongs to.
@@ -186,6 +176,14 @@ public class User extends OptimisticLock<Long> {
     @Column(name = "department_id")
     private Long departmentId;
 
+    /**
+     * Reference to the company this user belongs to.
+     * Nullable for users not assigned to a specific company.
+     * A Company is a distinct legal/business entity owned by a Tenant.
+     */
+    @Column(name = "company_id")
+    private Long companyId;
+
     // ==============
     // Factory Methods
     // ==============
@@ -193,10 +191,6 @@ public class User extends OptimisticLock<Long> {
     /**
      * Factory method to create a new user in PENDING_ACTIVATION status.
      *
-     * <p>The application layer is responsible for providing the userId.
-     * This ensures proper UUID generation at the application layer.
-     *
-     * @param userId the unique user identifier (UUID)
      * @param tenantId the tenant this user belongs to
      * @param username the unique username within the tenant
      * @param email the user's email address
@@ -206,7 +200,6 @@ public class User extends OptimisticLock<Long> {
      * @return a new User instance in PENDING_ACTIVATION status
      */
     public static User create(
-            UUID userId,
             Long tenantId,
             String username,
             String email,
@@ -217,9 +210,9 @@ public class User extends OptimisticLock<Long> {
             String jobTitle,
             String profileImageUrl,
             Long branchId,
-            Long departmentId) {
+            Long departmentId,
+            Long companyId) {
         return User.builder()
-                .userId(userId)
                 .tenantId(tenantId)
                 .username(username)
                 .email(email)
@@ -231,10 +224,43 @@ public class User extends OptimisticLock<Long> {
                 .profileImageUrl(profileImageUrl)
                 .branchId(branchId)
                 .departmentId(departmentId)
+                .companyId(companyId)
                 .failedLoginAttempts(0)
                 .lockedUntil(null)
                 .status(UserStatus.PENDING_ACTIVATION)
                 .build();
+    }
+
+    /**
+     * Creates a user without assigning a company.
+     * Kept for callers that create tenant-level users without a company context.
+     */
+    public static User create(
+            Long tenantId,
+            String username,
+            String email,
+            String passwordHash,
+            String firstName,
+            String lastName,
+            String phoneNumber,
+            String jobTitle,
+            String profileImageUrl,
+            Long branchId,
+            Long departmentId) {
+        return create(
+                tenantId,
+                username,
+                email,
+                passwordHash,
+                firstName,
+                lastName,
+                phoneNumber,
+                jobTitle,
+                profileImageUrl,
+                branchId,
+                departmentId,
+                null
+        );
     }
 
     // ==============
@@ -255,16 +281,16 @@ public class User extends OptimisticLock<Long> {
      */
     public void activate(Instant activatedAt) {
         if (this.status == UserStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot activate user that is already active: " + this.userId);
+            throw new IllegalStateException("Cannot activate user that is already active: " + getId());
         }
         if (this.status == UserStatus.LOCKED) {
-            throw new IllegalStateException("Cannot activate locked user: " + this.userId);
+            throw new IllegalStateException("Cannot activate locked user: " + getId());
         }
         if (this.status == UserStatus.DEACTIVATED) {
-            throw new IllegalStateException("Cannot activate deactivated user: " + this.userId);
+            throw new IllegalStateException("Cannot activate deactivated user: " + getId());
         }
         if (this.status == UserStatus.ARCHIVED) {
-            throw new IllegalStateException("Cannot activate archived user: " + this.userId);
+            throw new IllegalStateException("Cannot activate archived user: " + getId());
         }
 
         this.status = UserStatus.ACTIVE;
@@ -287,7 +313,7 @@ public class User extends OptimisticLock<Long> {
      */
     public void lock(Instant lockedAt, String lockReason) {
         if (this.status != UserStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot lock user that is not active: " + this.userId);
+            throw new IllegalStateException("Cannot lock user that is not active: " + getId());
         }
 
         this.status = UserStatus.LOCKED;
@@ -308,7 +334,7 @@ public class User extends OptimisticLock<Long> {
      */
     public void unlock(Instant unlockedAt) {
         if (this.status != UserStatus.LOCKED) {
-            throw new IllegalStateException("Cannot unlock user that is not locked: " + this.userId);
+            throw new IllegalStateException("Cannot unlock user that is not locked: " + getId());
         }
 
         this.status = UserStatus.ACTIVE;
@@ -329,7 +355,7 @@ public class User extends OptimisticLock<Long> {
      */
     public void deactivate(Instant deactivatedAt) {
         if (this.status != UserStatus.ACTIVE && this.status != UserStatus.LOCKED) {
-            throw new IllegalStateException("Cannot deactivate user that is not active or locked: " + this.userId);
+            throw new IllegalStateException("Cannot deactivate user that is not active or locked: " + getId());
         }
 
         this.status = UserStatus.DEACTIVATED;
@@ -535,6 +561,15 @@ public class User extends OptimisticLock<Long> {
      */
     public void updateDepartment(Long departmentId) {
         this.departmentId = departmentId;
+    }
+
+    /**
+     * Updates the user's company assignment.
+     *
+     * @param companyId the new company ID
+     */
+    public void updateCompany(Long companyId) {
+        this.companyId = companyId;
     }
 
     // ==============

@@ -22,8 +22,7 @@ public record UpdateUserRequest(
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
     String phoneNumber,
 
-    @Size(max = 100, message = "Job title must not exceed 100 characters")
-    String jobTitle,
+    Long roleId,
 
     @Size(max = 500, message = "Profile image URL must not exceed 500 characters")
     String profileImageUrl,

@@ -7,7 +7,6 @@ import com.erp.platform.identity.application.dto.UpdateRoleRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.UUID;
 
 /**
  * Service interface for role management operations.
@@ -28,19 +27,19 @@ public interface RoleService {
     /**
      * Update an existing role.
      *
-     * @param roleId the role UUID
+     * @param roleId the role ID
      * @param request the update role request
      * @return the updated role response
      */
-    RoleResponse updateRole(UUID roleId, UpdateRoleRequest request);
+    RoleResponse updateRole(Long roleId, UpdateRoleRequest request);
 
     /**
      * Get role by ID.
      *
-     * @param roleId the role UUID
+     * @param roleId the role ID
      * @return the role response
      */
-    RoleResponse getRoleById(UUID roleId);
+    RoleResponse getRoleById(Long roleId);
 
     /**
      * Get role by code.
@@ -70,7 +69,7 @@ public interface RoleService {
     /**
      * Delete a role (soft delete by deactivation).
      *
-     * @param roleId the role UUID
+     * @param roleId the role ID
      */
-    void deleteRole(UUID roleId);
+    void deleteRole(Long roleId);
 }

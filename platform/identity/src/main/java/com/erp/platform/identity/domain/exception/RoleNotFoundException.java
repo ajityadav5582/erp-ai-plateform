@@ -1,7 +1,5 @@
 package com.erp.platform.identity.domain.exception;
 
-import java.util.UUID;
-
 /**
  * Exception thrown when a role is not found.
  *
@@ -24,16 +22,5 @@ public class RoleNotFoundException extends RoleOperationException {
      */
     public static RoleNotFoundException byRoleId(Long roleId) {
         return new RoleNotFoundException("Role not found with ID: " + roleId);
-    }
-
-    /**
-     * Creates a RoleNotFoundException for a specific role UUID.
-     *
-     * @param roleUuid the role UUID that was not found
-     * @return the exception
-     * @since 1.0.0
-     */
-    public static RoleNotFoundException byRoleUuid(UUID roleUuid) {
-        return new RoleNotFoundException("Role not found with UUID: " + roleUuid);
     }
 }

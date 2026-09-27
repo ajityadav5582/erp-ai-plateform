@@ -16,8 +16,8 @@ export const siteConfig = {
   url: appUrl,
   locale: "en_US",
   themeColor: {
-    light: "#ffffff",
-    dark: "#0a0a0a",
+    light: "#102a43",
+    dark: "#102a43",
   },
   authors: [{ name: "ERP AI Platform Team" }],
   keywords: [

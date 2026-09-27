@@ -23,10 +23,10 @@ public final class StructuredLoggingUtils {
      * @return the log message map
      */
     public static Map<String, Object> logMessage(String message) {
-        return Map.of(
-            "message", message,
-            "timestamp", java.time.Instant.now().toString()
-        );
+        java.util.Map<String, Object> logMap = new java.util.HashMap<>();
+        logMap.put("message", message);
+        logMap.put("timestamp", java.time.Instant.now().toString());
+        return logMap;
     }
 
     /**
@@ -38,7 +38,7 @@ public final class StructuredLoggingUtils {
      */
     @SafeVarargs
     public static Map<String, Object> logMessage(String message, Map.Entry<String, Object>... additionalData) {
-        Map<String, Object> logMap = logMessage(message);
+        java.util.Map<String, Object> logMap = logMessage(message);
         for (Map.Entry<String, Object> entry : additionalData) {
             logMap.put(entry.getKey(), entry.getValue());
         }

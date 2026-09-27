@@ -18,9 +18,9 @@ _int() {
     kill -INT "$child" 2>/dev/null
 }
 
-# Trap signals
-trap _term SIGTERM
-trap _int SIGINT
+# Trap signals (use bare signal names for POSIX/dash compatibility)
+trap _term TERM
+trap _int INT
 
 # Execute the Java application with all JVM options
 # Using exec ensures the Java process replaces the shell, receiving signals directly

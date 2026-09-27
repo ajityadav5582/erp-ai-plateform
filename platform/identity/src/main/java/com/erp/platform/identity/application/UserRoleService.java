@@ -7,7 +7,6 @@ import com.erp.platform.identity.application.dto.UserRoleResponse;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Service interface for UserRole assignment operations.
@@ -36,12 +35,12 @@ public interface UserRoleService {
     void removeRole(RemoveRoleRequest request);
 
     /**
-     * Get a user role assignment by user role ID.
+     * Get a user role assignment by ID.
      *
-     * @param userRoleId the user role ID
+     * @param id the user role assignment ID
      * @return the user role response
      */
-    UserRoleResponse getUserRoleById(UUID userRoleId);
+    UserRoleResponse getUserRoleById(Long id);
 
     /**
      * List all role assignments for a user.

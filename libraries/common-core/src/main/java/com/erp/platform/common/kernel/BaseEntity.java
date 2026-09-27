@@ -1,5 +1,9 @@
 package com.erp.platform.common.kernel;
 
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
@@ -12,8 +16,11 @@ import java.util.Objects;
  *
  * @param <T> the type of the entity identifier
  */
+@MappedSuperclass
 public abstract class BaseEntity<T extends Serializable> implements Serializable {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private T id;
 
     private Instant createdAt;

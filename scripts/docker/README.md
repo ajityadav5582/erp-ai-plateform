@@ -28,6 +28,7 @@ chmod +x scripts/docker/*.sh
 | [`restart.sh`](restart.sh) | Restart services | Applying configuration changes |
 | [`reset.sh`](reset.sh) | Full reset | Starting fresh (destructive) |
 | [`database-reset.sh`](database-reset.sh) | Reset database | Resetting only PostgreSQL |
+| [`cleanup.sh`](cleanup.sh) | Full cleanup | DB + Flyway + Docker + images |
 | [`kafka-reset.sh`](kafka-reset.sh) | Reset Kafka | Cleaning up Kafka topics |
 | [`keycloak-import.sh`](keycloak-import.sh) | Import realm | Setting up Keycloak |
 | [`health-check.sh`](health-check.sh) | Health check | Monitoring service health |
@@ -71,6 +72,12 @@ chmod +x scripts/docker/*.sh
 
 # Run health check
 ./scripts/docker/docker.sh health-check
+
+# Start services
+./scripts/docker/docker.sh start
+
+# Clean up everything (DB + Flyway + Docker + images)
+./scripts/docker/docker.sh cleanup --docker --images
 ```
 
 ---
@@ -478,6 +485,39 @@ chmod +x scripts/docker/*.sh
 
 ---
 
+### `cleanup.sh` - Full Cleanup
+
+**Description:** Cleans up everything — database tables, Flyway history, Docker containers, volumes, and images — for a completely fresh start.
+
+**Usage:**
+```bash
+./scripts/docker/cleanup.sh [OPTIONS]
+```
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|--------|
+| `--docker` | Also stop containers and remove volumes | `false` |
+| `--images` | Also remove Docker images | `false` |
+| `--no-confirm` | Skip confirmation prompt | `false` |
+
+**Examples:**
+```bash
+# Clean database tables + Flyway history
+./scripts/docker/cleanup.sh
+
+# Also stop containers and remove volumes
+./scripts/docker/cleanup.sh --docker
+
+# Full cleanup including Docker images
+./scripts/docker/cleanup.sh --docker --images
+
+# Clean without confirmation prompt
+./scripts/docker/cleanup.sh --docker --images --no-confirm
+```
+
+---
+
 ## Common Workflows
 
 ### Initial Setup
@@ -518,7 +558,7 @@ chmod +x scripts/docker/*.sh
 ### Clean Slate
 
 ```bash
-# Full reset
+# Full reset (destructive)
 ./scripts/docker/docker.sh reset --no-confirm
 
 # Or selective reset

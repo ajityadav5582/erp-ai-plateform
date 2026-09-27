@@ -1,0 +1,150 @@
+# =============================================================================
+# ERP AI Platform - Local Development Compose
+# Starts only the application and database services for fast local dev.
+# =============================================================================
+# Usage:
+#   docker compose -f compose.base.yml -f compose.local.yml up
+#   docker compose -f compose.base.yml -f compose.local.yml up -d
+#   docker compose -f compose.base.yml -f compose.local.yml down
+#
+# Quick start:
+#   ./scripts/docker/local-dev.sh start
+#   ./scripts/docker/local-dev.sh stop
+#   ./scripts/docker/local-dev.sh restart
+#   ./scripts/docker/local-dev.sh health-check
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Database
+  # ===========================================================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: erpai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "log_statement=all"
+      - "-c"
+      - "log_duration=on"
+      - "-c"
+      - "log_min_messages=info"
+      - "-c"
+      - "log_checkpoints=on"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_disconnections=on"
+      - "-c"
+      - "log_lock_waits=on"
+      - "-c"
+      - "log_temp_files=0"
+      - "-c"
+      - "log_line_prefix='%t [%p-%l] %q%u@%d '"
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_wal:/var/lib/postgresql/wal
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /var/run/postgresql/.s.PGSQL.5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # ===========================================================================
+  # Application
+  # ===========================================================================
+
+  application:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erpai-app
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${SERVER_PORT:-8080}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_wal:
+    driver: local
+
+networks:
+  erpai-data-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.1.0.0/16

@@ -4,7 +4,6 @@ import com.erp.platform.identity.application.dto.RolePermissionResponse;
 import com.erp.platform.identity.domain.Permission;
 import com.erp.platform.identity.domain.RolePermission;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -38,30 +37,17 @@ public final class RolePermissionMapper {
 
         return new RolePermissionResponse(
                 rolePermission.getId(),
-                rolePermission.getRolePermissionId(),
                 rolePermission.getRoleId(),
                 rolePermission.getPermissionId(),
                 permission != null ? permission.getPermissionCode() : null,
-                permission != null ? permission.getResource() : null,
-                permission != null ? permission.getAction() : null,
+                permission != null ? permission.getResourceCode() : null,
+                permission != null ? permission.getActionCode() : null,
                 permission != null ? permission.getDescription() : null,
                 permission != null ? permission.getStatus() : null,
                 rolePermission.getAssignedBy(),
-                toLocalDateTime(rolePermission.getAssignedAt()),
-                rolePermission.getVersion()
+                rolePermission.getAssignedAt(),
+                rolePermission.isActiveAssignment()
         );
     }
 
-    /**
-     * Converts an Instant to LocalDateTime.
-     *
-     * @param instant the instant to convert
-     * @return the LocalDateTime, or null if instant is null
-     */
-    public static LocalDateTime toLocalDateTime(Instant instant) {
-        if (instant == null) {
-            return null;
-        }
-        return LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault());
-    }
 }

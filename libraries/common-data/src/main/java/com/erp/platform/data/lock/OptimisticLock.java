@@ -3,6 +3,7 @@ package com.erp.platform.data.lock;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
 import org.springframework.data.annotation.Version;
 
 import java.io.Serializable;
@@ -19,7 +20,7 @@ import java.io.Serializable;
  */
 @MappedSuperclass
 @EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
-public abstract class OptimisticLock<T extends Serializable> extends com.erp.platform.common.kernel.BaseEntity<T> {
+public abstract class OptimisticLock<T extends Serializable> extends com.erp.platform.common.kernel.AuditableEntity<T> {
 
     private static final long serialVersionUID = 1L;
 
@@ -55,5 +56,18 @@ public abstract class OptimisticLock<T extends Serializable> extends com.erp.pla
      */
     public void incrementVersion() {
         this.version = (this.version == null) ? 1 : this.version + 1;
+    }
+
+    /**
+     * Initializes the version to 0 before the entity is first persisted.
+     *
+     * <p>This ensures the version column is never null, satisfying the
+     * database NOT NULL constraint.
+     */
+    @PrePersist
+    void initializeVersion() {
+        if (this.version == null) {
+            this.version = 0;
+        }
     }
 }

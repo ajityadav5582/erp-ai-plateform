@@ -7,8 +7,6 @@ import com.erp.platform.identity.application.dto.UpdateBranchRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.UUID;
-
 /**
  * Service interface for branch management operations.
  *
@@ -26,13 +24,13 @@ public interface BranchService {
     BranchResponse createBranch(Long tenantId, CreateBranchRequest request);
 
     /**
-     * Get a branch by its business identifier.
+     * Get a branch by its identifier.
      *
      * @param tenantId the tenant ID
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return the branch response
      */
-    BranchResponse getBranchById(Long tenantId, UUID branchId);
+    BranchResponse getBranchById(Long tenantId, Long branchId);
 
     /**
      * Get a branch by its unique code within the tenant.
@@ -56,35 +54,35 @@ public interface BranchService {
      * Update an existing branch.
      *
      * @param tenantId the tenant ID
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @param request the update branch request
      * @return the updated branch response
      */
-    BranchResponse updateBranch(Long tenantId, UUID branchId, UpdateBranchRequest request);
+    BranchResponse updateBranch(Long tenantId, Long branchId, UpdateBranchRequest request);
 
     /**
      * Activate a branch (INACTIVE → ACTIVE).
      *
      * @param tenantId the tenant ID
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return the activated branch response
      */
-    BranchResponse activateBranch(Long tenantId, UUID branchId);
+    BranchResponse activateBranch(Long tenantId, Long branchId);
 
     /**
      * Deactivate a branch (ACTIVE → INACTIVE).
      *
      * @param tenantId the tenant ID
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return the deactivated branch response
      */
-    BranchResponse deactivateBranch(Long tenantId, UUID branchId);
+    BranchResponse deactivateBranch(Long tenantId, Long branchId);
 
     /**
      * Delete a branch.
      *
      * @param tenantId the tenant ID
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      */
-    void deleteBranch(Long tenantId, UUID branchId);
+    void deleteBranch(Long tenantId, Long branchId);
 }

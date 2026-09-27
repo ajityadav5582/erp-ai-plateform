@@ -15,8 +15,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 /**
  * Implementation of BranchService.
  *
@@ -54,8 +52,8 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     @Transactional(readOnly = true)
-    public BranchResponse getBranchById(Long tenantId, UUID branchId) {
-        Branch branch = branchRepository.findByTenantIdAndBranchId(tenantId, branchId)
+    public BranchResponse getBranchById(Long tenantId, Long branchId) {
+        Branch branch = branchRepository.findByTenantIdAndId(tenantId, branchId)
             .orElseThrow(() -> new BranchNotFoundException("Branch not found with ID: " + branchId));
         return branchMapper.toResponse(branch);
     }
@@ -78,8 +76,8 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public BranchResponse updateBranch(Long tenantId, UUID branchId, UpdateBranchRequest request) {
-        Branch branch = branchRepository.findByTenantIdAndBranchId(tenantId, branchId)
+    public BranchResponse updateBranch(Long tenantId, Long branchId, UpdateBranchRequest request) {
+        Branch branch = branchRepository.findByTenantIdAndId(tenantId, branchId)
             .orElseThrow(() -> new BranchNotFoundException("Branch not found with ID: " + branchId));
 
         if (request.branchCode() != null
@@ -103,13 +101,8 @@ public class BranchServiceImpl implements BranchService {
             .email(request.email() != null ? request.email() : branch.getEmail())
             .phone(request.phone() != null ? request.phone() : branch.getPhone())
             .address(request.address() != null ? request.address() : branch.getAddress())
-            .city(request.city() != null ? request.city() : branch.getCity())
-            .state(request.state() != null ? request.state() : branch.getState())
-            .country(request.country() != null ? request.country() : branch.getCountry())
-            .postalCode(request.postalCode() != null ? request.postalCode() : branch.getPostalCode())
-            .timezone(request.timezone() != null ? request.timezone() : branch.getTimezone())
-            .currency(request.currency() != null ? request.currency() : branch.getCurrency())
-            .managerId(request.managerId() != null ? request.managerId() : branch.getManagerId())
+            .localLevelId(request.localLevelId() != null ? request.localLevelId() : branch.getLocalLevelId())
+            .wardNo(request.wardNo() != null ? request.wardNo() : branch.getWardNo())
             .build();
 
         Branch savedBranch = branchRepository.save(updated);
@@ -117,8 +110,8 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public BranchResponse activateBranch(Long tenantId, UUID branchId) {
-        Branch branch = branchRepository.findByTenantIdAndBranchId(tenantId, branchId)
+    public BranchResponse activateBranch(Long tenantId, Long branchId) {
+        Branch branch = branchRepository.findByTenantIdAndId(tenantId, branchId)
             .orElseThrow(() -> new BranchNotFoundException("Branch not found with ID: " + branchId));
         branch.activate();
         Branch savedBranch = branchRepository.save(branch);
@@ -126,8 +119,8 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public BranchResponse deactivateBranch(Long tenantId, UUID branchId) {
-        Branch branch = branchRepository.findByTenantIdAndBranchId(tenantId, branchId)
+    public BranchResponse deactivateBranch(Long tenantId, Long branchId) {
+        Branch branch = branchRepository.findByTenantIdAndId(tenantId, branchId)
             .orElseThrow(() -> new BranchNotFoundException("Branch not found with ID: " + branchId));
         branch.deactivate();
         Branch savedBranch = branchRepository.save(branch);
@@ -135,8 +128,8 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public void deleteBranch(Long tenantId, UUID branchId) {
-        Branch branch = branchRepository.findByTenantIdAndBranchId(tenantId, branchId)
+    public void deleteBranch(Long tenantId, Long branchId) {
+        Branch branch = branchRepository.findByTenantIdAndId(tenantId, branchId)
             .orElseThrow(() -> new BranchNotFoundException("Branch not found with ID: " + branchId));
         branchRepository.delete(branch);
     }

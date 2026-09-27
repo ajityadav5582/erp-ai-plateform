@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Parsed claims of a validated access token.
  *
- * @param userId    the authenticated user's UUID (subject)
+ * @param userId    the authenticated user's numeric database ID (subject)
  * @param tenantId  the tenant the user belongs to
  * @param username  the user's username
  * @param email     the user's email

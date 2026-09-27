@@ -1,11 +1,15 @@
 package com.erp.platform.identity.application;
 
+import com.erp.platform.identity.application.dto.CurrentUserResponse;
 import com.erp.platform.identity.application.dto.LoginRequest;
 import com.erp.platform.identity.application.dto.PasswordResetConfirmRequest;
 import com.erp.platform.identity.application.dto.PasswordResetRequest;
 import com.erp.platform.identity.application.dto.PasswordResetResponse;
 import com.erp.platform.identity.application.dto.RefreshRequest;
 import com.erp.platform.identity.application.dto.TokenResponse;
+
+
+import com.erp.platform.identity.application.dto.RegisterRequest;
 
 /**
  * Service interface for authentication operations.
@@ -18,6 +22,14 @@ import com.erp.platform.identity.application.dto.TokenResponse;
 public interface AuthService {
 
     /**
+     * Registers a new user and returns authentication tokens.
+     *
+     * @param request the registration request
+     * @return token response with access and refresh tokens
+     */
+    TokenResponse register(RegisterRequest request);
+
+    /**
      * Authenticates a user with username/email and password.
      *
      * @param request the login request containing credentials
@@ -25,6 +37,15 @@ public interface AuthService {
      * @throws com.erp.platform.identity.domain.exception.AuthenticationException if authentication fails
      */
     TokenResponse login(LoginRequest request);
+
+    /**
+     * Gets profile details of the currently authenticated user.
+     *
+     * @param userId the user's numeric ID
+     * @param tenantId the tenant ID
+     * @return CurrentUserResponse containing user details and roles
+     */
+    CurrentUserResponse getCurrentUser(Long userId, Long tenantId);
 
     /**
      * Refreshes an access token using a valid refresh token.
@@ -37,6 +58,7 @@ public interface AuthService {
      * @throws com.erp.platform.identity.domain.exception.InvalidRefreshTokenException if token is invalid
      */
     TokenResponse refresh(RefreshRequest request);
+
 
     /**
      * Logs out a user by revoking their refresh token.

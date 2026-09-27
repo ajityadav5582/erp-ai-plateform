@@ -29,6 +29,7 @@ dependencies {
     implementation project(':libraries:common-core')
     implementation project(':libraries:common-data')
     implementation project(':libraries:common-events')
+    implementation project(':libraries:common-security')
 
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -48,21 +49,21 @@ dependencies {
     implementation "org.apache.commons:commons-lang3:${commonsLangVersion}"
     implementation "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
-
-    // Test
-    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
-    testImplementation "org.assertj:assertj-core:${assertjVersion}"
-    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation "org.springframework.boot:spring-boot-starter-test"
-    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
-    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
-    testImplementation "org.testcontainers:kafka:${testcontainersVersion}"
-}
-
-tasks.withType(Test) {
-    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:-processing"
+}
+
+bootRun {
+    environment = [
+        'POSTGRES_HOST': 'localhost',
+        'POSTGRES_PORT': '5434',
+        'POSTGRES_DB': 'erpai_platform',
+        'POSTGRES_USER': 'erpai',
+        'POSTGRES_PASSWORD': 'erpai_dev_password',
+        'DB_USERNAME': 'erpai',
+        'DB_PASSWORD': 'erpai_dev_password',
+        'SPRING_PROFILES_ACTIVE': 'local'
+    ]
 }

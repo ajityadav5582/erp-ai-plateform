@@ -1,283 +1,366 @@
 package com.erp.platform.identity.domain;
 
-import com.erp.platform.data.lock.OptimisticLock;
+import com.erp.platform.common.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.*;
 
 /**
- * Role aggregate root for role-based access control (RBAC).
+ * Role Aggregate Root for Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC).
  *
- * <p>Represents a role in the multi-tenant ERP platform.
- * Roles define permissions and access levels that can be assigned to users.
+ * <p>Represents a security role in the multi-tenant ERP platform.
+ * As the true DDD Aggregate Root, {@code Role} strictly encapsulates its child
+ * {@link RolePermission} entities and enforces all domain invariants regarding permission assignments.
  *
- * <p>The aggregate follows Clean Architecture and DDD principles:
+ * <p><strong>Architectural Directives Enforced:</strong>
  * <ul>
- *   <li>Extends {@link OptimisticLock} for optimistic locking support</li>
- *   <li>Encapsulates all role business logic and invariants</li>
- *   <li>Does not expose mutable state directly (no setters for business fields)</li>
- *   <li>Provides domain behavior methods for state transitions</li>
- * </ul>
- *
- * <p><strong>Role Types:</strong>
- * <ul>
- *   <li>SYSTEM: Predefined roles that cannot be modified or deleted (e.g., SUPER_ADMIN, TENANT_ADMIN)</li>
- *   <li>CUSTOM: Tenant-defined roles that can be created, modified, and deleted</li>
+ *   <li>True DDD Aggregate Root: Encapsulates {@code Set<RolePermission>} mapped with
+ *       {@code CascadeType.ALL} and {@code orphanRemoval = true}</li>
+ *   <li>Domain Behavior Methods: {@link #assignPermission}, {@link #revokePermission},
+ *       and {@link #syncPermissions} preserve domain invariants</li>
+ *   <li>Domain Invariants Enforced: Verifies role editability (non-SYSTEM & editable) and checks
+ *       permission status (must be ACTIVE) before mutating state</li>
+ *   <li>Persists only the requested role fields while keeping permissions in their separate relation</li>
  * </ul>
  *
  * @since 1.0.0
  */
 @Entity
 @Table(name = "roles")
+@org.hibernate.annotations.Check(name = "chk_role_type", constraints = "role_type IN ('SYSTEM', 'TENANT', 'CUSTOM')")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-public class Role extends OptimisticLock<Long> {
+public class Role {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * The unique business identifier for the role.
-     * Used for API access, external references, and audit trails.
-     * This is a UUID (not String) as per requirements.
-     */
-    @Column(name = "role_id", nullable = false, unique = true, updatable = false)
-    private UUID roleId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
 
-    /**
-     * Reference to the tenant this role belongs to.
-     * Ensures multi-tenant data isolation.
-     * Null for system roles that are shared across all tenants.
-     */
     @Column(name = "tenant_id")
     private Long tenantId;
 
     /**
-     * Unique role code within the tenant (or globally for system roles).
-     * Used for programmatic access and API references.
-     * Examples: "SUPER_ADMIN", "FINANCE_MANAGER", "SALES_REP"
+     * Unique role code within the tenant (e.g., "SUPER_ADMIN", "FINANCE_MANAGER").
      */
-    @Column(name = "role_code", nullable = false, length = 100)
+    @Column(name = "code", nullable = false, length = 100)
     private String roleCode;
 
     /**
      * Display name of the role.
-     * Used in UI and user-facing contexts.
      */
-    @Column(name = "role_name", nullable = false, length = 100)
+    @Column(name = "name", nullable = false, length = 150)
     private String roleName;
 
     /**
-     * Detailed description of the role and its permissions.
-     * Used for documentation and UI display.
+     * Detailed description of the role's purpose and scope.
      */
-    @Column(name = "description", length = 500)
+    @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    /**
-     * Type of the role.
-     * SYSTEM roles are predefined and cannot be modified or deleted.
-     * CUSTOM roles are tenant-defined and can be managed by administrators.
-     */
-    @Column(name = "role_type", nullable = false, length = 20)
+    @Column(name = "role_type", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
 
     /**
-     * Indicates if this is a system role.
-     * System roles are predefined and cannot be modified or deleted.
-     * @deprecated Use {@link #roleType} instead
+     * Current status of the role (ACTIVE, INACTIVE).
      */
-    @Deprecated(since = "1.0.0", forRemoval = true)
-    @Column(name = "is_system_role", nullable = false)
-    private Boolean isSystemRole;
+    @Column(name = "status", nullable = false, length = 30)
+    @Enumerated(EnumType.STRING)
+    private Status status;
 
     /**
-     * Timestamp when the role was deactivated.
-     * Set when transitioning to INACTIVE status.
+     * Encapsulated collection of permissions assigned to this role.
+     * Managed exclusively through aggregate domain methods.
      */
-    @Column(name = "deactivated_at")
-    private Instant deactivatedAt;
+    @SuppressWarnings("serial")
+    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<RolePermission> permissions = new HashSet<>();
 
-    // ==============
-    // Factory Methods
-    // ==============
+    // ==================== Factory Methods ====================
 
     /**
-     * Factory method to create a new custom role.
-     *
-     * <p>The application layer is responsible for providing the roleId.
-     * This ensures proper UUID generation at the application layer.
-     *
-     * @param roleId the unique role identifier (UUID)
-     * @param tenantId the tenant this role belongs to (null for system roles)
-     * @param roleCode the unique role code
-     * @param roleName the display name of the role
-     * @param description the role description
-     * @return a new Role instance
+     * Factory method to create a new custom tenant role.
      */
-    public static Role createCustom(
-            UUID roleId,
-            Long tenantId,
-            String roleCode,
-            String roleName,
-            String description) {
+    public static Role createCustom(Long tenantId, String roleCode, String roleName, String description) {
+        validateTenantAndRoleCode(tenantId, roleCode);
         return Role.builder()
-                .roleId(roleId)
                 .tenantId(tenantId)
-                .roleCode(roleCode)
-                .roleName(roleName)
-                .description(description)
+                .roleCode(roleCode.trim().toUpperCase())
+                .roleName(roleName.trim())
+                .description(description != null ? description.trim() : null)
                 .roleType(RoleType.CUSTOM)
-                .isSystemRole(false)
+                .status(Status.ACTIVE)
+                .permissions(new HashSet<>())
                 .build();
     }
 
-    /**
-     * Factory method to create a new system role.
-     *
-     * <p>System roles are predefined and shared across all tenants.
-     *
-     * @param roleId the unique role identifier (UUID)
-     * @param roleCode the unique role code
-     * @param roleName the display name of the role
-     * @param description the role description
-     * @return a new Role instance
-     */
-    public static Role createSystem(
-            UUID roleId,
-            String roleCode,
-            String roleName,
-            String description) {
+    /** Creates a tenant-scoped role provisioned by the platform. */
+    public static Role createTenant(String roleCode, String roleName, String description, Long tenantId) {
+        validateTenantAndRoleCode(tenantId, roleCode);
         return Role.builder()
-                .roleId(roleId)
-                .tenantId(null)
-                .roleCode(roleCode)
-                .roleName(roleName)
-                .description(description)
-                .roleType(RoleType.SYSTEM)
-                .isSystemRole(true)
+                .tenantId(tenantId)
+                .roleCode(roleCode.trim().toUpperCase())
+                .roleName(roleName.trim())
+                .description(description != null ? description.trim() : null)
+                .roleType(RoleType.TENANT)
+                .status(Status.ACTIVE)
+                .permissions(new HashSet<>())
                 .build();
     }
 
-    // ==============
-    // Business Behavior
-    // ==============
+    /**
+     * Factory method to create a platform system role.
+     */
+    public static Role createSystem(String roleCode, String roleName, String description) {
+        validateRoleCode(roleCode);
+        return Role.builder()
+                .roleCode(roleCode.trim().toUpperCase())
+                .roleName(roleName.trim())
+                .description(description != null ? description.trim() : null)
+                .roleType(RoleType.SYSTEM)
+                .status(Status.ACTIVE)
+                .permissions(new HashSet<>())
+                .build();
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    /** Moves a legacy tenant-scoped system role to the global system role scope. */
+    public void moveToGlobalSystemScope() {
+        if (this.roleType != RoleType.SYSTEM) {
+            throw new IllegalStateException("Only system roles can use the global scope");
+        }
+        this.tenantId = null;
+    }
+
+    // ==================== Aggregate Domain Behavior Methods ====================
 
     /**
-     * Updates the role's display information.
+     * Assigns a permission to this role with an explicit ABAC DataScope, preserving domain invariants.
      *
-     * <p>System roles cannot be modified.
+     * @param permission the permission entity to assign
+     * @param dataScope the ABAC data scope (ALL, OWN_BRANCH, etc.)
+     * @param assignedBy the user or actor performing the assignment
+     * @return the created or updated {@link RolePermission} assignment
+     */
+    public RolePermission assignPermission(Permission permission, DataScope dataScope, String assignedBy) {
+        verifyCanBeModified();
+        verifyPermissionAssignable(permission);
+
+        DataScope scope = (dataScope != null) ? dataScope : DataScope.ALL;
+
+        Optional<RolePermission> existingOpt = findRolePermission(permission.getId());
+        if (existingOpt.isPresent()) {
+            RolePermission existing = existingOpt.get();
+            existing.updateDataScope(scope);
+            return existing;
+        }
+
+        RolePermission newAssignment = RolePermission.of(this, permission, scope, assignedBy, Instant.now());
+        this.permissions.add(newAssignment);
+        return newAssignment;
+    }
+
+    /**
+     * Overloaded method defaulting to DataScope.ALL.
+     */
+    public RolePermission assignPermission(Permission permission, String assignedBy) {
+        return assignPermission(permission, DataScope.ALL, assignedBy);
+    }
+
+    /**
+     * Revokes a permission assignment by permission ID, preserving domain invariants.
      *
-     * @param roleName the new display name
-     * @param description the new description
-     * @throws IllegalStateException if attempting to modify a system role
+     * @param permissionId the ID of the permission to revoke
+     * @return true if a permission assignment was removed, false otherwise
+     */
+    public boolean revokePermission(Long permissionId) {
+        verifyCanBeModified();
+        if (permissionId == null) {
+            return false;
+        }
+
+        return this.permissions.removeIf(rp ->
+                rp.getPermission() != null && permissionId.equals(rp.getPermission().getId())
+        );
+    }
+
+    /**
+     * Revokes a permission assignment by Permission entity.
+     */
+    public boolean revokePermission(Permission permission) {
+        if (permission == null) {
+            return false;
+        }
+        return revokePermission(permission.getId());
+    }
+
+    /**
+     * Synchronizes role permissions to match the target map of Permission -> DataScope.
+     *
+     * <p>Adds missing permissions, updates modified data scopes, and revokes orphan permissions.
+     *
+     * @param targetPermissions map of Permission entities to desired DataScopes
+     * @param assignedBy the actor performing the sync
+     */
+    public void syncPermissions(Map<Permission, DataScope> targetPermissions, String assignedBy) {
+        verifyCanBeModified();
+        if (targetPermissions == null) {
+            this.permissions.clear();
+            return;
+        }
+
+        Set<Long> targetPermissionIds = new HashSet<>();
+        for (Map.Entry<Permission, DataScope> entry : targetPermissions.entrySet()) {
+            Permission perm = entry.getKey();
+            DataScope scope = entry.getValue();
+            if (perm != null) {
+                targetPermissionIds.add(perm.getId());
+                assignPermission(perm, scope, assignedBy);
+            }
+        }
+
+        this.permissions.removeIf(rp ->
+                rp.getPermission() != null && !targetPermissionIds.contains(rp.getPermission().getId())
+        );
+    }
+
+    /**
+     * Checks if this role possesses an active assignment for the given permission code.
+     */
+    public boolean hasPermission(String permissionCode) {
+        if (permissionCode == null || permissionCode.isBlank()) {
+            return false;
+        }
+        return this.permissions.stream()
+                .filter(RolePermission::isActiveAssignment)
+                .map(RolePermission::getPermission)
+                .filter(Objects::nonNull)
+                .anyMatch(p -> permissionCode.equalsIgnoreCase(p.getPermissionCode()));
+    }
+
+    /**
+     * Returns an unmodifiable view of the assigned permissions set to preserve aggregate encapsulation.
+     */
+    public Set<RolePermission> getPermissions() {
+        return Collections.unmodifiableSet(this.permissions);
+    }
+
+    // ==================== Lifecycle Behavior Methods ====================
+
+    /**
+     * Updates role display details.
      */
     public void updateDetails(String roleName, String description) {
-        if (this.roleType == RoleType.SYSTEM) {
-            throw new IllegalStateException("Cannot modify system role: " + this.roleId);
-        }
-
+        verifyCanBeModified();
         if (roleName != null && !roleName.isBlank()) {
-            this.roleName = roleName;
+            this.roleName = roleName.trim();
         }
         if (description != null && !description.isBlank()) {
-            this.description = description;
+            this.description = description.trim();
         }
     }
 
     /**
      * Deactivates the role.
-     *
-     * <p>System roles cannot be deactivated.
-     *
-     * @param deactivatedAt the timestamp when deactivation occurs
-     * @throws IllegalStateException if attempting to deactivate a system role
      */
-    public void deactivate(Instant deactivatedAt) {
-        if (this.roleType == RoleType.SYSTEM) {
-            throw new IllegalStateException("Cannot deactivate system role: " + this.roleId);
+    public void deactivate() {
+        if (this.roleType != RoleType.CUSTOM) {
+            throw new IllegalStateException("Cannot deactivate platform-provisioned role: " + this.getId());
         }
-
-        this.deactivatedAt = deactivatedAt;
+        this.status = Status.INACTIVE;
     }
 
     /**
-     * Reactivates a deactivated role.
-     *
-     * @throws IllegalStateException if attempting to reactivate a system role
+     * Reactivates the role.
      */
     public void reactivate() {
-        if (this.roleType == RoleType.SYSTEM) {
-            throw new IllegalStateException("Cannot reactivate system role: " + this.roleId);
+        if (this.roleType != RoleType.CUSTOM) {
+            throw new IllegalStateException("Cannot reactivate platform-provisioned role: " + this.getId());
         }
-
-        this.deactivatedAt = null;
+        this.status = Status.ACTIVE;
     }
 
-    // ==============
-    // Query Methods
-    // ==============
+    // ==================== Domain Invariant Validations ====================
 
-    /**
-     * Checks if this is a system role.
-     *
-     * @return true if this is a system role, false otherwise
-     */
+    private void verifyCanBeModified() {
+        if (this.roleType != RoleType.CUSTOM) {
+            throw new IllegalStateException("Cannot modify platform-provisioned role: " + this.getRoleCode());
+        }
+    }
+
+    private void verifyPermissionAssignable(Permission permission) {
+        if (permission == null) {
+            throw new IllegalArgumentException("Permission to assign must not be null");
+        }
+        if (!permission.canBeAssigned()) {
+            throw new IllegalArgumentException("Cannot assign inactive permission: " + permission.getPermissionCode());
+        }
+    }
+
+    private Optional<RolePermission> findRolePermission(Long permissionId) {
+        if (permissionId == null) {
+            return Optional.empty();
+        }
+        return this.permissions.stream()
+                .filter(rp -> rp.getPermission() != null && permissionId.equals(rp.getPermission().getId()))
+                .findFirst();
+    }
+
+    private static void validateTenantAndRoleCode(Long tenantId, String roleCode) {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Tenant ID is required for roles");
+        }
+        validateRoleCode(roleCode);
+    }
+
+    private static void validateRoleCode(String roleCode) {
+        if (roleCode == null || roleCode.isBlank()) {
+            throw new IllegalArgumentException("Role code must not be null or blank");
+        }
+    }
+
+    // ==================== Query Predicates ====================
+
     public boolean isSystemRole() {
         return this.roleType == RoleType.SYSTEM;
     }
 
-    /**
-     * Checks if this is a custom role.
-     *
-     * @return true if this is a custom role, false otherwise
-     */
     public boolean isCustomRole() {
         return this.roleType == RoleType.CUSTOM;
     }
 
-    /**
-     * Checks if the role is active (not deactivated).
-     *
-     * @return true if the role is active, false otherwise
-     */
+    public boolean isTenantRole() {
+        return this.roleType == RoleType.TENANT;
+    }
+
     public boolean isActive() {
-        return this.deactivatedAt == null;
+        return this.status == Status.ACTIVE;
     }
 
-    /**
-     * Checks if the role is deactivated.
-     *
-     * @return true if the role is deactivated, false otherwise
-     */
     public boolean isDeactivated() {
-        return this.deactivatedAt != null;
+        return this.status == Status.INACTIVE;
     }
 
-    /**
-     * Checks if the role can be modified.
-     *
-     * <p>System roles cannot be modified.
-     *
-     * @return true if the role can be modified, false otherwise
-     */
     public boolean canBeModified() {
         return this.roleType == RoleType.CUSTOM;
     }
 
-    /**
-     * Checks if the role can be deactivated.
-     *
-     * <p>System roles cannot be deactivated.
-     *
-     * @return true if the role can be deactivated, false otherwise
-     */
     public boolean canBeDeactivated() {
-        return this.roleType == RoleType.CUSTOM && this.deactivatedAt == null;
+        return this.roleType == RoleType.CUSTOM && this.status == Status.ACTIVE;
     }
 }

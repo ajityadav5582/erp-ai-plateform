@@ -397,7 +397,7 @@ curl http://localhost:8080/actuator/health
 curl http://localhost:8080/actuator/prometheus | head -50
 
 # Check if your custom metrics are present
-curl http://localhost:8080/actuator/prometheus | grep erpai_finance
+curl http://localhost:8080/actuator/prometheus | grep identity_users_total
 ```
 
 ### 8. Verify Traces
@@ -637,7 +637,7 @@ public class OrderService {
 3. **Verify in Prometheus:**
 
 ```bash
-curl http://localhost:9090/api/v1/query?query=erpai_sales_orders_created
+curl http://localhost:9090/api/v1/query?query=identity_users_total
 ```
 
 ### Add a New Trace Span (Java)

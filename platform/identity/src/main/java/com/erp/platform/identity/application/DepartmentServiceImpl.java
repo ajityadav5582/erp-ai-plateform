@@ -86,8 +86,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Override
     @Transactional(readOnly = true)
     public List<DepartmentListResponse> listRootDepartments(Long tenantId, Long branchId) {
-        return departmentRepository.findByBranchIdAndParentDepartmentIdIsNull(branchId).stream()
-            .filter(d -> tenantId.equals(d.getTenantId()))
+        return departmentRepository.findByTenantIdAndBranchIdAndParentDepartmentIdIsNull(tenantId, branchId).stream()
             .map(departmentMapper::toListResponse)
             .toList();
     }
@@ -95,8 +94,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Override
     @Transactional(readOnly = true)
     public List<DepartmentListResponse> listChildDepartments(Long tenantId, Long parentDepartmentId) {
-        return departmentRepository.findByParentDepartmentId(parentDepartmentId).stream()
-            .filter(d -> tenantId.equals(d.getTenantId()))
+        return departmentRepository.findByTenantIdAndParentDepartmentId(tenantId, parentDepartmentId).stream()
             .map(departmentMapper::toListResponse)
             .toList();
     }

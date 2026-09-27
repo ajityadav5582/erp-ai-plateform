@@ -71,6 +71,7 @@ SERVICES=""
 VERBOSE=""
 WAIT_FOR_HEALTHY=true
 HEALTH_WAIT_TIMEOUT=300  # 5 minutes
+KILL_PORTS=false
 
 # Color codes for output
 RED='\033[0;31m'
@@ -118,6 +119,7 @@ Options:
     --detached, -d           Run in detached mode (background)
     --build                  Build images before starting
     --no-wait                Skip waiting for services to be healthy
+    --kill-ports             Kill processes on conflicting ports before starting
     --verbose, -v            Enable verbose output
     --help, -h               Show this help message
 
@@ -128,6 +130,7 @@ Examples:
     $(basename "$0") --profile development --profile monitoring
     $(basename "$0") --services postgres redis kafka    # Start specific services
     $(basename "$0") --build --detached                 # Build and start in background
+    $(basename "$0") --kill-ports                       # Kill conflicting ports first
 EOF
 }
 
@@ -291,6 +294,10 @@ while [[ $# -gt 0 ]]; do
             WAIT_FOR_HEALTHY=false
             shift
             ;;
+        --kill-ports)
+            KILL_PORTS=true
+            shift
+            ;;
         --verbose|-v)
             VERBOSE="--verbose"
             shift
@@ -317,6 +324,20 @@ print_banner
 
 # Check prerequisites
 check_prerequisites
+
+# Kill conflicting ports if requested
+if [ "$KILL_PORTS" = true ]; then
+    log_info "Killing processes on conflicting ports..."
+    KILL_PORTS_SCRIPT="$SCRIPT_DIR/kill-ports.sh"
+    if [ -f "$KILL_PORTS_SCRIPT" ]; then
+        chmod +x "$KILL_PORTS_SCRIPT"
+        "$KILL_PORTS_SCRIPT" --force
+    else
+        log_warning "kill-ports.sh not found, skipping port cleanup"
+    fi
+    echo ""
+fi
+
 check_port_availability
 
 # Build compose command

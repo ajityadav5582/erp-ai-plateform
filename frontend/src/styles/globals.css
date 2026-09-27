@@ -9,30 +9,32 @@
  * `bg-primary`, etc. Adjust to match the ERP AI Platform brand.
  */
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
+  --color-background: #f4f7fb;
+  --color-foreground: #142235;
 
   --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
+  --color-card-foreground: #142235;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #142235;
 
-  --color-primary: #1d4ed8;
-  --color-primary-foreground: #f8fafc;
+  --color-primary: #2457c5;
+  --color-primary-foreground: #ffffff;
 
-  --color-secondary: #f1f5f9;
-  --color-secondary-foreground: #0f172a;
+  --color-secondary: #e8eef6;
+  --color-secondary-foreground: #18334f;
 
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
+  --color-muted: #edf2f8;
+  --color-muted-foreground: #64758b;
 
-  --color-accent: #e0e7ff;
-  --color-accent-foreground: #1e3a8a;
+  --color-accent: #e3ecfb;
+  --color-accent-foreground: #1d4ed8;
 
   --color-destructive: #dc2626;
   --color-destructive-foreground: #f8fafc;
 
-  --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #1d4ed8;
+  --color-border: #d9e2ed;
+  --color-input: #d9e2ed;
+  --color-ring: #3b6fd8;
 
   --radius-lg: 0.5rem;
   --radius-md: 0.375rem;
@@ -43,38 +45,40 @@
 
 /* Dark mode token overrides. */
 .dark {
-  --color-background: #0a0a0a;
-  --color-foreground: #f8fafc;
+  --color-background: #0c1726;
+  --color-foreground: #edf3fa;
 
-  --color-card: #111827;
-  --color-card-foreground: #f8fafc;
+  --color-card: #142338;
+  --color-card-foreground: #edf3fa;
+  --color-popover: #142338;
+  --color-popover-foreground: #edf3fa;
 
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #0a0a0a;
+  --color-primary: #4c83e6;
+  --color-primary-foreground: #ffffff;
 
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #f8fafc;
+  --color-secondary: #20334b;
+  --color-secondary-foreground: #e7eff8;
 
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
+  --color-muted: #1a2a40;
+  --color-muted-foreground: #9aabc0;
 
-  --color-accent: #1e3a8a;
-  --color-accent-foreground: #e0e7ff;
+  --color-accent: #233d61;
+  --color-accent-foreground: #c9dcff;
 
   --color-destructive: #ef4444;
   --color-destructive-foreground: #0a0a0a;
 
-  --color-border: #1e293b;
-  --color-input: #1e293b;
-  --color-ring: #3b82f6;
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --color-border: #263951;
+  --color-input: #2b405a;
+  --color-ring: #76a4f6;
+  --sidebar: #102a43;
+  --sidebar-foreground: #e7eff8;
+  --sidebar-primary: #4c83e6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1c3a59;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #29445f;
+  --sidebar-ring: #8bb4ff;
 }
 
 @layer base {
@@ -102,14 +106,14 @@
 }
 
 :root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar: #102a43;
+  --sidebar-foreground: #e7eff8;
+  --sidebar-primary: #4c83e6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1c3a59;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #29445f;
+  --sidebar-ring: #8bb4ff;
 }
 
 @theme inline {

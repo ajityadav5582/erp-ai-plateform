@@ -3,7 +3,6 @@ package com.erp.platform.identity.application.dto;
 import com.erp.platform.identity.domain.UserStatus;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * Response DTO for user data.
@@ -12,7 +11,7 @@ import java.util.UUID;
  */
 public record UserResponse(
     Long id,
-    UUID userId,
+    Long userId,
     Long tenantId,
     String username,
     String email,
@@ -20,7 +19,9 @@ public record UserResponse(
     String lastName,
     String fullName,
     String phoneNumber,
-    String jobTitle,
+    Long roleId,
+    String roleName,
+    String roleCode,
     String profileImageUrl,
     UserStatus status,
     Long branchId,

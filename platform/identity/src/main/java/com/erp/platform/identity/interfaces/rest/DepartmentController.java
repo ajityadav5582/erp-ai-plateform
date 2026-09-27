@@ -1,12 +1,13 @@
 package com.erp.platform.identity.interfaces.rest;
 
 
-import com.erp.platform.common.tenancy.TenantContext;
+import com.erp.platform.identity.application.CurrentTenantProvider;
 import com.erp.platform.identity.application.DepartmentService;
 import com.erp.platform.identity.application.dto.CreateDepartmentRequest;
 import com.erp.platform.identity.application.dto.DepartmentListResponse;
 import com.erp.platform.identity.application.dto.DepartmentResponse;
 import com.erp.platform.identity.application.dto.UpdateDepartmentRequest;
+import com.erp.platform.identity.application.security.RequirePermission;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -49,6 +50,7 @@ import java.util.UUID;
 public class DepartmentController {
 
     private final DepartmentService departmentService;
+    private final CurrentTenantProvider currentTenantProvider;
 
     /**
      * Creates a new department.
@@ -57,10 +59,11 @@ public class DepartmentController {
      * @return 201 Created with the created department and a {@code Location} header
      */
     @PostMapping
+    @RequirePermission("DEPARTMENT_CREATE")
     public ResponseEntity<DepartmentResponse> createDepartment(
             @Valid @RequestBody CreateDepartmentRequest request,
             UriComponentsBuilder uriBuilder) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.createDepartment(tenantId, request);
         return ResponseEntity
                 .created(uriBuilder.path("/api/v1/departments/{id}").buildAndExpand(response.departmentId()).toUri())
@@ -74,8 +77,9 @@ public class DepartmentController {
      * @return 200 OK with a page of departments
      */
     @GetMapping
+    @RequirePermission("DEPARTMENT_READ")
     public ResponseEntity<Page<DepartmentListResponse>> listDepartments(Pageable pageable) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         Page<DepartmentListResponse> page = departmentService.listDepartments(tenantId, pageable);
         return ResponseEntity.ok(page);
     }
@@ -87,8 +91,9 @@ public class DepartmentController {
      * @return 200 OK with the department
      */
     @GetMapping("/{departmentId}")
+    @RequirePermission("DEPARTMENT_READ")
     public ResponseEntity<DepartmentResponse> getDepartmentById(@PathVariable UUID departmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.getDepartmentById(tenantId, departmentId);
         return ResponseEntity.ok(response);
     }
@@ -101,10 +106,11 @@ public class DepartmentController {
      * @return 200 OK with the department
      */
     @GetMapping("/by-code")
+    @RequirePermission("DEPARTMENT_READ")
     public ResponseEntity<DepartmentResponse> getDepartmentByCode(
             @RequestParam Long branchId,
             @RequestParam String departmentCode) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.getDepartmentByCode(tenantId, branchId, departmentCode);
         return ResponseEntity.ok(response);
     }
@@ -116,8 +122,9 @@ public class DepartmentController {
      * @return 200 OK with the list of root departments
      */
     @GetMapping("/roots")
+    @RequirePermission("DEPARTMENT_READ")
     public ResponseEntity<List<DepartmentListResponse>> listRootDepartments(@RequestParam Long branchId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         List<DepartmentListResponse> response = departmentService.listRootDepartments(tenantId, branchId);
         return ResponseEntity.ok(response);
     }
@@ -129,9 +136,10 @@ public class DepartmentController {
      * @return 200 OK with the list of child departments
      */
     @GetMapping("/children")
+    @RequirePermission("DEPARTMENT_READ")
     public ResponseEntity<List<DepartmentListResponse>> listChildDepartments(
             @RequestParam Long parentDepartmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         List<DepartmentListResponse> response = departmentService.listChildDepartments(tenantId, parentDepartmentId);
         return ResponseEntity.ok(response);
     }
@@ -144,10 +152,11 @@ public class DepartmentController {
      * @return 200 OK with the updated department
      */
     @PutMapping("/{departmentId}")
+    @RequirePermission("DEPARTMENT_UPDATE")
     public ResponseEntity<DepartmentResponse> updateDepartment(
             @PathVariable UUID departmentId,
             @Valid @RequestBody UpdateDepartmentRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.updateDepartment(tenantId, departmentId, request);
         return ResponseEntity.ok(response);
     }
@@ -160,10 +169,11 @@ public class DepartmentController {
      * @return 200 OK with the updated department
      */
     @PatchMapping("/{departmentId}")
+    @RequirePermission("DEPARTMENT_UPDATE")
     public ResponseEntity<DepartmentResponse> patchDepartment(
             @PathVariable UUID departmentId,
             @RequestBody UpdateDepartmentRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.updateDepartment(tenantId, departmentId, request);
         return ResponseEntity.ok(response);
     }
@@ -176,10 +186,11 @@ public class DepartmentController {
      * @return 200 OK with the moved department
      */
     @PostMapping("/{departmentId}/move")
+    @RequirePermission("DEPARTMENT_UPDATE")
     public ResponseEntity<DepartmentResponse> moveDepartment(
             @PathVariable UUID departmentId,
             @RequestParam(required = false) Long newParentDepartmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.moveDepartment(tenantId, departmentId, newParentDepartmentId);
         return ResponseEntity.ok(response);
     }
@@ -191,8 +202,9 @@ public class DepartmentController {
      * @return 200 OK with the activated department
      */
     @PostMapping("/{departmentId}/activate")
+    @RequirePermission("DEPARTMENT_UPDATE")
     public ResponseEntity<DepartmentResponse> activateDepartment(@PathVariable UUID departmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.activateDepartment(tenantId, departmentId);
         return ResponseEntity.ok(response);
     }
@@ -204,8 +216,9 @@ public class DepartmentController {
      * @return 200 OK with the deactivated department
      */
     @PostMapping("/{departmentId}/deactivate")
+    @RequirePermission("DEPARTMENT_UPDATE")
     public ResponseEntity<DepartmentResponse> deactivateDepartment(@PathVariable UUID departmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.deactivateDepartment(tenantId, departmentId);
         return ResponseEntity.ok(response);
     }
@@ -217,23 +230,11 @@ public class DepartmentController {
      * @return 204 No Content
      */
     @DeleteMapping("/{departmentId}")
+    @RequirePermission("DEPARTMENT_DELETE")
     public ResponseEntity<Void> deleteDepartment(@PathVariable UUID departmentId) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         departmentService.deleteDepartment(tenantId, departmentId);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Extracts the tenant ID from the current request context.
-     *
-     * @return the tenant ID as a {@link Long}
-     * @throws IllegalStateException if the tenant context is not set
-     */
-    private Long getTenantId() {
-        String tenantId = TenantContext.getTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            throw new IllegalStateException("Tenant context is not set");
-        }
-        return Long.parseLong(tenantId);
-    }
 }

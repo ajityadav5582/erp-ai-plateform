@@ -5,27 +5,27 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border bg-background">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:px-6 md:flex-row lg:px-8">
-        <p className="text-sm text-muted-foreground">
+    <footer className="border-t border-[#29445f] bg-[#102a43] text-slate-200">
+      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-4 py-6 sm:px-6 md:flex-row md:items-center md:py-7 lg:px-8">
+        <p className="text-xs text-slate-300 sm:text-sm">
           &copy; {year} {siteConfig.name}. All rights reserved.
         </p>
-        <nav aria-label="Footer" className="flex items-center gap-6">
+        <nav aria-label="Footer" className="flex items-center gap-4 sm:gap-6">
           <Link
             href="/privacy"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="text-xs text-slate-300 transition-colors hover:text-white sm:text-sm"
           >
             Privacy
           </Link>
           <Link
             href="/terms"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="text-xs text-slate-300 transition-colors hover:text-white sm:text-sm"
           >
             Terms
           </Link>
           <Link
             href="/status"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="text-xs text-slate-300 transition-colors hover:text-white sm:text-sm"
           >
             Status
           </Link>

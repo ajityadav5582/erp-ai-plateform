@@ -5,8 +5,8 @@ distributor:
   receivers:
     otlp:
       protocols:
-        http:
-        grpc:
+        http: {}
+        grpc: {}
 
 ingester:
   max_block_duration: 5m

@@ -4,13 +4,8 @@ import com.erp.platform.identity.application.dto.CreatePermissionRequest;
 import com.erp.platform.identity.application.dto.PermissionListResponse;
 import com.erp.platform.identity.application.dto.PermissionResponse;
 import com.erp.platform.identity.application.dto.UpdatePermissionRequest;
-import com.erp.platform.identity.domain.Action;
 import com.erp.platform.identity.domain.PermissionStatus;
-import com.erp.platform.identity.domain.Resource;
 import org.springframework.data.domain.Pageable;
-
-import java.util.List;
-import java.util.UUID;
 
 /**
  * Service interface for Permission aggregate operations.
@@ -20,39 +15,39 @@ import java.util.UUID;
 public interface PermissionService {
 
     /**
-     * Create a new permission.
+     * Creates a new permission.
      *
-     * @param request the create permission request
+     * @param request the creation request
      * @return the created permission response
      */
     PermissionResponse createPermission(CreatePermissionRequest request);
 
     /**
-     * Update an existing permission.
+     * Updates an existing permission.
      *
      * @param permissionId the permission ID
-     * @param request the update permission request
+     * @param request the update request
      * @return the updated permission response
      */
-    PermissionResponse updatePermission(UUID permissionId, UpdatePermissionRequest request);
+    PermissionResponse updatePermission(Long permissionId, UpdatePermissionRequest request);
 
     /**
-     * Delete a permission (soft delete via deactivation).
+     * Deletes (deactivates) a permission.
      *
      * @param permissionId the permission ID
      */
-    void deletePermission(UUID permissionId);
+    void deletePermission(Long permissionId);
 
     /**
-     * Get a permission by ID.
+     * Gets a permission by its ID.
      *
      * @param permissionId the permission ID
      * @return the permission response
      */
-    PermissionResponse getPermissionById(UUID permissionId);
+    PermissionResponse getPermissionById(Long permissionId);
 
     /**
-     * Get a permission by permission code.
+     * Gets a permission by its code.
      *
      * @param permissionCode the permission code
      * @return the permission response
@@ -60,56 +55,56 @@ public interface PermissionService {
     PermissionResponse getPermissionByCode(String permissionCode);
 
     /**
-     * List all permissions with pagination and optional filtering.
+     * Lists permissions with optional filters.
      *
-     * @param resource optional resource filter
-     * @param action optional action filter
-     * @param status optional status filter
-     * @param pageable the pagination information
-     * @return the paginated permission list response
+     * @param resourceCode the resource code (optional)
+     * @param actionCode the action code (optional)
+     * @param status the permission status (optional)
+     * @param pageable pagination info
+     * @return the paginated permission list
      */
-    PermissionListResponse listPermissions(Resource resource, Action action, PermissionStatus status, Pageable pageable);
+    PermissionListResponse listPermissions(String resourceCode, String actionCode, PermissionStatus status, Pageable pageable);
 
     /**
-     * List all permissions by resource with pagination.
+     * Lists permissions filtered by resource.
      *
-     * @param resource the resource to filter by
-     * @param pageable the pagination information
-     * @return the paginated permission list response
+     * @param resourceCode the resource code
+     * @param pageable pagination info
+     * @return the paginated permission list
      */
-    PermissionListResponse listPermissionsByResource(Resource resource, Pageable pageable);
+    PermissionListResponse listPermissionsByResource(String resourceCode, Pageable pageable);
 
     /**
-     * List all permissions by status with pagination.
+     * Lists permissions filtered by status.
      *
-     * @param status the status to filter by
-     * @param pageable the pagination information
-     * @return the paginated permission list response
+     * @param status the permission status
+     * @param pageable pagination info
+     * @return the paginated permission list
      */
     PermissionListResponse listPermissionsByStatus(PermissionStatus status, Pageable pageable);
 
     /**
-     * List all permissions by action with pagination.
+     * Lists permissions filtered by action.
      *
-     * @param action the action to filter by
-     * @param pageable the pagination information
-     * @return the paginated permission list response
+     * @param actionCode the action code
+     * @param pageable pagination info
+     * @return the paginated permission list
      */
-    PermissionListResponse listPermissionsByAction(Action action, Pageable pageable);
+    PermissionListResponse listPermissionsByAction(String actionCode, Pageable pageable);
 
     /**
-     * Check if a permission exists by permission code.
+     * Checks if a permission code exists.
      *
      * @param permissionCode the permission code
-     * @return true if the permission exists, false otherwise
+     * @return true if exists
      */
     boolean existsByPermissionCode(String permissionCode);
 
     /**
-     * Check if a permission exists by permission ID.
+     * Checks if a permission ID exists.
      *
      * @param permissionId the permission ID
-     * @return true if the permission exists, false otherwise
+     * @return true if exists
      */
-    boolean existsByPermissionId(UUID permissionId);
+    boolean existsByPermissionId(Long permissionId);
 }

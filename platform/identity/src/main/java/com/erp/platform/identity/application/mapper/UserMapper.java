@@ -3,13 +3,13 @@ package com.erp.platform.identity.application.mapper;
 import com.erp.platform.identity.application.dto.CreateUserRequest;
 import com.erp.platform.identity.application.dto.UserListResponse;
 import com.erp.platform.identity.application.dto.UserResponse;
+import com.erp.platform.identity.domain.Role;
 import com.erp.platform.identity.domain.User;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.UUID;
 
 /**
  * Mapper for converting between User entity and DTOs.
@@ -19,40 +19,37 @@ import java.util.UUID;
 @Component
 public class UserMapper {
 
-    /**
-     * Convert CreateUserRequest to User entity.
-     *
-     * @param request the create request
-     * @param tenantId the tenant ID
-     * @return the User entity
-     */
-    public User toEntity(CreateUserRequest request, Long tenantId) {
+    public User toEntity(CreateUserRequest request, Long tenantId, String passwordHash) {
         return User.create(
-            UUID.randomUUID(),
             tenantId,
             request.username(),
             request.email(),
-            "", // passwordHash - will be set during registration
+            passwordHash != null ? passwordHash : "",
             request.firstName(),
             request.lastName(),
             request.phoneNumber(),
-            request.jobTitle(),
+            null,
             request.profileImageUrl(),
             request.branchId(),
             request.departmentId()
         );
     }
 
+    public User toEntity(CreateUserRequest request, Long tenantId) {
+        return toEntity(request, tenantId, "");
+    }
+
     /**
-     * Convert User entity to UserResponse.
+     * Convert User entity and Role to UserResponse.
      *
      * @param user the user entity
+     * @param role the user's role
      * @return the UserResponse
      */
-    public UserResponse toResponse(User user) {
+    public UserResponse toResponse(User user, Role role) {
         return new UserResponse(
             user.getId(),
-            user.getUserId(),
+            user.getId(),
             user.getTenantId(),
             user.getUsername(),
             user.getEmail(),
@@ -60,7 +57,9 @@ public class UserMapper {
             user.getLastName(),
             user.getFullName(),
             user.getPhoneNumber(),
-            user.getJobTitle(),
+            role != null ? role.getId() : null,
+            role != null ? role.getRoleName() : null,
+            role != null ? role.getRoleCode() : null,
             user.getProfileImageUrl(),
             user.getStatus(),
             user.getBranchId(),
@@ -74,26 +73,37 @@ public class UserMapper {
         );
     }
 
+    public UserResponse toResponse(User user) {
+        return toResponse(user, null);
+    }
+
     /**
-     * Convert User entity to UserListResponse.
+     * Convert User entity and Role to UserListResponse.
      *
      * @param user the user entity
+     * @param role the user's role
      * @return the UserListResponse
      */
-    public UserListResponse toListResponse(User user) {
+    public UserListResponse toListResponse(User user, Role role) {
         return new UserListResponse(
             user.getId(),
-            user.getUserId(),
+            user.getId(),
             user.getUsername(),
             user.getEmail(),
             user.getFullName(),
             user.getStatus(),
-            user.getJobTitle(),
+            role != null ? role.getId() : null,
+            role != null ? role.getRoleName() : null,
+            role != null ? role.getRoleCode() : null,
             user.getBranchId(),
             user.getDepartmentId(),
             toLocalDateTime(user.getLastLoginAt()),
             toLocalDateTime(user.getCreatedAt())
         );
+    }
+
+    public UserListResponse toListResponse(User user) {
+        return toListResponse(user, null);
     }
 
     /**

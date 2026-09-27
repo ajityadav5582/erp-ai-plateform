@@ -3,22 +3,22 @@ package com.erp.platform.identity.domain;
 /**
  * Role type enumeration.
  *
- * <p>Distinguishes between system-defined roles and tenant-custom roles.
+ * <p>Distinguishes between platform roles, automatically provisioned tenant roles,
+ * and tenant-created custom roles.
  *
  * @since 1.0.0
  */
 public enum RoleType {
 
     /**
-     * System-defined roles that are shared across all tenants.
-     * These roles are predefined, cannot be modified or deleted,
-     * and typically include roles like SUPER_ADMIN, TENANT_ADMIN.
+     * Roles owned by the ERP platform. A system role can be global or have a
+     * tenant-scoped instance when the platform provisions it for tenant use.
      */
     SYSTEM,
 
-    /**
-     * Tenant-custom roles that are defined by tenant administrators.
-     * These roles can be created, modified, and deleted within the tenant.
-     */
+    /** Roles automatically provisioned within a tenant for standard administration. */
+    TENANT,
+
+    /** Roles created and managed by tenant administrators. */
     CUSTOM
 }

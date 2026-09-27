@@ -13,6 +13,10 @@ import java.time.ZoneId;
 /**
  * Mapper for converting between Branch entity and DTOs.
  *
+ * <p>A branch's location is derived from a local level (province -> district ->
+ * local level) referenced via {@code localLevelId}. An optional {@code wardNo}
+ * can further qualify the branch address.
+ *
  * @since 1.0.0
  */
 @Component
@@ -31,13 +35,8 @@ public class BranchMapper {
                 .email(request.email())
                 .phone(request.phone())
                 .address(request.address())
-                .city(request.city())
-                .state(request.state())
-                .country(request.country())
-                .postalCode(request.postalCode())
-                .timezone(request.timezone())
-                .currency(request.currency())
-                .managerId(request.managerId())
+                .localLevelId(request.localLevelId())
+                .wardNo(request.wardNo())
                 .build();
     }
 
@@ -50,20 +49,14 @@ public class BranchMapper {
     public BranchResponse toResponse(Branch branch) {
         return new BranchResponse(
                 branch.getId(),
-                branch.getBranchId(),
                 branch.getTenantId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
                 branch.getEmail(),
                 branch.getPhone(),
                 branch.getAddress(),
-                branch.getCity(),
-                branch.getState(),
-                branch.getCountry(),
-                branch.getPostalCode(),
-                branch.getTimezone(),
-                branch.getCurrency(),
-                branch.getManagerId(),
+                branch.getLocalLevelId(),
+                branch.getWardNo(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt()),
                 toLocalDateTime(branch.getUpdatedAt()),
@@ -82,12 +75,9 @@ public class BranchMapper {
     public BranchListResponse toListResponse(Branch branch) {
         return new BranchListResponse(
                 branch.getId(),
-                branch.getBranchId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
-                branch.getCity(),
-                branch.getCountry(),
-                branch.getManagerId(),
+                branch.getLocalLevelId(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt())
         );

@@ -15,7 +15,6 @@ import java.util.UUID;
 @Builder
 public record TenantResponse(
         Long id,
-        UUID tenantId,
         String tenantCode,
         String legalName,
         String displayName,
@@ -43,7 +42,6 @@ public record TenantResponse(
     public static TenantResponse from(Tenant tenant) {
         return TenantResponse.builder()
                 .id(tenant.getId())
-                .tenantId(tenant.getTenantId())
                 .tenantCode(tenant.getTenantCode())
                 .legalName(tenant.getLegalName())
                 .displayName(tenant.getDisplayName())

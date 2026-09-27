@@ -9,7 +9,7 @@ ARG APP_NAME=erp-ai-platform
 ARG APP_VERSION=0.1.0-SNAPSHOT
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
-ARG JAR_PATH=build/libs/*.jar
+ARG JAR_PATH=platform/identity/build/libs/*.jar
 
 # -------------------- Build Stage --------------------
 FROM eclipse-temurin:21-jdk-jammy AS builder
@@ -43,10 +43,14 @@ COPY integration/ integration/
 COPY libraries/ libraries/
 
 # Build the application JAR (skip tests for Docker build)
-RUN ./gradlew bootJar --no-daemon -x test --stacktrace
+# This is a multi-module project; build the specific Spring Boot module.
+RUN ./gradlew :platform:identity:bootJar --no-daemon -x test --stacktrace
 
 # -------------------- Runtime Stage --------------------
 FROM eclipse-temurin:21-jre-jammy AS runtime
+
+# Re-declare build args (ARGs before the first FROM are not inherited by stages)
+ARG JAR_PATH=platform/identity/build/libs/*.jar
 
 LABEL maintainer="ERP AI Platform Team" \
       org.opencontainers.image.title="${APP_NAME}" \

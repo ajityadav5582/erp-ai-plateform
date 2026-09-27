@@ -1,6 +1,7 @@
 package com.erp.platform.identity.interfaces.rest;
 
 import com.erp.platform.identity.domain.exception.AccountLockedException;
+import com.erp.platform.identity.domain.exception.AccessDeniedException;
 import com.erp.platform.identity.domain.exception.AuthenticationException;
 import com.erp.platform.identity.domain.exception.CannotActivateUserException;
 import com.erp.platform.identity.domain.exception.CannotDeactivateUserException;
@@ -10,9 +11,12 @@ import com.erp.platform.identity.domain.exception.DuplicateEmailException;
 import com.erp.platform.identity.domain.exception.DuplicateRoleCodeException;
 import com.erp.platform.identity.domain.exception.InvalidCredentialsException;
 import com.erp.platform.identity.domain.exception.InvalidRefreshTokenException;
+import com.erp.platform.identity.domain.exception.MissingTenantContextException;
 import com.erp.platform.identity.domain.exception.PasswordResetTokenException;
 import com.erp.platform.identity.domain.exception.PermissionNotFoundException;
 import com.erp.platform.identity.domain.exception.RoleNotFoundException;
+import com.erp.platform.identity.domain.exception.TenantNotFoundException;
+import com.erp.platform.identity.domain.exception.UnauthorizedException;
 import com.erp.platform.identity.domain.exception.UserNotFoundException;
 import com.erp.platform.identity.domain.exception.UserOperationException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -44,6 +49,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(UserNotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), request);
+    }
+
+    /**
+     * Tenant not found → 404 Not Found.
+     */
+    @ExceptionHandler(TenantNotFoundException.class)
+    public ResponseEntity<ApiError> handleTenantNotFound(TenantNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "TENANT_NOT_FOUND", ex.getMessage(), request);
     }
 
     /**
@@ -100,6 +113,30 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_ERROR", ex.getMessage(), request);
+    }
+
+    /**
+     * Missing tenant context → 403 Forbidden.
+     */
+    @ExceptionHandler(MissingTenantContextException.class)
+    public ResponseEntity<ApiError> handleMissingTenantContext(MissingTenantContextException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "MISSING_TENANT_CONTEXT", ex.getMessage(), request);
+    }
+
+    /**
+     * Unauthorized - insufficient role → 403 Forbidden.
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "UNAUTHORIZED", ex.getMessage(), request);
+    }
+
+    /**
+     * Access denied - insufficient permission → 403 Forbidden.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", ex.getMessage(), request);
     }
 
     /**
@@ -168,6 +205,15 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .orElse("Request validation failed");
         return build(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", message, request);
+    }
+
+    /**
+     * Malformed JSON request body → 400 Bad Request.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableRequest(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_REQUEST_BODY",
+                "Request body is malformed or contains invalid JSON", request);
     }
 
     /**

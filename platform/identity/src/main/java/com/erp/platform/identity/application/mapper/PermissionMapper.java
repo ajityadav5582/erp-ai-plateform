@@ -2,14 +2,8 @@ package com.erp.platform.identity.application.mapper;
 
 import com.erp.platform.identity.application.dto.PermissionListResponse;
 import com.erp.platform.identity.application.dto.PermissionResponse;
-import com.erp.platform.identity.domain.Action;
 import com.erp.platform.identity.domain.Permission;
-import com.erp.platform.identity.domain.PermissionStatus;
-import com.erp.platform.identity.domain.Resource;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -32,17 +26,14 @@ public class PermissionMapper {
 
         return new PermissionResponse(
                 permission.getId(),
-                permission.getPermissionId(),
                 permission.getPermissionCode(),
-                permission.getResource(),
-                permission.getAction(),
+                permission.getPermissionName(),
+                permission.getResourceCode(),
+                permission.getActionCode(),
                 permission.getDescription(),
                 permission.getStatus(),
-                toLocalDateTime(permission.getCreatedAt()),
-                toLocalDateTime(permission.getUpdatedAt()),
-                permission.getCreatedBy(),
-                permission.getUpdatedBy(),
-                permission.getVersion()
+                permission.getCreatedAt(),
+                permission.getUpdatedAt()
         );
     }
 
@@ -80,13 +71,4 @@ public class PermissionMapper {
         return PermissionListResponse.of(permissions, totalElements, totalPages, currentPage, pageSize);
     }
 
-    /**
-     * Convert Instant to LocalDateTime.
-     *
-     * @param instant the instant to convert
-     * @return the local date time
-     */
-    private static LocalDateTime toLocalDateTime(Instant instant) {
-        return instant != null ? LocalDateTime.ofInstant(instant, ZoneId.systemDefault()) : null;
-    }
 }

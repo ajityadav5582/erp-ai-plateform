@@ -1,7 +1,6 @@
 package com.erp.platform.identity.application.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * Configuration properties for the password-reset subsystem.
@@ -10,7 +9,6 @@ import org.springframework.stereotype.Component;
  *
  * @since 1.0.0
  */
-@Component
 @ConfigurationProperties(prefix = "auth.password-reset")
 public class PasswordResetProperties {
 

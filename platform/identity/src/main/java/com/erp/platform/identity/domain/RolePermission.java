@@ -1,126 +1,129 @@
 package com.erp.platform.identity.domain;
 
-import com.erp.platform.data.lock.OptimisticLock;
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
-/**
- * RolePermission association entity for many-to-many Role-Permission relationship.
- *
- * <p>Represents the assignment of a Permission to a Role with audit metadata.
- * This is an association class that enriches the many-to-many relationship
- * with assignment tracking for compliance and audit purposes.
- *
- * <p>The aggregate follows Clean Architecture and DDD principles:
- * <ul>
- *   <li>Extends {@link OptimisticLock} for optimistic locking support</li>
- *   <li>Encapsulates assignment business logic and invariants</li>
- *   <li>Supports future auditing through inherited audit fields</li>
- *   <li>Provides domain behavior methods for assignment lifecycle</li>
- * </ul>
- *
- * <p><strong>Business Rules:</strong>
- * <ul>
- *   <li>A Role can have many Permissions</li>
- *   <li>A Permission can belong to many Roles</li>
- *   <li>Each (role, permission) pair must be unique</li>
- *   <li>Only active permissions can be assigned to roles</li>
- * </ul>
- *
- * @since 1.0.0
- */
+/** Assignment row joining a role to a permission. */
 @Entity
-@Table(name = "role_permissions")
+@Table(
+        name = "role_permissions",
+        uniqueConstraints = @UniqueConstraint(name = "uq_role_permission", columnNames = {"role_id", "permission_id"}),
+        indexes = {
+                @Index(name = "idx_role_perm_role", columnList = "role_id"),
+                @Index(name = "idx_role_perm_permission", columnList = "permission_id")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-public class RolePermission extends OptimisticLock<Long> {
+public class RolePermission {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * The unique business identifier for the role permission assignment.
-     * Used for API access, external references, and audit trails.
-     * This is a UUID (not String) as per requirements.
-     */
-    @Column(name = "role_permission_id", nullable = false, unique = true, updatable = false)
-    private UUID rolePermissionId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
 
-    /**
-     * Reference to the role.
-     */
-    @Column(name = "role_id", nullable = false)
-    private Long roleId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
-    /**
-     * Reference to the permission.
-     */
-    @Column(name = "permission_id", nullable = false)
-    private Long permissionId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "permission_id", nullable = false)
+    private Permission permission;
 
-    /**
-     * The user or system that assigned this permission to the role.
-     * Typically the user ID of the administrator who performed the assignment.
-     * For system assignments, this may be a special system identifier.
-     */
-    @Column(name = "assigned_by", nullable = false, length = 100)
+    @Column(name = "assigned_by", length = 100)
     private String assignedBy;
 
-    /**
-     * Timestamp when the permission was assigned to the role.
-     */
-    @Column(name = "assigned_at", nullable = false)
-    private Instant assignedAt;
+    @Column(name = "assigned_at", nullable = false, columnDefinition = "timestamp")
+    private LocalDateTime assignedAt;
 
-    // ==============
-    // Factory Methods
-    // ==============
+    @Builder.Default
+    @org.hibernate.annotations.ColumnDefault("true")
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
 
-    /**
-     * Factory method to create a new role permission assignment.
-     *
-     * <p>The application layer is responsible for providing the rolePermissionId.
-     * This ensures proper UUID generation at the application layer.
-     *
-     * @param rolePermissionId the unique role permission assignment identifier (UUID)
-     * @param roleId the role ID
-     * @param permissionId the permission ID
-     * @param assignedBy the user or system that assigned the permission
-     * @param assignedAt the timestamp when the assignment occurred
-     * @return a new RolePermission instance
-     */
-    public static RolePermission assign(
-            UUID rolePermissionId,
-            Long roleId,
-            Long permissionId,
-            String assignedBy,
-            Instant assignedAt) {
+    @Transient
+    @Builder.Default
+    private DataScope dataScope = DataScope.ALL;
+
+    @PrePersist
+    protected void onCreate() {
+        if (assignedAt == null) assignedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public static RolePermission of(Role role, Permission permission, DataScope dataScope,
+                                    String assignedBy, Instant assignedAt) {
+        if (role == null || permission == null) {
+            throw new IllegalArgumentException("Role and Permission must not be null");
+        }
+        if (assignedBy == null || assignedBy.isBlank()) {
+            throw new IllegalArgumentException("assignedBy must not be blank");
+        }
         return RolePermission.builder()
-                .rolePermissionId(rolePermissionId)
-                .roleId(roleId)
-                .permissionId(permissionId)
-                .assignedBy(assignedBy)
-                .assignedAt(assignedAt)
+                .role(role)
+                .permission(permission)
+                .assignedBy(assignedBy.trim())
+                .assignedAt(toLocalDateTime(assignedAt))
+                .active(true)
+                .dataScope(dataScope != null ? dataScope : DataScope.ALL)
                 .build();
     }
 
-    // ==============
-    // Query Methods
-    // ==============
+    /** Legacy factory retained for callers that provide IDs and tenant context. */
+    public static RolePermission assign(Long tenantId, Long roleId, Long permissionId,
+                                        String assignedBy, Instant assignedAt) {
+        Role role = Role.builder().build();
+        role.setId(roleId);
+        Permission permission = Permission.builder().build();
+        permission.setId(permissionId);
+        return of(role, permission, DataScope.ALL,
+                assignedBy != null && !assignedBy.isBlank() ? assignedBy : "system", assignedAt);
+    }
 
-    /**
-     * Checks if this assignment is for the given role and permission.
-     *
-     * @param roleId the role ID to check
-     * @param permissionId the permission ID to check
-     * @return true if this assignment matches, false otherwise
-     */
-    public boolean isFor(Long roleId, Long permissionId) {
-        return this.roleId.equals(roleId) && this.permissionId.equals(permissionId);
+    public void updateDataScope(DataScope newDataScope) {
+        if (newDataScope != null) dataScope = newDataScope;
+    }
+
+    public void deactivate(Instant ignoredTimestamp) {
+        active = false;
+    }
+
+    public void reactivate() {
+        active = true;
+    }
+
+    public Long getRoleId() {
+        return role != null ? role.getId() : null;
+    }
+
+    public Long getPermissionId() {
+        return permission != null ? permission.getId() : null;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    void setRoleInternal(Role role) {
+        this.role = role;
+    }
+
+    public boolean isActiveAssignment() {
+        return active;
+    }
+
+    private static LocalDateTime toLocalDateTime(Instant instant) {
+        return instant == null ? LocalDateTime.now(ZoneOffset.UTC) : LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 }

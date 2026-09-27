@@ -7,6 +7,10 @@ import jakarta.validation.constraints.Size;
 /**
  * Request DTO for creating a new branch.
  *
+ * <p>A branch's location is derived from a local level (province -> district ->
+ * local level) referenced via {@code localLevelId}. An optional {@code wardNo}
+ * can further qualify the branch address.
+ *
  * @since 1.0.0
  */
 public record CreateBranchRequest(
@@ -28,24 +32,10 @@ public record CreateBranchRequest(
     @Size(max = 500, message = "Address must not exceed 500 characters")
     String address,
 
-    @Size(max = 100, message = "City must not exceed 100 characters")
-    String city,
+    @Size(max = 50, message = "Local level ID must not exceed 50 characters")
+    String localLevelId,
 
-    @Size(max = 100, message = "State must not exceed 100 characters")
-    String state,
-
-    @Size(max = 100, message = "Country must not exceed 100 characters")
-    String country,
-
-    @Size(max = 20, message = "Postal code must not exceed 20 characters")
-    String postalCode,
-
-    @Size(max = 50, message = "Timezone must not exceed 50 characters")
-    String timezone,
-
-    @Size(min = 3, max = 3, message = "Currency must be a 3-character ISO code")
-    String currency,
-
-    Long managerId
+    @Size(max = 50, message = "Ward number must not exceed 50 characters")
+    String wardNo
 ) {
 }

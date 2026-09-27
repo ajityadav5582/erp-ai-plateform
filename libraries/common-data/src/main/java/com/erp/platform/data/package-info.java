@@ -10,7 +10,6 @@
  *   <li>{@link com.erp.platform.data.repository.BaseRepository} - Base repository with tenant-aware operations</li>
  *   <li>{@link com.erp.platform.data.specification.SpecificationBuilder} - JPA specification builder</li>
  *   <li>{@link com.erp.platform.data.query.QueryUtils} - Query utilities</li>
- *   <li>{@link com.erp.platform.data.config.FlywayBaseConfig} - Flyway configuration</li>
  *   <li>{@link com.erp.platform.data.lock.OptimisticLock} - Optimistic locking support</li>
  * </ul>
  *

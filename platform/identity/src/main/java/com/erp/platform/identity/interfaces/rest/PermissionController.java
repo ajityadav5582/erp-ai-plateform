@@ -5,9 +5,8 @@ import com.erp.platform.identity.application.dto.CreatePermissionRequest;
 import com.erp.platform.identity.application.dto.PermissionListResponse;
 import com.erp.platform.identity.application.dto.PermissionResponse;
 import com.erp.platform.identity.application.dto.UpdatePermissionRequest;
-import com.erp.platform.identity.domain.Action;
+import com.erp.platform.identity.application.security.RequirePermission;
 import com.erp.platform.identity.domain.PermissionStatus;
-import com.erp.platform.identity.domain.Resource;
 import com.erp.platform.identity.domain.exception.CannotDeletePermissionException;
 import com.erp.platform.identity.domain.exception.DuplicatePermissionCodeException;
 import com.erp.platform.identity.domain.exception.PermissionNotFoundException;
@@ -17,8 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.util.UUID;
 
 /**
  * REST controller for permission management.
@@ -48,23 +45,25 @@ public class PermissionController {
      * @return 201 Created with the created permission and a {@code Location} header
      */
     @PostMapping
+    @RequirePermission("PERMISSION_CREATE")
     public ResponseEntity<PermissionResponse> createPermission(
             @Valid @RequestBody CreatePermissionRequest request,
             UriComponentsBuilder uriBuilder) {
         PermissionResponse response = permissionService.createPermission(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/permissions/{id}").buildAndExpand(response.permissionId()).toUri())
+                .created(uriBuilder.path("/api/v1/permissions/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 
     /**
-     * Gets a permission by its business identifier.
+     * Gets a permission by its ID.
      *
-     * @param permissionId the permission UUID
+     * @param permissionId the permission ID
      * @return 200 OK with the permission
      */
     @GetMapping("/{permissionId}")
-    public ResponseEntity<PermissionResponse> getPermissionById(@PathVariable UUID permissionId) {
+    @RequirePermission("PERMISSION_READ")
+    public ResponseEntity<PermissionResponse> getPermissionById(@PathVariable Long permissionId) {
         PermissionResponse response = permissionService.getPermissionById(permissionId);
         return ResponseEntity.ok(response);
     }
@@ -76,6 +75,7 @@ public class PermissionController {
      * @return 200 OK with the permission
      */
     @GetMapping("/by-code")
+    @RequirePermission("PERMISSION_READ")
     public ResponseEntity<PermissionResponse> getPermissionByCode(@RequestParam String permissionCode) {
         PermissionResponse response = permissionService.getPermissionByCode(permissionCode);
         return ResponseEntity.ok(response);
@@ -84,34 +84,36 @@ public class PermissionController {
     /**
      * Lists all permissions with pagination and optional filtering.
      *
-     * @param resource optional resource filter
-     * @param action optional action filter
+     * @param resourceCode optional resource code filter
+     * @param actionCode optional action code filter
      * @param status optional status filter
      * @param pageable pagination and sorting parameters
      * @return 200 OK with a page of permissions
      */
     @GetMapping
+    @RequirePermission("PERMISSION_READ")
     public ResponseEntity<PermissionListResponse> listPermissions(
-            @RequestParam(required = false) Resource resource,
-            @RequestParam(required = false) Action action,
+            @RequestParam(required = false) String resourceCode,
+            @RequestParam(required = false) String actionCode,
             @RequestParam(required = false) PermissionStatus status,
             Pageable pageable) {
-        PermissionListResponse response = permissionService.listPermissions(resource, action, status, pageable);
+        PermissionListResponse response = permissionService.listPermissions(resourceCode, actionCode, status, pageable);
         return ResponseEntity.ok(response);
     }
 
     /**
      * Lists permissions by resource with pagination.
      *
-     * @param resource the resource to filter by
+     * @param resourceCode the resource code to filter by
      * @param pageable pagination and sorting parameters
      * @return 200 OK with a page of permissions
      */
     @GetMapping("/by-resource")
+    @RequirePermission("PERMISSION_READ")
     public ResponseEntity<PermissionListResponse> listPermissionsByResource(
-            @RequestParam Resource resource,
+            @RequestParam String resourceCode,
             Pageable pageable) {
-        PermissionListResponse response = permissionService.listPermissionsByResource(resource, pageable);
+        PermissionListResponse response = permissionService.listPermissionsByResource(resourceCode, pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -123,6 +125,7 @@ public class PermissionController {
      * @return 200 OK with a page of permissions
      */
     @GetMapping("/by-status")
+    @RequirePermission("PERMISSION_READ")
     public ResponseEntity<PermissionListResponse> listPermissionsByStatus(
             @RequestParam PermissionStatus status,
             Pageable pageable) {
@@ -133,28 +136,30 @@ public class PermissionController {
     /**
      * Lists permissions by action with pagination.
      *
-     * @param action the action to filter by
+     * @param actionCode the action code to filter by
      * @param pageable pagination and sorting parameters
      * @return 200 OK with a page of permissions
      */
     @GetMapping("/by-action")
+    @RequirePermission("PERMISSION_READ")
     public ResponseEntity<PermissionListResponse> listPermissionsByAction(
-            @RequestParam Action action,
+            @RequestParam String actionCode,
             Pageable pageable) {
-        PermissionListResponse response = permissionService.listPermissionsByAction(action, pageable);
+        PermissionListResponse response = permissionService.listPermissionsByAction(actionCode, pageable);
         return ResponseEntity.ok(response);
     }
 
     /**
      * Fully updates a permission.
      *
-     * @param permissionId the permission UUID
+     * @param permissionId the permission ID
      * @param request the update request
      * @return 200 OK with the updated permission
      */
     @PutMapping("/{permissionId}")
+    @RequirePermission("PERMISSION_UPDATE")
     public ResponseEntity<PermissionResponse> updatePermission(
-            @PathVariable UUID permissionId,
+            @PathVariable Long permissionId,
             @Valid @RequestBody UpdatePermissionRequest request) {
         PermissionResponse response = permissionService.updatePermission(permissionId, request);
         return ResponseEntity.ok(response);
@@ -163,13 +168,14 @@ public class PermissionController {
     /**
      * Partially updates a permission.
      *
-     * @param permissionId the permission UUID
+     * @param permissionId the permission ID
      * @param request the partial update request
      * @return 200 OK with the updated permission
      */
     @PatchMapping("/{permissionId}")
+    @RequirePermission("PERMISSION_UPDATE")
     public ResponseEntity<PermissionResponse> patchPermission(
-            @PathVariable UUID permissionId,
+            @PathVariable Long permissionId,
             @RequestBody UpdatePermissionRequest request) {
         PermissionResponse response = permissionService.updatePermission(permissionId, request);
         return ResponseEntity.ok(response);
@@ -178,11 +184,12 @@ public class PermissionController {
     /**
      * Deletes a permission (soft delete by deactivation).
      *
-     * @param permissionId the permission UUID
+     * @param permissionId the permission ID
      * @return 204 No Content
      */
     @DeleteMapping("/{permissionId}")
-    public ResponseEntity<Void> deletePermission(@PathVariable UUID permissionId) {
+    @RequirePermission("PERMISSION_DELETE")
+    public ResponseEntity<Void> deletePermission(@PathVariable Long permissionId) {
         permissionService.deletePermission(permissionId);
         return ResponseEntity.noContent().build();
     }

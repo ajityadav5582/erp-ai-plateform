@@ -37,19 +37,6 @@ dependencies {
     // Annotation Processors
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
-
-    // Test
-    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
-    testImplementation "org.assertj:assertj-core:${assertjVersion}"
-    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation "org.springframework:spring-test"
-    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
-    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
-}
-
-
-tasks.withType(Test) {
-    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Branch aggregate root for organizational unit management.
@@ -27,16 +26,7 @@ import java.util.UUID;
  *   <li>Branch name must be unique within a tenant</li>
  *   <li>A branch belongs to exactly one tenant</li>
  *   <li>Only active branches can have new assignments (departments, users, etc.)</li>
- * </ul>
- *
- * <p><strong>Future Extensibility:</strong>
- * <p>The schema is designed to support future assignment of:
- * <ul>
- *   <li>Departments (via department.branch_id)</li>
- *   <li>Teams (via team.branch_id)</li>
- *   <li>Users (via user.branch_id)</li>
- *   <li>Warehouses (via warehouse.branch_id)</li>
- *   <li>Stores (via store.branch_id)</li>
+ *   <li>A branch's location is derived from a local level (province -> district -> local level)</li>
  * </ul>
  *
  * @since 1.0.0
@@ -50,14 +40,6 @@ import java.util.UUID;
 public class Branch extends OptimisticLock<Long> {
 
     private static final long serialVersionUID = 1L;
-
-    /**
-     * The unique business identifier for the branch.
-     * Used for API access, external references, and integration.
-     * This is a UUID (not String) as per requirements.
-     */
-    @Column(name = "branch_id", nullable = false, unique = true, updatable = false)
-    private UUID branchId;
 
     /**
      * The tenant this branch belongs to.
@@ -103,52 +85,17 @@ public class Branch extends OptimisticLock<Long> {
     private String address;
 
     /**
-     * City where the branch is located.
+     * The local level (municipality / rural municipality) where the branch is located.
+     * Province and district are derived from this reference.
      */
-    @Column(name = "city", length = 100)
-    private String city;
+    @Column(name = "local_level_id", length = 50)
+    private String localLevelId;
 
     /**
-     * State or province where the branch is located.
+     * Ward number within the local level.
      */
-    @Column(name = "state", length = 100)
-    private String state;
-
-    /**
-     * Country where the branch is located.
-     */
-    @Column(name = "country", length = 100)
-    private String country;
-
-    /**
-     * Postal or ZIP code of the branch location.
-     */
-    @Column(name = "postal_code", length = 20)
-    private String postalCode;
-
-    /**
-     * Timezone identifier for the branch.
-     * Used for scheduling, reporting, and time-based operations.
-     * Example: "Asia/Kathmandu", "America/New_York"
-     */
-    @Column(name = "timezone", length = 50)
-    private String timezone;
-
-    /**
-     * Currency code for the branch.
-     * Used for financial transactions and reporting.
-     * Example: "NPR", "USD", "EUR"
-     */
-    @Column(name = "currency", length = 3)
-    private String currency;
-
-    /**
-     * The user ID of the branch manager.
-     * References the user who manages this branch.
-     * Nullable until a manager is assigned.
-     */
-    @Column(name = "manager_id")
-    private Long managerId;
+    @Column(name = "ward_no", length = 50)
+    private String wardNo;
 
     /**
      * Current status of the branch.
@@ -197,41 +144,16 @@ public class Branch extends OptimisticLock<Long> {
     }
 
     /**
-     * Changes the manager of the branch.
+     * Updates the location information for the branch.
      *
-     * <p>Business Rules:
-     * <ul>
-     *   <li>New manager must be a valid user ID</li>
-     *   <li>Manager can be set to null (unassigned)</li>
-     * </ul>
+     * <p>Both fields are optional and can be updated independently.
      *
-     * @param newManagerId the user ID of the new manager, or null to unassign
-     * @throws IllegalArgumentException if newManagerId is negative
+     * @param localLevelId the local level id (municipality_id), or null to clear
+     * @param wardNo the ward number, or null to clear
      */
-    public void changeManager(Long newManagerId) {
-        if (newManagerId != null && newManagerId <= 0) {
-            throw new IllegalArgumentException("Manager ID must be a positive number");
-        }
-        this.managerId = newManagerId;
-    }
-
-    /**
-     * Updates the address information for the branch.
-     *
-     * <p>All address fields are optional and can be updated independently.
-     *
-     * @param address the street address
-     * @param city the city
-     * @param state the state or province
-     * @param country the country
-     * @param postalCode the postal or ZIP code
-     */
-    public void updateAddress(String address, String city, String state, String country, String postalCode) {
-        this.address = address;
-        this.city = city;
-        this.state = state;
-        this.country = country;
-        this.postalCode = postalCode;
+    public void updateLocation(String localLevelId, String wardNo) {
+        this.localLevelId = localLevelId;
+        this.wardNo = wardNo;
     }
 
     // ==================== Factory Methods ====================
@@ -244,7 +166,6 @@ public class Branch extends OptimisticLock<Long> {
      *   <li>tenantId must not be null</li>
      *   <li>branchCode must not be blank</li>
      *   <li>branchName must not be blank</li>
-     *   <li>branchId is auto-generated</li>
      *   <li>status defaults to ACTIVE</li>
      * </ul>
      *
@@ -260,7 +181,6 @@ public class Branch extends OptimisticLock<Long> {
         validateBranchName(branchName);
 
         return Branch.builder()
-                .branchId(UUID.randomUUID())
                 .tenantId(tenantId)
                 .branchCode(branchCode.trim().toUpperCase())
                 .branchName(branchName.trim())

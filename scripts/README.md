@@ -23,6 +23,18 @@ Utility scripts for development, deployment, and operations.
 - `flyway-migrate.sh` - Runs database migrations
 - `kafka-reassign.sh` - Rebalances Kafka partitions
 
+### Docker
+- `docker/docker.sh` - Main Docker automation entry point
+- `docker/start.sh` - Starts Docker Compose services
+- `docker/stop.sh` - Stops Docker Compose services
+- `docker/restart.sh` - Restarts Docker Compose services
+- `docker/reset.sh` - Full reset (stop + remove volumes + start)
+- `docker/cleanup.sh` - Clean database and Docker infrastructure
+- `docker/kill-ports.sh` - Kills processes on conflicting ports
+
+### Cleanup
+- `cleanup.sh` - Full cleanup (DB + Flyway + Docker + images)
+
 ## Usage
 
 ```bash
@@ -34,6 +46,9 @@ chmod +x scripts/*/*.sh
 
 # Run health check
 ./scripts/monitoring/health-check.sh
+
+# Kill conflicting ports before starting
+./scripts/docker/kill-ports.sh
 
 # Run backup
 ./scripts/backup/backup-database.sh

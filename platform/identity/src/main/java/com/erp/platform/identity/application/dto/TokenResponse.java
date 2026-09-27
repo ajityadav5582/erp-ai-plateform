@@ -1,7 +1,6 @@
 package com.erp.platform.identity.application.dto;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Response returned after a successful authentication operation (login or token refresh).
@@ -14,7 +13,7 @@ import java.util.UUID;
  * @param tokenType              the token type, always {@code "Bearer"}
  * @param accessTokenExpiresIn   access token lifetime in seconds
  * @param refreshTokenExpiresIn  refresh token lifetime in seconds
- * @param userId                 the authenticated user's business identifier (UUID)
+ * @param userId                 the authenticated user's numeric ID
  * @param tenantId               the tenant the user belongs to
  * @param username               the user's username
  * @param email                  the user's email
@@ -29,7 +28,7 @@ public record TokenResponse(
         String tokenType,
         long accessTokenExpiresIn,
         long refreshTokenExpiresIn,
-        UUID userId,
+        Long userId,
         Long tenantId,
         String username,
         String email,
@@ -44,7 +43,7 @@ public record TokenResponse(
             String refreshToken,
             long accessTokenExpiresInSeconds,
             long refreshTokenExpiresInSeconds,
-            UUID userId,
+            Long userId,
             Long tenantId,
             String username,
             String email,

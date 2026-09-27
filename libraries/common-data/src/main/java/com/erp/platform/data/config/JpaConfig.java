@@ -15,10 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  */
 @Configuration
 @EnableJpaAuditing
-@EnableJpaRepositories(
-    basePackages = "com.erp.platform",
-    repositoryBaseClass = com.erp.platform.data.repository.BaseRepository.class
-)
+@EnableJpaRepositories(basePackages = "com.erp.platform")
 public class JpaConfig {
     // Configuration is done via annotations
 }

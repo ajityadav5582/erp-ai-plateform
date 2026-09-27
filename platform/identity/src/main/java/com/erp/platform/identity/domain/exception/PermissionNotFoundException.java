@@ -17,7 +17,7 @@ public class PermissionNotFoundException extends PermissionOperationException {
         return new PermissionNotFoundException("Permission not found with id: " + id);
     }
 
-    public static PermissionNotFoundException byPermissionId(java.util.UUID permissionId) {
+    public static PermissionNotFoundException byPermissionId(Long permissionId) {
         return new PermissionNotFoundException("Permission not found with permissionId: " + permissionId);
     }
 

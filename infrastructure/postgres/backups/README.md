@@ -39,14 +39,6 @@ Creates a SQL script file that can be used to reconstruct the database.
 # Full database backup
 pg_dump -U erpai -h localhost -p 5432 -F c -b -v -f \
   /backups/erpai_platform_$(date +%Y%m%d_%H%M%S).dump erpai_platform
-
-# Specific database backup
-pg_dump -U erpai -h localhost -p 5432 -F c -b -v -f \
-  /backups/erpai_finance_$(date +%Y%m%d_%H%M%S).dump erpai_finance
-
-# All databases backup
-pg_dumpall -U erpai -h localhost -p 5432 -f \
-  /backups/erpai_all_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 #### pg_dump Options
@@ -98,17 +90,17 @@ min_wal_size = 1GB
 ### 1. Restore from pg_dump
 
 ```bash
-# Restore a single database
-pg_restore -U erpai -h localhost -p 5432 -d erpai_finance \
-  -v /backups/erpai_finance_20240101_120000.dump
+# Restore database
+pg_restore -U erpai -h localhost -p 5432 -d erpai_platform \
+  -v /backups/erpai_platform_20240101_120000.dump
 
 # Restore with cleanup (drop existing objects)
-pg_restore -U erpai -h localhost -p 5432 -d erpai_finance \
-  --clean --if-exists -v /backups/erpai_finance_20240101_120000.dump
+pg_restore -U erpai -h localhost -p 5432 -d erpai_platform \
+  --clean --if-exists -v /backups/erpai_platform_20240101_120000.dump
 
 # Restore plain SQL dump
-psql -U erpai -h localhost -p 5432 -d erpai_finance \
-  -f /backups/erpai_finance_20240101_120000.sql
+psql -U erpai -h localhost -p 5432 -d erpai_platform \
+  -f /backups/erpai_platform_20240101_120000.sql
 ```
 
 ### 2. Point-in-Time Recovery (PITR)
@@ -144,12 +136,12 @@ docker compose exec postgres psql -U erpai -c "SELECT pg_is_in_recovery();"
 
 ```bash
 # List tables in dump
-pg_restore -l /backups/erpai_finance_20240101_120000.dump
+pg_restore -l /backups/erpai_platform_20240101_120000.dump
 
 # Restore specific tables
-pg_restore -U erpai -h localhost -p 5432 -d erpai_finance \
-  -t invoices -t invoice_line_items \
-  -v /backups/erpai_finance_20240101_120000.dump
+pg_restore -U erpai -h localhost -p 5432 -d erpai_platform \
+  -t users -t roles \
+  -v /backups/erpai_platform_20240101_120000.dump
 ```
 
 ## Automated Backups
@@ -183,6 +175,8 @@ Add to `docker-compose.yml`:
       - infrastructure
 ```
 
+The backup script automatically backs up the single `erpai_platform` database.
+
 ### Backup Script
 
 Create `infrastructure/postgres/backups/backup.sh`:
@@ -203,18 +197,10 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 # Create backup directory
 mkdir -p "${BACKUP_DIR}"
 
-# Backup all databases
+# Backup single database
 echo "Starting backup at ${TIMESTAMP}"
-pg_dumpall -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -p 5432 | gzip > \
-  "${BACKUP_DIR}/erpai_all_${TIMESTAMP}.sql.gz"
-
-# Backup individual databases
-for DB in erpai_platform erpai_finance erpai_hr erpai_inventory erpai_manufacturing \
-          erpai_procurement erpai_sales erpai_ai erpai_integration erpai_gateway; do
-  echo "Backing up ${DB}"
-  pg_dump -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -p 5432 -F c -b -v \
-    "${DB}" | gzip > "${BACKUP_DIR}/${DB}_${TIMESTAMP}.dump.gz"
-done
+pg_dump -U "${POSTGRES_USER}" -h "${POSTGRES_HOST}" -p 5432 -F c -b -v \
+  "${POSTGRES_DB}" | gzip > "${BACKUP_DIR}/${POSTGRES_DB}_${TIMESTAMP}.dump.gz"
 
 # Cleanup old backups
 echo "Cleaning up backups older than ${BACKUP_RETENTION_DAYS} days"
@@ -256,12 +242,12 @@ SELECT * FROM pg_replication_slots;
 
 ```bash
 # Verify backup integrity
-pg_restore -l /backups/erpai_finance_20240101_120000.dump > /dev/null && echo "Backup OK"
+pg_restore -l /backups/erpai_platform_20240101_120000.dump > /dev/null && echo "Backup OK"
 
 # Test restore to temporary database
-createdb -U erpai erpai_finance_test
-pg_restore -U erpai -d erpai_finance_test /backups/erpai_finance_20240101_120000.dump
-dropdb -U erpai erpai_finance_test
+createdb -U erpai erpai_platform_test
+pg_restore -U erpai -d erpai_platform_test /backups/erpai_platform_20240101_120000.dump
+dropdb -U erpai erpai_platform_test
 ```
 
 ### Alerts
@@ -301,8 +287,8 @@ Set up alerts for:
 
 ```bash
 # Quick recovery from latest backup
-BACKUP=$(ls -t /backups/erpai_all_*.sql.gz | head -1)
-gunzip -c "${BACKUP}" | psql -U erpai -h localhost
+BACKUP=$(ls -t /backups/erpai_platform_*.dump.gz | head -1)
+gunzip -c "${BACKUP}" | psql -U erpai -h localhost -d erpai_platform
 
 # Recovery with specific point in time
 # (See Point-in-Time Recovery section above)

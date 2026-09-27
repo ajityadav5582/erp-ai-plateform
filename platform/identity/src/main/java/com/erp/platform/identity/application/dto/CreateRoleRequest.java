@@ -3,6 +3,8 @@ package com.erp.platform.identity.application.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.Set;
+
 /**
  * Request DTO for creating a new role.
  *
@@ -18,6 +20,8 @@ public record CreateRoleRequest(
     String roleName,
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
-    String description
+    String description,
+
+    Set<Long> permissionIds
 ) {
 }

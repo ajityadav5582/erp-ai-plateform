@@ -1,5 +1,6 @@
 package com.erp.platform.tenant.interfaces.rest;
 
+import com.erp.platform.security.annotation.RequiresPermission;
 import com.erp.platform.tenant.application.CreateTenantCommandHandler;
 import com.erp.platform.tenant.application.CreateTenantRequest;
 import com.erp.platform.tenant.application.DeleteTenantCommandHandler;
@@ -56,6 +57,7 @@ public class TenantController {
      * @return 201 Created with the created tenant and a {@code Location} header
      */
     @PostMapping
+    @RequiresPermission("TENANT_CREATE")
     public ResponseEntity<TenantResponse> createTenant(
             @Valid @RequestBody CreateTenantRequest request,
             UriComponentsBuilder uriBuilder) {
@@ -73,6 +75,7 @@ public class TenantController {
      * @return 200 OK with a page of tenants
      */
     @GetMapping
+    @RequiresPermission("TENANT_READ")
     public ResponseEntity<Page<TenantResponse>> listTenants(
             @RequestParam(required = false) TenantStatus status,
             Pageable pageable) {
@@ -87,6 +90,7 @@ public class TenantController {
      * @return 200 OK with the tenant
      */
     @GetMapping("/{id}")
+    @RequiresPermission("TENANT_READ")
     public ResponseEntity<TenantResponse> getTenant(@PathVariable Long id) {
         return ResponseEntity.ok(getTenantQueryHandler.handle(id));
     }
@@ -99,6 +103,7 @@ public class TenantController {
      * @return 200 OK with the updated tenant
      */
     @PutMapping("/{id}")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> updateTenant(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTenantRequest request) {
@@ -113,6 +118,7 @@ public class TenantController {
      * @return 200 OK with the updated tenant
      */
     @PatchMapping("/{id}")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> patchTenant(
             @PathVariable Long id,
             @RequestBody UpdateTenantRequest request) {
@@ -126,6 +132,7 @@ public class TenantController {
      * @return 204 No Content
      */
     @DeleteMapping("/{id}")
+    @RequiresPermission("TENANT_DELETE")
     public ResponseEntity<Void> deleteTenant(@PathVariable Long id) {
         deleteTenantCommandHandler.handle(id);
         return ResponseEntity.noContent().build();
@@ -135,6 +142,7 @@ public class TenantController {
      * Activates a tenant (PENDING/TRIAL/EXPIRED → ACTIVE).
      */
     @PostMapping("/{id}/activate")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> activateTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.activate(Instant.now())));
     }
@@ -143,6 +151,7 @@ public class TenantController {
      * Suspends an active tenant (ACTIVE → SUSPENDED).
      */
     @PostMapping("/{id}/suspend")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> suspendTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.suspend(Instant.now())));
     }
@@ -151,6 +160,7 @@ public class TenantController {
      * Reactivates a suspended tenant (SUSPENDED → ACTIVE).
      */
     @PostMapping("/{id}/reactivate")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> reactivateTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.reactivate(Instant.now())));
     }
@@ -159,6 +169,7 @@ public class TenantController {
      * Deactivates a tenant (ACTIVE/SUSPENDED → DEACTIVATED).
      */
     @PostMapping("/{id}/deactivate")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> deactivateTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.deactivate(Instant.now())));
     }
@@ -167,6 +178,7 @@ public class TenantController {
      * Archives a tenant (terminal state).
      */
     @PostMapping("/{id}/archive")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> archiveTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.archive(Instant.now())));
     }
@@ -175,6 +187,7 @@ public class TenantController {
      * Marks a tenant subscription as expired.
      */
     @PostMapping("/{id}/expire")
+    @RequiresPermission("TENANT_UPDATE")
     public ResponseEntity<TenantResponse> expireTenant(@PathVariable Long id) {
         return ResponseEntity.ok(applyLifecycle(id, t -> t.expire(Instant.now())));
     }

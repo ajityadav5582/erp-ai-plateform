@@ -16,7 +16,6 @@ import java.util.UUID;
 @Builder
 public record TenantCreatedEvent(
         UUID eventId,
-        UUID tenantId,
         String tenantCode,
         String legalName,
         String displayName,
@@ -38,11 +37,10 @@ public record TenantCreatedEvent(
      * @param occurredAt the timestamp when the event occurred (provided by application layer)
      * @return a new TenantCreatedEvent instance
      */
-    public static TenantCreatedEvent of(UUID tenantId, String tenantCode, String legalName,
+    public static TenantCreatedEvent of(String tenantCode, String legalName,
                                          String displayName, String isolationStrategy, Instant occurredAt) {
         return TenantCreatedEvent.builder()
                 .eventId(UUID.randomUUID())
-                .tenantId(tenantId)
                 .tenantCode(tenantCode)
                 .legalName(legalName)
                 .displayName(displayName)
@@ -61,7 +59,7 @@ public record TenantCreatedEvent(
 
     @Override
     public String getTenantId() {
-        return this.tenantId.toString();
+        return this.tenantCode;
     }
 
     @Override

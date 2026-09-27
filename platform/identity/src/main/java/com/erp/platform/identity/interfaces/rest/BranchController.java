@@ -1,11 +1,12 @@
 package com.erp.platform.identity.interfaces.rest;
 
-import com.erp.platform.common.tenancy.TenantContext;
 import com.erp.platform.identity.application.BranchService;
+import com.erp.platform.identity.application.CurrentTenantProvider;
 import com.erp.platform.identity.application.dto.BranchListResponse;
 import com.erp.platform.identity.application.dto.BranchResponse;
 import com.erp.platform.identity.application.dto.CreateBranchRequest;
 import com.erp.platform.identity.application.dto.UpdateBranchRequest;
+import com.erp.platform.identity.application.security.RequirePermission;
 import com.erp.platform.identity.domain.exception.BranchNotFoundException;
 import com.erp.platform.identity.domain.exception.BranchOperationException;
 import com.erp.platform.identity.domain.exception.DuplicateBranchCodeException;
@@ -17,8 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.util.UUID;
 
 /**
  * REST controller for branch management.
@@ -41,6 +40,7 @@ import java.util.UUID;
 public class BranchController {
 
     private final BranchService branchService;
+    private final CurrentTenantProvider currentTenantProvider;
 
     /**
      * Creates a new branch.
@@ -49,13 +49,14 @@ public class BranchController {
      * @return 201 Created with the created branch and a {@code Location} header
      */
     @PostMapping
+    @RequirePermission("BRANCH_CREATE")
     public ResponseEntity<BranchResponse> createBranch(
             @Valid @RequestBody CreateBranchRequest request,
             UriComponentsBuilder uriBuilder) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.createBranch(tenantId, request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/branches/{id}").buildAndExpand(response.branchId()).toUri())
+                .created(uriBuilder.path("/api/v1/branches/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 
@@ -66,8 +67,9 @@ public class BranchController {
      * @return 200 OK with a page of branches
      */
     @GetMapping
+    @RequirePermission("BRANCH_READ")
     public ResponseEntity<Page<BranchListResponse>> listBranches(Pageable pageable) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         Page<BranchListResponse> page = branchService.listBranches(tenantId, pageable);
         return ResponseEntity.ok(page);
     }
@@ -75,12 +77,13 @@ public class BranchController {
     /**
      * Gets a branch by its business identifier.
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return 200 OK with the branch
      */
     @GetMapping("/{branchId}")
-    public ResponseEntity<BranchResponse> getBranchById(@PathVariable UUID branchId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("BRANCH_READ")
+    public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long branchId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.getBranchById(tenantId, branchId);
         return ResponseEntity.ok(response);
     }
@@ -92,8 +95,9 @@ public class BranchController {
      * @return 200 OK with the branch
      */
     @GetMapping("/by-code")
+    @RequirePermission("BRANCH_READ")
     public ResponseEntity<BranchResponse> getBranchByCode(@RequestParam String code) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.getBranchByCode(tenantId, code);
         return ResponseEntity.ok(response);
     }
@@ -101,15 +105,16 @@ public class BranchController {
     /**
      * Fully updates a branch.
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @param request the update request
      * @return 200 OK with the updated branch
      */
     @PutMapping("/{branchId}")
+    @RequirePermission("BRANCH_UPDATE")
     public ResponseEntity<BranchResponse> updateBranch(
-            @PathVariable UUID branchId,
+            @PathVariable Long branchId,
             @Valid @RequestBody UpdateBranchRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.updateBranch(tenantId, branchId, request);
         return ResponseEntity.ok(response);
     }
@@ -117,15 +122,16 @@ public class BranchController {
     /**
      * Partially updates a branch.
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @param request the partial update request
      * @return 200 OK with the updated branch
      */
     @PatchMapping("/{branchId}")
+    @RequirePermission("BRANCH_UPDATE")
     public ResponseEntity<BranchResponse> patchBranch(
-            @PathVariable UUID branchId,
+            @PathVariable Long branchId,
             @RequestBody UpdateBranchRequest request) {
-        Long tenantId = getTenantId();
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.updateBranch(tenantId, branchId, request);
         return ResponseEntity.ok(response);
     }
@@ -133,12 +139,13 @@ public class BranchController {
     /**
      * Deletes a branch.
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return 204 No Content
      */
     @DeleteMapping("/{branchId}")
-    public ResponseEntity<Void> deleteBranch(@PathVariable UUID branchId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("BRANCH_DELETE")
+    public ResponseEntity<Void> deleteBranch(@PathVariable Long branchId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         branchService.deleteBranch(tenantId, branchId);
         return ResponseEntity.noContent().build();
     }
@@ -146,12 +153,13 @@ public class BranchController {
     /**
      * Activates a branch (INACTIVE → ACTIVE).
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return 200 OK with the activated branch
      */
     @PostMapping("/{branchId}/activate")
-    public ResponseEntity<BranchResponse> activateBranch(@PathVariable UUID branchId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("BRANCH_UPDATE")
+    public ResponseEntity<BranchResponse> activateBranch(@PathVariable Long branchId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.activateBranch(tenantId, branchId);
         return ResponseEntity.ok(response);
     }
@@ -159,27 +167,15 @@ public class BranchController {
     /**
      * Deactivates a branch (ACTIVE → INACTIVE).
      *
-     * @param branchId the branch UUID
+     * @param branchId the branch ID
      * @return 200 OK with the deactivated branch
      */
     @PostMapping("/{branchId}/deactivate")
-    public ResponseEntity<BranchResponse> deactivateBranch(@PathVariable UUID branchId) {
-        Long tenantId = getTenantId();
+    @RequirePermission("BRANCH_UPDATE")
+    public ResponseEntity<BranchResponse> deactivateBranch(@PathVariable Long branchId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
         BranchResponse response = branchService.deactivateBranch(tenantId, branchId);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Extracts the tenant ID from the current request context.
-     *
-     * @return the tenant ID as a {@link Long}
-     * @throws IllegalStateException if the tenant context is not set
-     */
-    private Long getTenantId() {
-        String tenantId = TenantContext.getTenantId();
-        if (tenantId == null || tenantId.isBlank()) {
-            throw new IllegalStateException("Tenant context is not set");
-        }
-        return Long.parseLong(tenantId);
-    }
 }

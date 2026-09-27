@@ -4,238 +4,104 @@ import com.erp.platform.identity.domain.UserRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-/**
- * Repository interface for UserRole association entity.
- *
- * <p>Provides methods for managing the many-to-many relationship between
- * User and Role with additional assignment metadata.
- *
- * @since 1.0.0
- */
+/** Tenant-aware queries for user-role associations; tenant ownership comes from the user and role rows. */
 @Repository
 public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
 
-    Optional<UserRole> findByUserRoleId(UUID userRoleId);
+    @Query("SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId WHERE ur.id = :id AND u.tenantId = :tenantId")
+    Optional<UserRole> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
-    /**
-     * Finds all active role assignments for a user.
-     *
-     * <p>Active means: not revoked and not expired.
-     *
-     * @param userId the user ID
-     * @param now the current timestamp for expiration check
-     * @return list of active user role assignments
-     */
     @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.userId = :userId
-              AND ur.revokedAt IS NULL
-              AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
-            """)
-    List<UserRole> findActiveByUserId(@Param("userId") Long userId, @Param("now") Instant now);
-
-    /**
-     * Finds all active role assignments for a user in a specific tenant.
-     *
-     * @param userId the user ID
-     * @param tenantId the tenant ID
-     * @param now the current timestamp for expiration check
-     * @return list of active user role assignments
-     */
-    @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.userId = :userId
-              AND ur.tenantId = :tenantId
-              AND ur.revokedAt IS NULL
+            SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId
+            WHERE ur.userId = :userId AND u.tenantId = :tenantId AND ur.active = TRUE
               AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
             """)
     List<UserRole> findActiveByUserIdAndTenantId(
-            @Param("userId") Long userId,
-            @Param("tenantId") Long tenantId,
-            @Param("now") Instant now);
+            @Param("userId") Long userId, @Param("tenantId") Long tenantId, @Param("now") LocalDateTime now);
 
-    /**
-     * Finds the primary role assignment for a user.
-     *
-     * @param userId the user ID
-     * @param now the current timestamp for expiration check
-     * @return the primary user role assignment, if any
-     */
     @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.userId = :userId
-              AND ur.isPrimaryRole = true
-              AND ur.revokedAt IS NULL
+            SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId
+            WHERE ur.userId = :userId AND u.tenantId = :tenantId AND ur.isPrimaryRole = TRUE AND ur.active = TRUE
               AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
             """)
-    Optional<UserRole> findPrimaryByUserId(@Param("userId") Long userId, @Param("now") Instant now);
+    Optional<UserRole> findPrimaryByUserIdAndTenantId(
+            @Param("userId") Long userId, @Param("tenantId") Long tenantId, @Param("now") LocalDateTime now);
 
-    /**
-     * Finds all users assigned to a specific role.
-     *
-     * @param roleId the role ID
-     * @param now the current timestamp for expiration check
-     * @return list of user role assignments for the role
-     */
     @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.roleId = :roleId
-              AND ur.revokedAt IS NULL
-              AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
-            """)
-    List<UserRole> findActiveByRoleId(@Param("roleId") Long roleId, @Param("now") Instant now);
-
-    /**
-     * Finds all users assigned to a specific role in a tenant.
-     *
-     * @param roleId the role ID
-     * @param tenantId the tenant ID
-     * @param now the current timestamp for expiration check
-     * @return list of user role assignments for the role
-     */
-    @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.roleId = :roleId
-              AND ur.tenantId = :tenantId
-              AND ur.revokedAt IS NULL
+            SELECT ur FROM UserRole ur JOIN Role r ON r.id = ur.roleId JOIN User u ON u.id = ur.userId
+            WHERE ur.roleId = :roleId AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM))
+              AND u.tenantId = :tenantId AND ur.active = TRUE
               AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
             """)
     List<UserRole> findActiveByRoleIdAndTenantId(
-            @Param("roleId") Long roleId,
-            @Param("tenantId") Long tenantId,
-            @Param("now") Instant now);
+            @Param("roleId") Long roleId, @Param("tenantId") Long tenantId, @Param("now") LocalDateTime now);
 
-    /**
-     * Checks if a user has a specific role assigned and active.
-     *
-     * @param userId the user ID
-     * @param roleId the role ID
-     * @param now the current timestamp for expiration check
-     * @return true if the user has the role assigned and active, false otherwise
-     */
     @Query("""
-            SELECT COUNT(ur) > 0 FROM UserRole ur
-            WHERE ur.userId = :userId
-              AND ur.roleId = :roleId
-              AND ur.revokedAt IS NULL
-              AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
+            SELECT COUNT(ur) > 0 FROM UserRole ur JOIN User u ON u.id = ur.userId JOIN Role r ON r.id = ur.roleId
+            WHERE ur.userId = :userId AND u.tenantId = :tenantId AND ur.roleId = :roleId
+              AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM))
+              AND ur.active = TRUE AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
             """)
-    boolean existsActiveByUserIdAndRoleId(
-            @Param("userId") Long userId,
-            @Param("roleId") Long roleId,
-            @Param("now") Instant now);
+    boolean existsActiveByUserIdAndTenantIdAndRoleId(
+            @Param("userId") Long userId, @Param("tenantId") Long tenantId,
+            @Param("roleId") Long roleId, @Param("now") LocalDateTime now);
 
-    /**
-     * Finds all assignments for a user (including expired and revoked).
-     *
-     * @param userId the user ID
-     * @return list of all user role assignments
-     */
-    List<UserRole> findByUserId(Long userId);
+    @Query("SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId WHERE ur.userId = :userId AND u.tenantId = :tenantId")
+    List<UserRole> findByUserIdAndTenantId(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
 
-    /**
-     * Finds all assignments for a role (including expired and revoked).
-     *
-     * @param roleId the role ID
-     * @return list of all user role assignments
-     */
-    List<UserRole> findByRoleId(Long roleId);
+    @Query("SELECT ur FROM UserRole ur JOIN Role r ON r.id = ur.roleId JOIN User u ON u.id = ur.userId WHERE ur.roleId = :roleId AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM)) AND u.tenantId = :tenantId")
+    List<UserRole> findByRoleIdAndTenantId(@Param("roleId") Long roleId, @Param("tenantId") Long tenantId);
 
-    /**
-     * Finds all assignments in a tenant.
-     *
-     * @param tenantId the tenant ID
-     * @param pageable pagination information
-     * @return page of user role assignments
-     */
-    Page<UserRole> findByTenantId(Long tenantId, Pageable pageable);
+    @Query("SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId WHERE u.tenantId = :tenantId")
+    Page<UserRole> findByTenantId(@Param("tenantId") Long tenantId, Pageable pageable);
 
-    /**
-     * Finds all active assignments in a tenant.
-     *
-     * @param tenantId the tenant ID
-     * @param now the current timestamp for expiration check
-     * @param pageable pagination information
-     * @return page of active user role assignments
-     */
     @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.tenantId = :tenantId
-              AND ur.revokedAt IS NULL
+            SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId
+            WHERE u.tenantId = :tenantId AND ur.active = TRUE
               AND (ur.expiresAt IS NULL OR ur.expiresAt > :now)
             """)
     Page<UserRole> findActiveByTenantId(
-            @Param("tenantId") Long tenantId,
-            @Param("now") Instant now,
-            Pageable pageable);
+            @Param("tenantId") Long tenantId, @Param("now") LocalDateTime now, Pageable pageable);
 
-    /**
-     * Finds all expired assignments.
-     *
-     * @param now the current timestamp
-     * @return list of expired user role assignments
-     */
     @Query("""
-            SELECT ur FROM UserRole ur
-            WHERE ur.expiresAt IS NOT NULL
-              AND ur.expiresAt <= :now
-              AND ur.revokedAt IS NULL
+            SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId
+            WHERE u.tenantId = :tenantId AND ur.expiresAt IS NOT NULL AND ur.expiresAt <= :now AND ur.active = TRUE
             """)
-    List<UserRole> findExpired(@Param("now") Instant now);
+    List<UserRole> findExpiredByTenantId(@Param("tenantId") Long tenantId, @Param("now") LocalDateTime now);
 
-    /**
-     * Deletes all assignments for a user.
-     *
-     * @param userId the user ID
-     * @return number of deleted assignments
-     */
-    long deleteByUserId(Long userId);
+    @Modifying
+    @Query("DELETE FROM UserRole ur WHERE ur.userId = :userId AND EXISTS (SELECT u.id FROM User u WHERE u.id = ur.userId AND u.tenantId = :tenantId)")
+    long deleteByUserIdAndTenantId(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
 
-    /**
-     * Deletes all assignments for a role.
-     *
-     * @param roleId the role ID
-     * @return number of deleted assignments
-     */
-    long deleteByRoleId(Long roleId);
+    @Modifying
+    @Query("DELETE FROM UserRole ur WHERE ur.roleId = :roleId AND EXISTS (SELECT r.id FROM Role r WHERE r.id = ur.roleId AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM))) AND EXISTS (SELECT u.id FROM User u WHERE u.id = ur.userId AND u.tenantId = :tenantId)")
+    long deleteByRoleIdAndTenantId(@Param("roleId") Long roleId, @Param("tenantId") Long tenantId);
 
-    boolean existsByUserRoleId(UUID userRoleId);
+    @Query("""
+            SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId JOIN Role r ON r.id = ur.roleId
+            WHERE ur.userId = :userId AND u.tenantId = :tenantId AND ur.roleId = :roleId
+              AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM))
+            """)
+    Optional<UserRole> findByUserIdAndTenantIdAndRoleId(
+            @Param("userId") Long userId, @Param("tenantId") Long tenantId, @Param("roleId") Long roleId);
 
-    boolean existsByUserIdAndRoleId(Long userId, Long roleId);
+    @Query("SELECT ur FROM UserRole ur JOIN User u ON u.id = ur.userId WHERE ur.userId = :userId AND u.tenantId = :tenantId")
+    Page<UserRole> findByUserIdAndTenantId(
+            @Param("userId") Long userId, @Param("tenantId") Long tenantId, Pageable pageable);
 
-    /**
-     * Finds a specific user role assignment by user ID and role ID.
-     *
-     * @param userId the user ID
-     * @param roleId the role ID
-     * @return the user role assignment, if any
-     */
-    Optional<UserRole> findByUserIdAndRoleId(Long userId, Long roleId);
+    @Query("SELECT ur FROM UserRole ur JOIN Role r ON r.id = ur.roleId JOIN User u ON u.id = ur.userId WHERE ur.roleId = :roleId AND (r.tenantId = :tenantId OR (r.tenantId IS NULL AND r.roleType = com.erp.platform.identity.domain.RoleType.SYSTEM)) AND u.tenantId = :tenantId")
+    Page<UserRole> findByRoleIdAndTenantId(
+            @Param("roleId") Long roleId, @Param("tenantId") Long tenantId, Pageable pageable);
 
-    /**
-     * Finds all assignments for a user with pagination.
-     *
-     * @param userId the user ID
-     * @param pageable pagination information
-     * @return page of user role assignments
-     */
-    Page<UserRole> findByUserId(Long userId, Pageable pageable);
-
-    /**
-     * Finds all assignments for a role with pagination.
-     *
-     * @param roleId the role ID
-     * @param pageable pagination information
-     * @return page of user role assignments
-     */
-    Page<UserRole> findByRoleId(Long roleId, Pageable pageable);
+    @Query("SELECT COUNT(ur) > 0 FROM UserRole ur JOIN User u ON u.id = ur.userId WHERE ur.id = :id AND u.tenantId = :tenantId")
+    boolean existsByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 }
