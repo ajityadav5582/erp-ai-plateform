@@ -51,14 +51,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-COMPOSE_FILES="-f compose.base.yml -f compose.local.yml"
+COMPOSE_FILES="-f docker-compose.yml"
 DETACHED="-d"
 BUILD=""
 VERBOSE=""
 WAIT_FOR_HEALTHY=false
-HEALTH_WAIT_TIMEOUT=120
-SERVICES="postgres application"
-COMPOSE_SERVICES="postgres application"
+# A Spring Boot service on this stack takes ~4-6 minutes to become healthy on a
+# cold restart (JIT warm-up plus Hibernate ddl-auto=update). 120s reported a
+# spurious "Timeout waiting for services to become healthy" on every restart even
+# though the services came up correctly a few minutes later. Override with
+# HEALTH_WAIT_TIMEOUT=600 ./scripts/docker/local-dev.sh restart --wait
+HEALTH_WAIT_TIMEOUT=${HEALTH_WAIT_TIMEOUT:-600}
+SERVICES="postgres gateway identity-service inventory-service"
+COMPOSE_SERVICES="postgres gateway identity-service inventory-service"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -111,7 +116,8 @@ Commands:
 
 Options:
     --detached, -d      Run in background (default for start)
-    --build             Build images before starting
+    --build             Build Docker images before starting
+    --no-build          Skip Gradle JAR build (use existing JARs)
     --wait              Wait for services to become healthy
     --verbose, -v       Enable verbose output
     --no-confirm        Skip confirmation prompts (for reset/cleanup)
@@ -196,9 +202,13 @@ show_service_status() {
 show_access_urls() {
     log_info "Access URLs:"
     echo ""
-    echo "  Database    http://localhost:5434 (PostgreSQL)"
-    echo "  Application http://localhost:8080 (Spring Boot)"
-    echo "  App Health  http://localhost:8080/actuator/health"
+    echo "  Database       http://localhost:5434 (PostgreSQL)"
+    echo "  API Gateway    http://localhost:8080 (Single entry point)"
+    echo "  Gateway Health http://localhost:8080/actuator/health"
+    echo ""
+    echo "  Identity (internal)  http://localhost:8082"
+    echo "  Inventory (internal) http://localhost:8083"
+    echo "  Tenant (internal)    http://localhost:8081"
     echo ""
 }
 
@@ -209,6 +219,30 @@ show_access_urls() {
 cmd_start() {
     print_banner
     check_prerequisites
+
+    # Build JARs before Docker build (so Dockerfile.runtime can copy them)
+    # Skip if --no-build flag is passed or if JARs already exist
+    local SKIP_BUILD=false
+    for arg in "$@"; do
+        if [[ "$arg" == "--no-build" ]]; then
+            SKIP_BUILD=true
+            break
+        fi
+    done
+
+    if [ "$SKIP_BUILD" = false ]; then
+        log_info "Building application JARs..."
+        echo ""
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar --no-daemon -x test; then
+            log_error "Failed to build JARs"
+            exit 3
+        fi
+        log_success "JARs built successfully"
+        echo ""
+    else
+        log_info "Skipping JAR build (--no-build)"
+        echo ""
+    fi
 
     log_info "Starting application and database services..."
     echo ""
@@ -238,6 +272,7 @@ cmd_start() {
 
     log_info "To view logs: docker compose $COMPOSE_FILES logs -f"
     log_info "To stop services: ./scripts/docker/local-dev.sh stop"
+    log_info "To rebuild JARs: ./gradlew bootJar"
 }
 
 cmd_stop() {
@@ -262,14 +297,49 @@ cmd_restart() {
     log_info "Restarting local dev services..."
     echo ""
 
-    local RESTART_BUILD=""
-    if [[ " $* " == *"--build"* ]]; then
-        RESTART_BUILD="--build"
+    # Rebuild the application JARs first, exactly like cmd_start does.
+    #
+    # This used to be skipped entirely, which made `restart` silently useless
+    # after a code change: Dockerfile.runtime COPYs the boot JAR into the image,
+    # so a container recreated from the cached image kept running the JAR baked
+    # into it. The symptom was a fix that appeared to have no effect - the
+    # service restarted cleanly and returned the exact same old error.
+    local SKIP_BUILD=false
+    for arg in "$@"; do
+        if [[ "$arg" == "--no-build" ]]; then
+            SKIP_BUILD=true
+            break
+        fi
+    done
+
+    if [ "$SKIP_BUILD" = false ]; then
+        log_info "Building application JARs..."
+        echo ""
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar --no-daemon -x test; then
+            log_error "Failed to build JARs"
+            exit 3
+        fi
+        log_success "JARs built successfully"
+        echo ""
     fi
 
-    if ! docker compose $COMPOSE_FILES $VERBOSE down $COMPOSE_SERVICES && \
-       docker compose $COMPOSE_FILES $VERBOSE up $DETACHED $RESTART_BUILD $COMPOSE_SERVICES; then
-        log_error "Failed to restart services"
+    # Always pass --build so the image picks up the freshly built JAR instead of
+    # being recreated from the cached layer. --no-build opts out.
+    local RESTART_BUILD="--build"
+    if [ "$SKIP_BUILD" = true ]; then
+        RESTART_BUILD=""
+    fi
+
+    # `if ! A && B` is a trap: it evaluates as "if (not A) then B", so a SUCCESSFUL
+    # down silently skips up and leaves you with nothing running. Run the two
+    # steps sequentially and check each one.
+    if ! docker compose $COMPOSE_FILES $VERBOSE down $COMPOSE_SERVICES; then
+        log_error "Failed to stop services"
+        exit 3
+    fi
+
+    if ! docker compose $COMPOSE_FILES $VERBOSE up $DETACHED $RESTART_BUILD $COMPOSE_SERVICES; then
+        log_error "Failed to start services"
         exit 3
     fi
 
@@ -333,21 +403,39 @@ cmd_health_check() {
         all_healthy=false
     fi
 
-    # Check Application
-    log_info "Checking Application..."
-    if docker compose $COMPOSE_FILES $VERBOSE ps application | grep -q "healthy\|running"; then
-        log_success "Application is healthy"
+    # Check Gateway
+    log_info "Checking Gateway..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps gateway | grep -q "healthy\|running"; then
+        log_success "Gateway is healthy"
     else
-        log_error "Application is not healthy"
+        log_error "Gateway is not healthy"
         all_healthy=false
     fi
 
-    # Check application endpoint
-    log_info "Checking application endpoint..."
-    if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-        log_success "Application endpoint is responding"
+    # Check Identity Service
+    log_info "Checking Identity Service..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps identity-service | grep -q "healthy\|running"; then
+        log_success "Identity Service is healthy"
     else
-        log_warning "Application endpoint is not responding (may still be starting)"
+        log_error "Identity Service is not healthy"
+        all_healthy=false
+    fi
+
+    # Check Inventory Service
+    log_info "Checking Inventory Service..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps inventory-service | grep -q "healthy\|running"; then
+        log_success "Inventory Service is healthy"
+    else
+        log_error "Inventory Service is not healthy"
+        all_healthy=false
+    fi
+
+    # Check gateway endpoint
+    log_info "Checking gateway endpoint..."
+    if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+        log_success "Gateway endpoint is responding"
+    else
+        log_warning "Gateway endpoint is not responding (may still be starting)"
     fi
 
     echo ""
@@ -427,6 +515,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --build)
             BUILD="--build"
+            shift
+            ;;
+        --no-build)
+            # Skip Gradle JAR build before Docker start
             shift
             ;;
         --wait)

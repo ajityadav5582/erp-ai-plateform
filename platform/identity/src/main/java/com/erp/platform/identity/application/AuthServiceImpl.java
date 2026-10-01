@@ -169,6 +169,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = getUserRoles(savedUser.getId(), savedUser.getTenantId());
+        List<String> permissions = getUserPermissions(savedUser.getId(), savedUser.getTenantId());
 
         String accessToken = jwtService.generateAccessToken(
                 savedUser.getId().toString(),
@@ -176,7 +177,8 @@ public class AuthServiceImpl implements AuthService {
                 savedUser.getUsername(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),
-                roles
+                roles,
+                permissions
         );
 
         String rawRefreshToken = jwtService.generateRawRefreshToken();
@@ -271,6 +273,9 @@ public class AuthServiceImpl implements AuthService {
         // Get user roles
         List<String> roles = getUserRoles(user.getId(), user.getTenantId());
 
+        // Resolve permissions so downstream business services can authorize from the token
+        List<String> permissions = getUserPermissions(user.getId(), user.getTenantId());
+
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(
                 user.getId().toString(),
@@ -278,7 +283,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
-                roles
+                roles,
+                permissions
         );
 
         String rawRefreshToken = jwtService.generateRawRefreshToken();
@@ -347,6 +353,9 @@ public class AuthServiceImpl implements AuthService {
         // Get user roles
         List<String> roles = getUserRoles(user.getId(), user.getTenantId());
 
+        // Re-resolve permissions on refresh so changes take effect within one access-token TTL
+        List<String> permissions = getUserPermissions(user.getId(), user.getTenantId());
+
         // Generate new tokens
         String accessToken = jwtService.generateAccessToken(
                 user.getId().toString(),
@@ -354,7 +363,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
-                roles
+                roles,
+                permissions
         );
 
         String newRawRefreshToken = jwtService.generateRawRefreshToken();
@@ -566,5 +576,23 @@ public class AuthServiceImpl implements AuthService {
 
     private List<String> getUserRoles(Long userId) {
         return getUserRoles(userId, currentTenantProvider.getCurrentTenantId());
+    }
+
+    /**
+     * Resolves the permission codes granted to a user's active roles in a tenant.
+     *
+     * <p>These are embedded in the access token so that downstream business services
+     * (inventory, sales, finance, ...) can authorize requests from the token alone,
+     * without calling back into the identity service or hitting its database.
+     *
+     * @param userId   the user's primary key
+     * @param tenantId the tenant scope
+     * @return the permission codes, or an empty list when none apply
+     */
+    private List<String> getUserPermissions(Long userId, Long tenantId) {
+        if (userId == null || tenantId == null) {
+            return List.of();
+        }
+        return List.copyOf(authorizationService.getUserPermissions(tenantId, userId));
     }
 }

@@ -24,6 +24,12 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
 
   // Validation errors
   VALIDATION_ERROR: "Please check the information you entered and try again.",
+  INVALID_ARGUMENT: "The request was rejected because a value was not valid.",
+  CONSTRAINT_VIOLATION:
+    "This change conflicts with data that already exists. Refresh and try again.",
+  CONCURRENT_MODIFICATION:
+    "Someone else changed this record while you were editing it. Reload and try again.",
+  METHOD_NOT_ALLOWED: "That action is not supported on this resource.",
 
   // Password reset errors
   PASSWORD_RESET_TOKEN_ERROR:
@@ -42,6 +48,13 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   CANNOT_DEACTIVATE_USER: "This user cannot be deactivated.",
   CANNOT_DELETE_USER: "This user cannot be deleted.",
   CANNOT_DELETE_ROLE: "This role cannot be deleted.",
+
+  // Category errors
+  // These deliberately have no entry in this table. The backend already sends a
+  // message that names the specific rule that was broken (for example
+  // "Category with slug 'electronics' already exists in this company"), and
+  // getApiErrorMessage falls through to that message when no generic entry
+  // exists. Adding generic entries here would replace it with vaguer text.
 
   // Server errors
   INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",

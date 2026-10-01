@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PageResponse } from "@/types/api";
 
 export type UserStatus =
   | "ACTIVE"
@@ -72,17 +73,6 @@ export interface UpdateUserRequest {
   departmentId?: number;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
-}
-
 export interface GetUsersParams {
   page?: number;
   size?: number;
@@ -100,7 +90,7 @@ export const userApi = api.injectEndpoints({
   endpoints: (build) => ({
     getUsers: build.query<PageResponse<UserListResponse>, GetUsersParams | void>({
       query: (params) => ({
-        url: "/users",
+        url: "/identity/users",
         method: "GET",
         params: params ?? {},
       }),
@@ -109,7 +99,7 @@ export const userApi = api.injectEndpoints({
 
     getUser: build.query<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, userId) => [{ type: "User", id: userId }],
@@ -117,7 +107,7 @@ export const userApi = api.injectEndpoints({
 
     createUser: build.mutation<User, CreateUserRequest>({
       query: (body) => ({
-        url: "/users",
+        url: "/identity/users",
         method: "POST",
         data: body,
       }),
@@ -126,7 +116,7 @@ export const userApi = api.injectEndpoints({
 
     updateUser: build.mutation<User, { userId: number; data: UpdateUserRequest }>({
       query: ({ userId, data }) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "PUT",
         data,
       }),
@@ -138,7 +128,7 @@ export const userApi = api.injectEndpoints({
 
     activateUser: build.mutation<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}/activate`,
+        url: `/identity/users/${userId}/activate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, userId) => [
@@ -149,7 +139,7 @@ export const userApi = api.injectEndpoints({
 
     deactivateUser: build.mutation<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}/deactivate`,
+        url: `/identity/users/${userId}/deactivate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, userId) => [
@@ -160,7 +150,7 @@ export const userApi = api.injectEndpoints({
 
     deleteUser: build.mutation<void, number>({
       query: (userId) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["User"],

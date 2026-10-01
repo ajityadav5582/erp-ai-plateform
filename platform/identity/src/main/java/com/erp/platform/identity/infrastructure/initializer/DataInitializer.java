@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.erp.platform.identity.application.BsCalendarService;
+
 /** Initializes platform-wide master data and global SYSTEM role definitions. */
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -34,6 +36,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final BsCalendarService bsCalendarService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -41,16 +44,20 @@ public class DataInitializer implements CommandLineRunner {
     public DataInitializer(
             RoleRepository roleRepository,
             PermissionRepository permissionRepository,
-            RolePermissionRepository rolePermissionRepository) {
+            RolePermissionRepository rolePermissionRepository,
+            BsCalendarService bsCalendarService) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.bsCalendarService = bsCalendarService;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
         ensureMasterFiscalYearsExist();
+        bsCalendarService.seedBsCalendarRange(2070, 2090);
+        bsCalendarService.relinkFiscalYears();
 
         List<Permission> permissions = ensureSupportedPermissionsExist();
 

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PageResponse } from "@/types/api";
 
 export type BranchStatus = "ACTIVE" | "INACTIVE";
 
@@ -49,17 +50,6 @@ export interface UpdateBranchRequest {
   wardNo?: string;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
-}
-
 export interface GetBranchesParams {
   page?: number;
   size?: number;
@@ -75,7 +65,7 @@ export const branchApi = api.injectEndpoints({
   endpoints: (build) => ({
     getBranches: build.query<PageResponse<BranchListResponse>, GetBranchesParams | void>({
       query: (params) => ({
-        url: "/branches",
+        url: "/identity/branches",
         method: "GET",
         params: params ?? {},
       }),
@@ -84,7 +74,7 @@ export const branchApi = api.injectEndpoints({
 
     getBranch: build.query<Branch, number>({
       query: (branchId) => ({
-        url: `/branches/${branchId}`,
+        url: `/identity/branches/${branchId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, branchId) => [{ type: "Branch", id: branchId }],
@@ -92,7 +82,7 @@ export const branchApi = api.injectEndpoints({
 
     createBranch: build.mutation<Branch, CreateBranchRequest>({
       query: (body) => ({
-        url: "/branches",
+        url: "/identity/branches",
         method: "POST",
         data: body,
       }),
@@ -101,7 +91,7 @@ export const branchApi = api.injectEndpoints({
 
     updateBranch: build.mutation<Branch, { branchId: number; data: UpdateBranchRequest }>({
       query: ({ branchId, data }) => ({
-        url: `/branches/${branchId}`,
+        url: `/identity/branches/${branchId}`,
         method: "PUT",
         data,
       }),
@@ -113,7 +103,7 @@ export const branchApi = api.injectEndpoints({
 
     activateBranch: build.mutation<Branch, number>({
       query: (branchId) => ({
-        url: `/branches/${branchId}/activate`,
+        url: `/identity/branches/${branchId}/activate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, branchId) => [
@@ -124,7 +114,7 @@ export const branchApi = api.injectEndpoints({
 
     deactivateBranch: build.mutation<Branch, number>({
       query: (branchId) => ({
-        url: `/branches/${branchId}/deactivate`,
+        url: `/identity/branches/${branchId}/deactivate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, branchId) => [
@@ -135,7 +125,7 @@ export const branchApi = api.injectEndpoints({
 
     deleteBranch: build.mutation<void, number>({
       query: (branchId) => ({
-        url: `/branches/${branchId}`,
+        url: `/identity/branches/${branchId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Branch"],

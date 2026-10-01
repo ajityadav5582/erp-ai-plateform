@@ -105,7 +105,7 @@ export const authApi = api.injectEndpoints({
   endpoints: (build) => ({
     login: build.mutation<LoginResponse, LoginRequest>({
       query: (body) => ({
-        url: "/auth/login",
+        url: "/identity/auth/login",
         method: "POST",
         data: body,
       }),
@@ -114,7 +114,7 @@ export const authApi = api.injectEndpoints({
 
     register: build.mutation<LoginResponse, RegisterRequest>({
       query: (body) => ({
-        url: "/auth/register",
+        url: "/identity/auth/register",
         method: "POST",
         data: body,
       }),
@@ -123,7 +123,7 @@ export const authApi = api.injectEndpoints({
 
     onboard: build.mutation<OnboardingResponse, OnboardingRequest>({
       query: (body) => ({
-        url: "/onboarding",
+        url: "/identity/onboarding",
         method: "POST",
         data: body,
       }),
@@ -132,7 +132,7 @@ export const authApi = api.injectEndpoints({
 
     logout: build.mutation<void, { refreshToken: string }>({
       query: (body) => ({
-        url: "/auth/logout",
+        url: "/identity/auth/logout",
         method: "POST",
         data: body,
       }),
@@ -141,7 +141,7 @@ export const authApi = api.injectEndpoints({
 
     refreshToken: build.mutation<RefreshTokenResponse, RefreshTokenRequest>({
       query: (body) => ({
-        url: "/auth/refresh",
+        url: "/identity/auth/refresh",
         method: "POST",
         data: body,
       }),
@@ -149,7 +149,7 @@ export const authApi = api.injectEndpoints({
 
     getCurrentUser: build.query<AuthUser, void>({
       query: () => ({
-        url: "/auth/me",
+        url: "/identity/auth/me",
         method: "GET",
       }),
       providesTags: ["Auth"],
@@ -160,7 +160,7 @@ export const authApi = api.injectEndpoints({
       { tenantId?: number; email: string }
     >({
       query: (body) => ({
-        url: "/auth/forgot-password",
+        url: "/identity/auth/forgot-password",
         method: "POST",
         data: body,
       }),
@@ -168,7 +168,7 @@ export const authApi = api.injectEndpoints({
 
     resetPassword: build.mutation<void, { token: string; password: string }>({
       query: (body) => ({
-        url: "/auth/reset-password",
+        url: "/identity/auth/reset-password",
         method: "POST",
         data: body,
       }),

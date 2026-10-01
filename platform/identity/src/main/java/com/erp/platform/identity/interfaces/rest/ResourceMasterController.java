@@ -24,7 +24,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/resources")
+@RequestMapping("/api/v1/identity/resources")
 @RequiredArgsConstructor
 public class ResourceMasterController {
 
@@ -43,7 +43,7 @@ public class ResourceMasterController {
             UriComponentsBuilder uriBuilder) {
         ResourceMasterResponse response = resourceMasterService.createResource(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/resources/{id}").buildAndExpand(response.id()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/resources/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 

@@ -1,9 +1,13 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 import java.util.UUID;
 
 /**
  * Exception thrown when a user is not found.
+ *
+ * <p>Reports {@code 404 NOT_FOUND}.
  *
  * @since 1.0.0
  */
@@ -12,7 +16,7 @@ public class UserNotFoundException extends UserOperationException {
     private static final long serialVersionUID = 1L;
 
     public UserNotFoundException(String message) {
-        super(message);
+        super(HttpStatus.NOT_FOUND, "NOT_FOUND", message);
     }
 
     /**

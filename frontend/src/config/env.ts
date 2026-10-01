@@ -23,7 +23,9 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "staging", "production"])
     .default("development"),
-  API_BASE_URL: z.string().url().default("http://localhost:8082/api/v1"),
+  // API Gateway is the single entry point for all backend services.
+  // The gateway exposes port 8080 and routes to identity, inventory, tenant, etc.
+  API_BASE_URL: z.string().url().default("http://localhost:8080/api/v1"),
   API_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 });
 
@@ -45,7 +47,7 @@ export function getEnv(): Env {
     API_BASE_URL:
       process.env.NEXT_PUBLIC_API_BASE_URL ||
       process.env.API_BASE_URL ||
-      "http://localhost:8082/api/v1",
+      "http://localhost:8080/api/v1",
   };
 
   const parsed = envSchema.safeParse(rawEnv);

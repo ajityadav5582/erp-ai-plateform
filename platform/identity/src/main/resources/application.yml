@@ -51,6 +51,13 @@ auth:
     # In production this MUST be false and the token delivered out-of-band (email).
     return-token-in-response: true
 
+# Identity is the token issuer and installs its own JwtAuthenticationFilter,
+# so the shared read-only token validator must stay off here.
+erp:
+  security:
+    jwt:
+      enabled: false
+
 management:
   endpoints:
     web:

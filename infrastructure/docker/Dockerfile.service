@@ -45,6 +45,8 @@ COPY integration/ integration/
 COPY libraries/ libraries/
 
 # Build the application JAR (skip tests for Docker build)
+# SERVICE_MODULE supports colon-separated paths like:
+#   platform:gateway, platform:identity, platform:tenant, business:inventory:application
 RUN ./gradlew :${SERVICE_MODULE}:bootJar --no-daemon -x test --stacktrace
 
 # -------------------- Runtime Stage --------------------
@@ -69,7 +71,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy JAR from builder with proper ownership
-COPY --from=builder --chown=appuser:appgroup /app/build/libs/*.jar app.jar
+# The JAR location depends on the SERVICE_MODULE path:
+#   platform:gateway -> platform/gateway/build/libs/
+#   platform:identity -> platform/identity/build/libs/
+#   platform:tenant -> platform/tenant/build/libs/
+#   business:inventory:application -> business/inventory/application/build/libs/
+ARG JAR_PATH=build/libs
+COPY --from=builder --chown=appuser:appgroup /app/${JAR_PATH}/*.jar app.jar
 
 # Copy health check and entrypoint scripts
 COPY --chown=appuser:appgroup infrastructure/docker/healthcheck.sh /app/healthcheck.sh
@@ -102,3 +110,14 @@ ENV JAVA_OPTS="" \
 
 # Entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
+
+# -------------------- Service Target Aliases --------------------
+# These stages allow docker-compose to reference services by name:
+#   target: gateway   -> builds platform:gateway
+#   target: identity  -> builds platform:identity
+#   target: tenant    -> builds platform:tenant
+#   target: inventory -> builds business:inventory:application
+FROM runtime AS gateway
+FROM runtime AS identity
+FROM runtime AS tenant
+FROM runtime AS inventory

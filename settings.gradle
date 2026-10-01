@@ -34,10 +34,7 @@ include "business:hr:application"
 include "business:hr:infrastructure"
 include "business:hr:interfaces"
 
-include "business:inventory:domain"
-include "business:inventory:application"
-include "business:inventory:infrastructure"
-include "business:inventory:interfaces"
+include "platform:inventory"
 
 include "business:sales:domain"
 include "business:sales:application"
@@ -53,6 +50,13 @@ include "business:manufacturing:domain"
 include "business:manufacturing:application"
 include "business:manufacturing:infrastructure"
 include "business:manufacturing:interfaces"
+
+// Inventory is ONE deployable module with layered packages inside
+// (application / domain / infrastructure / interfaces), matching the layout
+// used by platform:identity. Separate Gradle modules are not used here: they
+// cannot be enforced meaningfully without multi-module hexagonal boundaries,
+// and they fragment a single Spring Boot application across build artifacts.
+include "business:inventory:application"
 
 // AI Modules
 include "ai:agents:domain"
@@ -108,5 +112,6 @@ include "libraries:common-observability"
 // Platform Services
 include "platform:tenant"
 include "platform:identity"
+include "platform:gateway"
 
 // Legacy Common modules removed - functionality moved to common-* libraries

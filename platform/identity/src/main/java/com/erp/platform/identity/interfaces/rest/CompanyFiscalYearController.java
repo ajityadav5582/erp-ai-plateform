@@ -21,7 +21,7 @@ import java.util.Objects;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/v1/companies/{companyId}/fiscal-years")
+@RequestMapping("/api/v1/identity/companies/{companyId}/fiscal-years")
 @RequiredArgsConstructor
 public class CompanyFiscalYearController {
     private final CompanyFiscalYearRepository fiscalYearRepository;

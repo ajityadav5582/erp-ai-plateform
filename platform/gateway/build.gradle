@@ -1,0 +1,84 @@
+/*
+ * ERP AI Platform - API Gateway Service Build Configuration
+ * Enterprise-grade Spring Cloud Gateway for unified API entry point.
+ */
+
+plugins {
+    id 'org.springframework.boot' version '3.3.4'
+    id 'io.spring.dependency-management'
+    id 'java-library'
+}
+
+group = 'com.erp.platform'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+    }
+}
+
+dependencies {
+    // Common libraries
+    implementation project(':libraries:common-core')
+    implementation project(':libraries:common-data')
+    implementation project(':libraries:common-events')
+    // NOTE: common-security is intentionally NOT a dependency here. It is a
+    // servlet-stack library (spring-security + OncePerRequestFilter). Pulling it
+    // in makes Spring Boot auto-configure a SecurityWebFilterChain on the
+    // reactive Gateway, which turns on CSRF and rejects every state-changing
+    // request with "An expected CSRF token cannot be found" (HTTP 403).
+    // The Gateway is a pure routing layer: it only forwards routes, CORS
+    // headers, and business-context headers. Authentication is enforced
+    // downstream by identity / inventory using common-security.
+
+    // Spring Cloud Gateway
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Utilities
+    implementation "org.apache.commons:commons-lang3:${commonsLangVersion}"
+    implementation "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Testing
+    testImplementation project(':libraries:common-testing')
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:-processing"
+}
+
+bootRun {
+    environment = [
+        'POSTGRES_HOST': 'localhost',
+        'POSTGRES_PORT': '5434',
+        'POSTGRES_DB': 'erpai_platform',
+        'POSTGRES_USER': 'erpai',
+        'POSTGRES_PASSWORD': 'erpai_dev_password',
+        'DB_USERNAME': 'erpai',
+        'DB_PASSWORD': 'erpai_dev_password',
+        'SPRING_PROFILES_ACTIVE': 'local'
+    ]
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+

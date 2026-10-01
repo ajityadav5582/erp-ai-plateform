@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: inventory-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-erpai_platform}
+    username: ${DB_USERNAME:-${POSTGRES_USER:-erpai}}
+    password: ${DB_PASSWORD:-${POSTGRES_PASSWORD:-erpai_dev_password}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    generate-ddl: ${SPRING_JPA_GENERATE_DDL:true}
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "com.erp.business.inventory.*"
+
+server:
+  port: ${SERVER_PORT:8083}
+
+# ---------------------------------------------------------------------------
+# Platform security (libraries:common-security)
+# The signing secret/issuer MUST match platform/identity's auth.jwt values,
+# otherwise access tokens issued by Identity will fail validation here.
+# ---------------------------------------------------------------------------
+erp:
+  security:
+    jwt:
+      enabled: true
+      secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
+      issuer: ${JWT_ISSUER:erp-ai-platform-identity}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

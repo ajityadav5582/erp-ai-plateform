@@ -208,7 +208,7 @@ This document describes the frontend authentication system for the ERP AI Platfo
 │                                                                   │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐ │
 │  │  AuthController │───▶│  AuthServiceImpl│───▶│   UserRepo  │ │
-│  │  (/api/v1/auth) │    │                 │    │             │ │
+│  │  (/api/v1/identity/auth) │    │                 │    │             │ │
 │  └─────────────────┘    └─────────────────┘    └─────────────┘ │
 │                                                                   │
 │  ┌─────────────────┐    ┌─────────────────┐                     │
@@ -503,7 +503,7 @@ When the user refreshes the page or opens the app in a new tab:
 
 ### Login Request
 ```json
-POST /api/v1/auth/login
+POST /api/v1/identity/auth/login
 {
   "tenantId": 1,
   "username": "user@example.com",
@@ -535,7 +535,7 @@ POST /api/v1/auth/login
 {
   "code": "INVALID_CREDENTIALS",
   "message": "Invalid username or password",
-  "path": "/api/v1/auth/login",
+  "path": "/api/v1/identity/auth/login",
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```

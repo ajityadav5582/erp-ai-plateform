@@ -35,7 +35,7 @@ import java.util.UUID;
  * (parent/child) navigation, and lifecycle state transitions, following the
  * platform API standards:
  * <ul>
- *   <li>Versioned base path {@code /api/v1/departments}</li>
+ *   <li>Versioned base path {@code /api/v1/identity/departments}</li>
  *   <li>Proper HTTP methods (GET, POST, PUT, PATCH, DELETE)</li>
  *   <li>Appropriate status codes (201 + Location on create, 204 on delete)</li>
  *   <li>Pagination and filtering on collection endpoints</li>
@@ -45,7 +45,7 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/departments")
+@RequestMapping("/api/v1/identity/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
 
@@ -66,7 +66,7 @@ public class DepartmentController {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
         DepartmentResponse response = departmentService.createDepartment(tenantId, request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/departments/{id}").buildAndExpand(response.departmentId()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/departments/{id}").buildAndExpand(response.departmentId()).toUri())
                 .body(response);
     }
 

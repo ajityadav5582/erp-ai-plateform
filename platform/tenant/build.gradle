@@ -1,6 +1,4 @@
 plugins {
-    id 'org.springframework.boot' version '3.3.4'
-    id 'io.spring.dependency-management'
     id 'java-library'
 }
 
@@ -18,32 +16,12 @@ repositories {
     maven { url "https://repo.spring.io/snapshot" }
 }
 
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
-    }
-}
-
 dependencies {
-    // Common libraries
+    // Common platform libraries (consumed by identity as a project dependency)
     implementation project(':libraries:common-core')
     implementation project(':libraries:common-data')
     implementation project(':libraries:common-events')
     implementation project(':libraries:common-security')
-
-    // Spring Boot Starters
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
-    // Database
-    implementation "org.postgresql:postgresql:${postgresqlVersion}"
-    implementation "org.flywaydb:flyway-core:${flywayVersion}"
-    implementation "org.flywaydb:flyway-database-postgresql:${flywayVersion}"
-
-    // Kafka
-    implementation 'org.springframework.kafka:spring-kafka'
 
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLangVersion}"
@@ -53,17 +31,4 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:-processing"
-}
-
-bootRun {
-    environment = [
-        'POSTGRES_HOST': 'localhost',
-        'POSTGRES_PORT': '5434',
-        'POSTGRES_DB': 'erpai_platform',
-        'POSTGRES_USER': 'erpai',
-        'POSTGRES_PASSWORD': 'erpai_dev_password',
-        'DB_USERNAME': 'erpai',
-        'DB_PASSWORD': 'erpai_dev_password',
-        'SPRING_PROFILES_ACTIVE': 'local'
-    ]
 }

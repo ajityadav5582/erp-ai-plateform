@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PageResponse } from "@/types/api";
 
 export type DepartmentStatus = "ACTIVE" | "INACTIVE";
 
@@ -50,17 +51,6 @@ export interface UpdateDepartmentRequest {
   parentDepartmentId?: number;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
-}
-
 export interface GetDepartmentsParams {
   page?: number;
   size?: number;
@@ -77,7 +67,7 @@ export const departmentApi = api.injectEndpoints({
   endpoints: (build) => ({
     getDepartments: build.query<PageResponse<DepartmentListResponse>, GetDepartmentsParams | void>({
       query: (params) => ({
-        url: "/departments",
+        url: "/identity/departments",
         method: "GET",
         params: params ?? {},
       }),
@@ -86,7 +76,7 @@ export const departmentApi = api.injectEndpoints({
 
     getDepartment: build.query<Department, string>({
       query: (departmentId) => ({
-        url: `/departments/${departmentId}`,
+        url: `/identity/departments/${departmentId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, departmentId) => [{ type: "Department", id: departmentId }],
@@ -94,7 +84,7 @@ export const departmentApi = api.injectEndpoints({
 
     createDepartment: build.mutation<Department, CreateDepartmentRequest>({
       query: (body) => ({
-        url: "/departments",
+        url: "/identity/departments",
         method: "POST",
         data: body,
       }),
@@ -103,7 +93,7 @@ export const departmentApi = api.injectEndpoints({
 
     updateDepartment: build.mutation<Department, { departmentId: string; data: UpdateDepartmentRequest }>({
       query: ({ departmentId, data }) => ({
-        url: `/departments/${departmentId}`,
+        url: `/identity/departments/${departmentId}`,
         method: "PUT",
         data,
       }),
@@ -115,7 +105,7 @@ export const departmentApi = api.injectEndpoints({
 
     activateDepartment: build.mutation<Department, string>({
       query: (departmentId) => ({
-        url: `/departments/${departmentId}/activate`,
+        url: `/identity/departments/${departmentId}/activate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, departmentId) => [
@@ -126,7 +116,7 @@ export const departmentApi = api.injectEndpoints({
 
     deactivateDepartment: build.mutation<Department, string>({
       query: (departmentId) => ({
-        url: `/departments/${departmentId}/deactivate`,
+        url: `/identity/departments/${departmentId}/deactivate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, departmentId) => [
@@ -137,7 +127,7 @@ export const departmentApi = api.injectEndpoints({
 
     deleteDepartment: build.mutation<void, string>({
       query: (departmentId) => ({
-        url: `/departments/${departmentId}`,
+        url: `/identity/departments/${departmentId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Department"],

@@ -18,6 +18,36 @@ dependencies {
     // Spring Boot (version managed by Spring Boot BOM)
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.security:spring-security-core'
+    // NOTE: everything below is compileOnly ON PURPOSE.
+    //
+    // This library is written against the SERVLET security stack
+    // (OncePerRequestFilter, FilterRegistrationBean, SecurityContextHolder).
+    // Consumers must declare their own web/security stack so we never leak a
+    // servlet runtime into a reactive app:
+    //
+    //   * starter-web    -> would put Tomcat on the API Gateway classpath and
+    //                       make Spring Cloud Gateway boot as a servlet app
+    //                       (fails to find reactive ServerCodecConfigurer).
+    //   * starter-security -> auto-configures a SecurityWebFilterChain on the
+    //                       reactive Gateway, enabling CSRF and rejecting every
+    //                       POST/PUT/DELETE with
+    //                       "An expected CSRF token cannot be found" (403).
+    //
+    // Both servlet consumers (platform:identity, business:inventory:application)
+    // already declare spring-boot-starter-security + starter-web themselves.
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.springframework.boot:spring-boot-starter-security'
+    // AOP support for @RequiresPermission / @RequiresRole enforcement
+    compileOnly 'org.springframework.boot:spring-boot-starter-aop'
+
+    // Lombok (compileOnly) - used for @Slf4j / @RequiredArgsConstructor
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // JWT (jjwt) - shared so downstream services can validate the same tokens
+    api "io.jsonwebtoken:jjwt-api:0.12.6"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:0.12.6"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:0.12.6"
 
     // Common Core
     implementation project(':libraries:common-core')

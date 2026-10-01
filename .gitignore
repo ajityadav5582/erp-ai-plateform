@@ -5,6 +5,8 @@
 build/
 out/
 target/
+bin/
+*.class
 *.jar
 *.war
 *.ear
@@ -33,11 +35,21 @@ Thumbs.db
 desktop.ini
 
 # Environment
- .env
- .env.local
- .env.*.local
- # .env.development is kept as a reference file for local development
- # .env.testing, .env.staging, .env.production are environment-specific and should be created as needed
+# NOTE: patterns must NOT be indented, otherwise they are parsed as literal
+# filenames and never match. Real secrets live in .env / frontend/.env.
+.env
+.env.local
+.env.*.local
+# .env.development is kept as a reference file for local development
+# .env.testing, .env.staging, .env.production are environment-specific and should be created as needed
+# Templates are committed on purpose:
+!.env.example
+!frontend/.env.example
+!infrastructure/docker/.env.example
+# Config samples that intentionally contain non-secret defaults:
+!infrastructure/minio/config/minio.env
+!infrastructure/keycloak/config/keycloak-dev.env
+!infrastructure/keycloak/config/keycloak-postgres.env
 *.pem
 *.key
 *.p12
@@ -56,11 +68,14 @@ jacoco.exec
 
 # Database
 *.db
-*.sql
-!platform/identity/src/main/resources/db/migration/V31__create_role_template_permissions_table.sql
-!platform/identity/src/main/resources/db/migration/V32__seed_default_role_template_permissions.sql
-!platform/identity/src/main/resources/db/migration/V35__remove_user_role_uuid_id.sql
+# Dumps / local scratch SQL are ignored, but schema and migration scripts
+# are source and MUST be committed. Never blanket-ignore *.sql.
 *.dump
+*.sql.bak
+*.sql.tmp
+# Docker entrypoint / seed scripts under infrastructure are source, too.
+!infrastructure/**/*.sql
+!platform/identity/src/main/resources/db/migration/*.sql
 
 # Docker
 docker-compose.override.yml
@@ -85,6 +100,8 @@ dist/
 .next/
 .nuxt/
 coverage/
+*.tsbuildinfo
+next-env.d.ts
 
 # AI Models
 models/

@@ -4,6 +4,7 @@ import type {
   InternalAxiosRequestConfig,
 } from "axios";
 import { axiosInstance } from "./http-client";
+import { readActiveFiscalSelection } from "./business-context";
 import {
   getAccessToken,
   executeTokenRefresh,
@@ -23,9 +24,9 @@ interface AuthRequestConfig extends InternalAxiosRequestConfig {
 /**
  * Attaches the JWT request/response interceptors to the shared Axios instance.
  *
- * - Request: injects the current access token (Bearer). Tenant information
- *   is carried inside the JWT claims, so no separate X-Tenant-ID header is
- *   sent.
+ * - Request: injects the current access token (Bearer) plus the active
+ *   company / fiscal-year selection headers. Tenant information is carried
+ *   inside the JWT claims, so no separate X-Tenant-ID header is sent.
  * - Response: on a 401, transparently refreshes the access token once and
  *   replays the original request. If refresh fails, the app is notified so it
  *   can clear the session and redirect to login.
@@ -38,6 +39,14 @@ export function setupInterceptors(): void {
       const token = getAccessToken();
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+
+      // Business scope: business services (inventory, ...) read the selected
+      // company and fiscal year from these headers instead of query params.
+      const selection = readActiveFiscalSelection();
+      if (selection && config.headers) {
+        config.headers["X-Company-Id"] = String(selection.companyId);
+        config.headers["X-Fiscal-Year-Id"] = String(selection.fiscalYearId);
       }
 
       return config;

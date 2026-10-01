@@ -28,7 +28,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * <p>Exposes a standard REST API for user CRUD operations and lifecycle state
  * transitions, following the platform API standards:
  * <ul>
- *   <li>Versioned base path {@code /api/v1/users}</li>
+ *   <li>Versioned base path {@code /api/v1/identity/users}</li>
  *   <li>Proper HTTP methods (GET, POST, PUT, PATCH, DELETE)</li>
  *   <li>Appropriate status codes (201 + Location on create, 204 on delete)</li>
  *   <li>Pagination and filtering on collection endpoints</li>
@@ -38,7 +38,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v1/identity/users")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -59,7 +59,7 @@ public class UserController {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
         UserResponse response = userService.createUser(tenantId, request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/users/{id}").buildAndExpand(response.userId()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/users/{id}").buildAndExpand(response.userId()).toUri())
                 .body(response);
     }
 

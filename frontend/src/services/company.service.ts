@@ -74,26 +74,26 @@ export interface CreateCompanyFiscalYearRequest {
 export const companyApi = api.injectEndpoints({
   endpoints: (build) => ({
     getCompanies: build.query<Company[], void>({
-      query: () => ({ url: "/companies", method: "GET" }),
+      query: () => ({ url: "/identity/companies", method: "GET" }),
       providesTags: ["Company"],
     }),
     createCompany: build.mutation<Company, CreateCompanyRequest>({
-      query: (data) => ({ url: "/companies", method: "POST", data }),
+      query: (data) => ({ url: "/identity/companies", method: "POST", data }),
       invalidatesTags: ["Company"],
     }),
     getMasterFiscalYears: build.query<MasterFiscalYear[], void>({
-      query: () => ({ url: "/master-fiscal-years", method: "GET" }),
+      query: () => ({ url: "/identity/master-fiscal-years", method: "GET" }),
     }),
     getCompanyFiscalYears: build.query<CompanyFiscalYear[], number>({
-      query: (companyId) => ({ url: `/companies/${companyId}/fiscal-years`, method: "GET" }),
+      query: (companyId) => ({ url: `/identity/companies/${companyId}/fiscal-years`, method: "GET" }),
       providesTags: (_result, _error, companyId) => [{ type: "CompanyFiscalYear", id: companyId }],
     }),
     createCompanyFiscalYear: build.mutation<CompanyFiscalYear, { companyId: number; data: CreateCompanyFiscalYearRequest }>({
-      query: ({ companyId, data }) => ({ url: `/companies/${companyId}/fiscal-years`, method: "POST", data }),
+      query: ({ companyId, data }) => ({ url: `/identity/companies/${companyId}/fiscal-years`, method: "POST", data }),
       invalidatesTags: (_result, _error, { companyId }) => [{ type: "CompanyFiscalYear", id: companyId }],
     }),
     activateCompanyFiscalYear: build.mutation<CompanyFiscalYear, { companyId: number; fiscalYearId: number }>({
-      query: ({ companyId, fiscalYearId }) => ({ url: `/companies/${companyId}/fiscal-years/${fiscalYearId}/activate`, method: "PUT" }),
+      query: ({ companyId, fiscalYearId }) => ({ url: `/identity/companies/${companyId}/fiscal-years/${fiscalYearId}/activate`, method: "PUT" }),
       invalidatesTags: (_result, _error, { companyId }) => [{ type: "CompanyFiscalYear", id: companyId }],
     }),
   }),

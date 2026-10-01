@@ -1,0 +1,786 @@
+-- Seed districts data
+-- Migration: V12
+-- Description: Seeds 77 districts of Nepal into the districts table.
+-- This data is used for geographic management and organizational structure.
+
+INSERT INTO districts (
+    district_code,
+    district_name,
+    nepali_name,
+    province_id,
+    country_code,
+    status,
+    created_at,
+    version
+) VALUES
+(
+    '1',
+    'Kaski',
+    'कास्की',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '2',
+    'Chitwan',
+    'चितवन',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '3',
+    'Parsa',
+    'पर्सा',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '4',
+    'Morang',
+    'मोरङ',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '5',
+    'Kathmandu',
+    'काठमाडौं',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '6',
+    'Lalitpur',
+    'ललितपुर',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '7',
+    'Dang',
+    'दाङ',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '8',
+    'Bara',
+    'बारा',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '9',
+    'Kailali',
+    'कैलाली',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '10',
+    'Makwanpur',
+    'मकवानपुर',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '11',
+    'Sunsari',
+    'सुनसरी',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '12',
+    'Rupandehi',
+    'रुपन्देही',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '13',
+    'Humla',
+    'हुम्ला',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '14',
+    'Banke',
+    'बाँके',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '15',
+    'Taplejung',
+    'ताप्लेजुङ',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '16',
+    'Sankhuwasabha',
+    'संखुवासभा',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '17',
+    'Solukhumbu',
+    'सोलुखुम्बु',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '18',
+    'Okhaldhunga',
+    'ओखलढुङ्गा',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '19',
+    'Khotang',
+    'खोटाङ',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '20',
+    'Bhojpur',
+    'भोजपुर',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '21',
+    'Dhankuta',
+    'धनकुटा',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '22',
+    'Terhathum',
+    'तेह्रथुम',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '23',
+    'Pachthar',
+    'पाँचथर',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '24',
+    'Ilam',
+    'इलाम',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '25',
+    'Jhapa',
+    'झापा',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '26',
+    'Udayapur',
+    'उदयपुर',
+    1,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '27',
+    'Saptari',
+    'सप्तरी',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '28',
+    'Siraha',
+    'सिराहा',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '29',
+    'Dhanusha',
+    'धनुषा',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '30',
+    'Mahottari',
+    'महोत्तरी',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '31',
+    'Sarlahi',
+    'सर्लाही',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '32',
+    'Rautahat',
+    'रौतहट',
+    2,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '33',
+    'Dolakha',
+    'दोलखा',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '34',
+    'Sindhupalchok',
+    'सिन्धुपाल्चोक',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '35',
+    'Dhading',
+    'धादिङ',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '36',
+    'Nuwakot',
+    'नुवाकोट',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '37',
+    'Bhaktapur',
+    'भक्तपुर',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '38',
+    'Kavrepalanchok',
+    'काभ्रेपलाञ्चोक',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '39',
+    'Ramechhap',
+    'रामेछाप',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '40',
+    'Sindhuli',
+    'सिन्धुली',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '41',
+    'Gorkha',
+    'गोरखा',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '42',
+    'Myagdi',
+    'म्याग्दी',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '43',
+    'Lamjung',
+    'लमजुङ',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '44',
+    'Tanahu',
+    'तनहुँ',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '45',
+    'Nawalparari East',
+    'नवलपरासी पूर्व',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '46',
+    'Syangja',
+    'स्याङ्जा',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '47',
+    'Parbat',
+    'पर्वत',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '48',
+    'Baglung',
+    'बागलुङ',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '49',
+    'Rolpa',
+    'रोल्पा',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '50',
+    'Pyuthan',
+    'प्युठान',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '51',
+    'Gulmi',
+    'गुल्मी',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '52',
+    'Arghakhanchi',
+    'अर्घाखाँची',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '53',
+    'Palpa',
+    'पाल्पा',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '54',
+    'Nawalparasi West',
+    'नवलपरासी पश्चिम',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '55',
+    'Kapilbastu',
+    'कपिलवस्तु',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '56',
+    'Bardiya',
+    'बर्दिया',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '57',
+    'Dolpa',
+    'डोल्पा',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '58',
+    'Mugu',
+    'मुगु',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '59',
+    'Jumla',
+    'जुम्ला',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '60',
+    'Kalikot',
+    'कालिकोट',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '61',
+    'Dailekh',
+    'दैलेख',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '62',
+    'Jajarkot',
+    'जाजरकोट',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '63',
+    'Rukum West',
+    'रुकुम पश्चिम',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '64',
+    'Salyan',
+    'सल्यान',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '65',
+    'Surkhet',
+    'सुर्खेत',
+    6,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '66',
+    'Bajura',
+    'बाजुरा',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '67',
+    'Bajhang',
+    'बझाङ',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '68',
+    'Darchula',
+    'दार्चुला',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '69',
+    'Baitadi',
+    'बैतडी',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '70',
+    'Dadeldhura',
+    'डडेलधुरा',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '71',
+    'Doti',
+    'डोटी',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '72',
+    'Achham',
+    'अछाम',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '73',
+    'Kanchanpur',
+    'कञ्चनपुर',
+    7,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '74',
+    'Rasuwa',
+    'रसुवा',
+    3,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '75',
+    'Manang',
+    'मनाङ',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '76',
+    'Mustang',
+    'मुस्ताङ',
+    4,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+),
+(
+    '77',
+    'Rukum East',
+    'रुकुम पूर्व',
+    5,
+    'NPL',
+    'ACTIVE',
+    CURRENT_TIMESTAMP,
+    0
+)
+ON CONFLICT (district_code) DO NOTHING;

@@ -1,0 +1,77 @@
+# =============================================================================
+# ERP AI Platform - API Gateway: Local Development Profile
+# Activated when SPRING_PROFILES_ACTIVE=local
+# =============================================================================
+
+spring:
+  main:
+    lazy-initialization: true
+  cloud:
+    gateway:
+      global-cors:
+        corsConfigurations:
+          '[/**]':
+            allowed-origin-patterns:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowed-methods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "PATCH"
+              - "DELETE"
+              - "OPTIONS"
+            allowed-headers:
+              - "*"
+            exposed-headers:
+              - "Authorization"
+              - "Location"
+              - "X-Tenant-ID"
+              - "X-Correlation-Id"
+              - "X-Request-Id"
+            allow-credentials: true
+            max-age: 3600
+      routes:
+        # Inventory Service (localhost:8083) - MUST precede identity catch-all
+        - id: inventory-service-local
+          uri: ${INVENTORY_SERVICE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/inventory/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # Identity Service (localhost:8082) - broad catch-all so every
+        # identity endpoint (companies, branches, departments, roles,
+        # permissions, users, auth, onboarding, etc.) is reachable.
+        - id: identity-service-local
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/identity/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # Health check passthrough
+        - id: health-check-local
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8082}
+          predicates:
+            - Path=/actuator/health
+          filters:
+            - StripPrefix=0
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    com.erp.platform.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: DEBUG
+    org.springframework.web: DEBUG

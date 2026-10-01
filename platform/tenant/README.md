@@ -1,8 +1,15 @@
-# Tenant Service
+# Tenant Domain Library
 
 ## Overview
 
-The Tenant Service is the core service for multi-tenant management in the ERP AI Platform. It provides tenant lifecycle management, data isolation strategies, and serves as the foundation for all other services in the platform.
+The Tenant module is a plain `java-library` that owns the tenant domain model,
+application handlers, and infrastructure (repository + Kafka event publisher).
+It is **no longer a standalone service**: its source lives under
+`platform/identity/src/main/java/com/erp/platform/tenant/**` and is consumed by
+the **Identity Service** as a project dependency (`:platform:tenant`).
+
+The tenant REST API is now exposed by the Identity Service at
+`/api/v1/identity/tenants` (see `platform/identity/.../interfaces/rest/TenantController.java`).
 
 ## Architecture
 

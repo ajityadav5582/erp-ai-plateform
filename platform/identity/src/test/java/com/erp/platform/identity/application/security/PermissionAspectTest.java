@@ -43,7 +43,7 @@ class PermissionAspectTest {
         Method method = TestController.class.getMethod("readUser");
         when(methodSignature.getMethod()).thenReturn(method);
         when(joinPoint.getSignature()).thenReturn(methodSignature);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasPermission("USER_READ")).thenReturn(true);
 
         // Act
@@ -57,7 +57,7 @@ class PermissionAspectTest {
     void checkPermission_throwsAccessDenied_whenUserLacksPermission() throws Throwable {
         // Arrange
         RequirePermission annotation = createAnnotation("USER_READ");
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasPermission("USER_READ")).thenReturn(false);
 
         // Act & Assert
@@ -70,7 +70,7 @@ class PermissionAspectTest {
     void checkPermission_allowsAccess_whenUserIsSuperAdmin() throws Throwable {
         // Arrange
         RequirePermission annotation = createAnnotation("USER_READ");
-        when(authorizationService.isSuperAdmin()).thenReturn(true);
+        when(authorizationService.isAnyAdmin()).thenReturn(true);
 
         // Act
         permissionAspect.checkPermission(joinPoint, annotation);
@@ -88,7 +88,7 @@ class PermissionAspectTest {
         Method method = TestController.class.getMethod("readUser");
         when(methodSignature.getMethod()).thenReturn(method);
         when(joinPoint.getSignature()).thenReturn(methodSignature);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasAnyPermission("USER_READ", "USER_CREATE")).thenReturn(true);
 
         // Act
@@ -101,7 +101,7 @@ class PermissionAspectTest {
     void checkPermission_throwsAccessDenied_whenUserLacksAllMultiplePermissions() throws Throwable {
         // Arrange
         RequirePermission annotation = createAnnotation(new String[]{"USER_READ", "USER_CREATE"}, false);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasAnyPermission("USER_READ", "USER_CREATE")).thenReturn(false);
 
         // Act & Assert
@@ -119,7 +119,7 @@ class PermissionAspectTest {
         Method method = TestController.class.getMethod("readUser");
         when(methodSignature.getMethod()).thenReturn(method);
         when(joinPoint.getSignature()).thenReturn(methodSignature);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasAllPermissions("USER_READ", "USER_CREATE")).thenReturn(true);
 
         // Act
@@ -132,7 +132,7 @@ class PermissionAspectTest {
     void checkPermission_throwsAccessDenied_whenUserLacksOneOfMultiplePermissions() throws Throwable {
         // Arrange
         RequirePermission annotation = createAnnotation(new String[]{"USER_READ", "USER_CREATE"}, true);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasAllPermissions("USER_READ", "USER_CREATE")).thenReturn(false);
 
         // Act & Assert
@@ -150,7 +150,7 @@ class PermissionAspectTest {
         Method method = TypeLevelTestController.class.getMethod("listRoles");
         when(methodSignature.getMethod()).thenReturn(method);
         when(joinPoint.getSignature()).thenReturn(methodSignature);
-        when(authorizationService.isSuperAdmin()).thenReturn(false);
+        when(authorizationService.isAnyAdmin()).thenReturn(false);
         when(authorizationService.hasPermission("ROLE_READ")).thenReturn(true);
 
         // Act

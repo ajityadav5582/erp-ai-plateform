@@ -164,7 +164,7 @@ export const permissionApi = api.injectEndpoints({
   endpoints: (build) => ({
     getPermissions: build.query<PermissionListResponse, GetPermissionsParams | void>({
       query: (params) => ({
-        url: "/permissions",
+        url: "/identity/permissions",
         method: "GET",
         params: params ?? {},
       }),
@@ -173,7 +173,7 @@ export const permissionApi = api.injectEndpoints({
 
     getPermission: build.query<PermissionResponse, number>({
       query: (permissionId) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, permissionId) => [{ type: "Permission", id: permissionId }],
@@ -181,7 +181,7 @@ export const permissionApi = api.injectEndpoints({
 
     createPermission: build.mutation<PermissionResponse, CreatePermissionRequest>({
       query: (body) => ({
-        url: "/permissions",
+        url: "/identity/permissions",
         method: "POST",
         data: body,
       }),
@@ -190,7 +190,7 @@ export const permissionApi = api.injectEndpoints({
 
     updatePermission: build.mutation<PermissionResponse, { permissionId: number; data: UpdatePermissionRequest }>({
       query: ({ permissionId, data }) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "PUT",
         data,
       }),
@@ -202,7 +202,7 @@ export const permissionApi = api.injectEndpoints({
 
     deletePermission: build.mutation<void, number>({
       query: (permissionId) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Permission"],

@@ -1,18 +1,21 @@
 package com.erp.platform.identity.domain.exception;
 
+import com.erp.platform.common.exception.BaseApiException;
+import org.springframework.http.HttpStatus;
+
 /**
- * Exception thrown when a user is authenticated but lacks the required permission.
+ * Exception thrown when the caller lacks the required permission.
  *
- * <p>Results in HTTP 403 Forbidden response.
+ * <p>Reports {@code 403 ACCESS_DENIED}.
  *
  * @since 1.0.0
  */
-public class AccessDeniedException extends RuntimeException {
+public class AccessDeniedException extends BaseApiException {
 
     private static final long serialVersionUID = 1L;
 
     public AccessDeniedException(String message) {
-        super(message);
+        super(HttpStatus.FORBIDDEN, "ACCESS_DENIED", message);
     }
 
     /**

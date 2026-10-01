@@ -255,7 +255,7 @@ services:
       KC_LOG_LEVEL: ${KC_LOG_LEVEL:-DEBUG}
       KC_HOSTNAME: ${KC_HOSTNAME:-keycloak.localhost}
     ports:
-      - "8080:8080"
+      - "8090:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./infrastructure/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro

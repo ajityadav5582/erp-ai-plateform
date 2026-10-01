@@ -1,12 +1,13 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 import java.time.Instant;
 
 /**
- * Thrown when an account cannot be authenticated because it is locked.
+ * Exception thrown when an account is locked.
  *
- * <p>This covers both the administrative {@link com.erp.platform.identity.domain.UserStatus#LOCKED}
- * lifecycle state and a temporary lockout caused by too many failed login attempts.
+ * <p>Reports {@code 403 ACCOUNT_LOCKED}.
  *
  * @since 1.0.0
  */
@@ -21,7 +22,7 @@ public class AccountLockedException extends AuthenticationException {
     }
 
     public AccountLockedException(String message, Instant retryAfter) {
-        super(message);
+        super(HttpStatus.FORBIDDEN, "ACCOUNT_LOCKED", message);
         this.retryAfter = retryAfter;
     }
 

@@ -59,7 +59,7 @@ export const geographyApi = api.injectEndpoints({
   endpoints: (build) => ({
     getProvinces: build.query<ProvinceListResponse[], void>({
       query: () => ({
-        url: "/provinces/active",
+        url: "/identity/provinces/active",
         method: "GET",
       }),
       providesTags: ["Province"],
@@ -67,7 +67,7 @@ export const geographyApi = api.injectEndpoints({
 
     getDistrictsByProvince: build.query<DistrictListResponse[], number>({
       query: (provinceId) => ({
-        url: "/districts/by-province",
+        url: "/identity/districts/by-province",
         method: "GET",
         params: { provinceId },
       }),
@@ -78,7 +78,7 @@ export const geographyApi = api.injectEndpoints({
 
     getDistrictById: build.query<DistrictResponse, number>({
       query: (districtId) => ({
-        url: `/districts/${districtId}`,
+        url: `/identity/districts/${districtId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, districtId) => [
@@ -88,7 +88,7 @@ export const geographyApi = api.injectEndpoints({
 
     getLocalLevelsByDistrict: build.query<LocalLevelListResponse[], number>({
       query: (districtId) => ({
-        url: "/local-levels/by-district",
+        url: "/identity/local-levels/by-district",
         method: "GET",
         params: { districtId },
       }),
@@ -99,7 +99,7 @@ export const geographyApi = api.injectEndpoints({
 
     getLocalLevelByMunicipalityId: build.query<LocalLevelResponse, string>({
       query: (municipalityId) => ({
-        url: "/local-levels/by-municipality-id",
+        url: "/identity/local-levels/by-municipality-id",
         method: "GET",
         params: { municipalityId },
       }),

@@ -93,24 +93,130 @@ services:
       resources:
         limits:
           memory: 2G
-          cpus: '1.0'
         reservations:
           memory: 1G
-          cpus: '0.5'
 
   # ===========================================================================
-  # Application
+  # API Gateway - Single entry point for the frontend
+  # Exposes port 8080 and routes to downstream services.
   # ===========================================================================
 
-  application:
+  gateway:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: erpai-app
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: gateway
+      args:
+        SERVICE_NAME: api-gateway
+        JAR_PATH: platform/gateway/build/libs
+    container_name: erpai-gateway
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      SERVER_PORT: ${SERVER_PORT:-8080}
+      SERVER_PORT: ${GATEWAY_PORT:-8080}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      IDENTITY_SERVICE_URI: ${IDENTITY_SERVICE_URI:-http://identity-service:8082}
+      INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8083}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus,gateways
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-8080}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ===========================================================================
+  # Identity Service - User, role, permission, authentication
+  # ===========================================================================
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: identity
+      args:
+        SERVICE_NAME: identity-service
+        JAR_PATH: platform/identity/build/libs
+    container_name: erpai-identity
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${IDENTITY_PORT:-8082}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      JWT_SECRET: ${JWT_SECRET:-jwt-secret-key-change-me-in-production-32b}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${IDENTITY_PORT:-8082}:${IDENTITY_PORT:-8082}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_PORT:-8082}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ===========================================================================
+  # Inventory Service - Category, product, stock management
+  # ===========================================================================
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: inventory
+      args:
+        SERVICE_NAME: inventory-service
+        JAR_PATH: business/inventory/application/build/libs
+    container_name: erpai-inventory
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${INVENTORY_PORT:-8083}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
@@ -121,7 +227,7 @@ services:
       MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
       MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
     ports:
-      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+      - "${INVENTORY_PORT:-8083}:${INVENTORY_PORT:-8083}"
     volumes:
       - ./logs:/app/logs
       - ./tmp:/app/tmp
@@ -131,19 +237,17 @@ services:
     networks:
       - erpai-data-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${SERVER_PORT:-8080}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${INVENTORY_PORT:-8083}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
           memory: 1G
-          cpus: '1.0'
         reservations:
           memory: 512M
-          cpus: '0.5'
 
 volumes:
   postgres_data:

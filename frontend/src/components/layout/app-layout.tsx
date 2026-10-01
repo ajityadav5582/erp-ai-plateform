@@ -29,7 +29,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { siteConfig } from "@/config/site";
-import { ACTIVE_FISCAL_SELECTION_STORAGE_KEY } from "@/config/company-context";
+import {
+  CompanyProvider,
+  ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
+} from "@/config/company-context";
 import { useGetCompaniesQuery, useGetCompanyFiscalYearsQuery } from "@/services/company.service";
 import { cn } from "@/lib/utils";
 
@@ -139,7 +142,6 @@ const navigation: NavItem[] = [
   },
   {
     title: "Inventory",
-    href: "/inventory",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -147,6 +149,55 @@ const navigation: NavItem[] = [
         <line x1="12" y1="22.08" x2="12" y2="12" />
       </svg>
     ),
+    children: [
+      {
+        title: "Categories",
+        href: "/categories",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2l10-2l10 2z" />
+            <path d="M6 10h.01" />
+            <path d="M10 10h.01" />
+            <path d="M14 10h.01" />
+            <path d="M18 10h.01" />
+          </svg>
+        ),
+      },
+      {
+        title: "Suppliers",
+        href: "/suppliers",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 3h15v13H1z" />
+            <path d="M16 8h4l3 3v5h-7V8z" />
+            <circle cx="5.5" cy="18.5" r="2.5" />
+            <circle cx="18.5" cy="18.5" r="2.5" />
+          </svg>
+        ),
+      },
+      {
+        title: "Units",
+        href: "/units",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 3.5 L20.5 20.5 L20.5 9 L9 20.5 Z" />
+            <path d="M15 4 L20 9" />
+            <path d="M4 15 L9 20" />
+          </svg>
+        ),
+      },
+      {
+        title: "Items",
+        href: "/items",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
     title: "HR",
@@ -454,7 +505,14 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
           </div>
           <Separator />
           <div className="flex flex-1 flex-col">
-            {children}
+            <CompanyProvider
+              company={{
+                id: activeFiscalSelection.companyId,
+                name: activeFiscalSelection.companyName,
+              }}
+            >
+              {children}
+            </CompanyProvider>
           </div>
         </div>
         <SiteFooter />

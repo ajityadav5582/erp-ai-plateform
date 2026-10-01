@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PageResponse } from "@/types/api";
 
 export type RoleType = "SYSTEM" | "CUSTOM";
 export type RoleStatus = "ACTIVE" | "INACTIVE";
@@ -39,17 +40,6 @@ export interface UpdateRoleRequest {
   permissionIds?: number[];
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
-}
-
 export interface GetRolesParams {
   page?: number;
   size?: number;
@@ -65,7 +55,7 @@ export const roleApi = api.injectEndpoints({
   endpoints: (build) => ({
     getRoles: build.query<PageResponse<RoleListResponse>, GetRolesParams | void>({
       query: (params) => ({
-        url: "/roles",
+        url: "/identity/roles",
         method: "GET",
         params: params ?? {},
       }),
@@ -74,7 +64,7 @@ export const roleApi = api.injectEndpoints({
 
     getRole: build.query<Role, number>({
       query: (roleId) => ({
-        url: `/roles/${roleId}`,
+        url: `/identity/roles/${roleId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, roleId) => [{ type: "Role", id: roleId }],
@@ -82,7 +72,7 @@ export const roleApi = api.injectEndpoints({
 
     createRole: build.mutation<Role, CreateRoleRequest>({
       query: (body) => ({
-        url: "/roles",
+        url: "/identity/roles",
         method: "POST",
         data: body,
       }),
@@ -91,7 +81,7 @@ export const roleApi = api.injectEndpoints({
 
     updateRole: build.mutation<Role, { roleId: number; data: UpdateRoleRequest }>({
       query: ({ roleId, data }) => ({
-        url: `/roles/${roleId}`,
+        url: `/identity/roles/${roleId}`,
         method: "PUT",
         data,
       }),
@@ -103,7 +93,7 @@ export const roleApi = api.injectEndpoints({
 
     deleteRole: build.mutation<void, number>({
       query: (roleId) => ({
-        url: `/roles/${roleId}`,
+        url: `/identity/roles/${roleId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Role"],

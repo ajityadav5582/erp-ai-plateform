@@ -1,9 +1,11 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
- * Exception thrown when a tenant cannot be found.
+ * Exception thrown when a tenant is not found.
  *
- * <p>This is a business-level exception that maps to a 404 Not Found response.
+ * <p>Reports {@code 404 TENANT_NOT_FOUND}.
  *
  * @since 1.0.0
  */
@@ -12,10 +14,10 @@ public class TenantNotFoundException extends UserOperationException {
     private static final long serialVersionUID = 1L;
 
     public TenantNotFoundException(Long tenantId) {
-        super("Tenant not found with ID: " + tenantId);
+        this("Tenant not found with ID: " + tenantId);
     }
 
     public TenantNotFoundException(String message) {
-        super(message);
+        super(HttpStatus.NOT_FOUND, "TENANT_NOT_FOUND", message);
     }
 }
