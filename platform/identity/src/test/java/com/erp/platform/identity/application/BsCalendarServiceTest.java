@@ -1,7 +1,9 @@
 package com.erp.platform.identity.application;
 
+import com.erp.platform.common.nepali.date.NepaliDateConverter;
+import com.erp.platform.common.nepali.date.NepaliDateDetails;
+import com.erp.platform.common.nepali.date.NepaliDateException;
 import com.erp.platform.identity.application.dto.MasterBsCalendarResponse;
-import com.erp.platform.identity.domain.BsCalendarData;
 import com.erp.platform.identity.domain.MasterBsCalendar;
 import com.erp.platform.identity.domain.MasterFiscalYear;
 import com.erp.platform.identity.infrastructure.persistence.MasterBsCalendarRepository;
@@ -14,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +25,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+/**
+ * Verifies that the calendar service delegates to the shared
+ * {@code libraries/common-nepali-date} library and returns real Bikram Sambat dates.
+ *
+ * <p>The previous version of this test asserted "Baishakh" and "वैशाख" and relied on the
+ * fabricated in-identity month table. Both are gone.
+ */
 @ExtendWith(MockitoExtension.class)
 class BsCalendarServiceTest {
 
@@ -50,26 +60,32 @@ class BsCalendarServiceTest {
     }
 
     @Test
-    @DisplayName("Convert AD date 2026-04-14 to BS date 2083-01-01 correctly")
+    @DisplayName("2026-04-14 is Baisakh 1, 2083 BS (Nepali New Year)")
     void testAdToBsConversion2083() {
         LocalDate adDate = LocalDate.of(2026, 4, 14);
-        BsCalendarData.BsDateDetails details = BsCalendarData.convertAdToBs(adDate);
+        NepaliDateDetails details = NepaliDateConverter.details(adDate);
 
         assertThat(details.bsYear()).isEqualTo(2083);
         assertThat(details.bsMonth()).isEqualTo(1);
         assertThat(details.bsDay()).isEqualTo(1);
-        assertThat(details.bsDateFormatted()).isEqualTo("2083-01-01");
-        assertThat(details.monthNameEn()).isEqualTo("Baishakh");
-        assertThat(details.monthNameNp()).isEqualTo("वैशाख");
+        assertThat(details.bsDate()).isEqualTo("2083-01-01");
+        assertThat(details.monthNameEn()).isEqualTo("Baisakh");
+        assertThat(details.monthNameNp()).isEqualTo("बैशाख");
         assertThat(details.dayNameEn()).isEqualTo("Tuesday");
-        assertThat(details.dayOfWeek()).isEqualTo(3);
+        assertThat(details.dayOfWeek()).isEqualTo(DayOfWeek.TUESDAY);
     }
 
     @Test
-    @DisplayName("Convert BS date 2083-01-01 to AD date 2026-04-14 correctly")
+    @DisplayName("BS 2083-01-01 converts back to AD 2026-04-14")
     void testBsToAdConversion2083() {
-        LocalDate adDate = BsCalendarData.convertBsToAd(2083, 1, 1);
-        assertThat(adDate).isEqualTo(LocalDate.of(2026, 4, 14));
+        assertThat(NepaliDateConverter.toAd(2083, 1, 1)).isEqualTo(LocalDate.of(2026, 4, 14));
+    }
+
+    @Test
+    @DisplayName("Regression: 2024-04-13 is Baisakh 1, 2081 BS (the old table said 2081-01-02)")
+    void testKnownNepaliNewYear2081() {
+        NepaliDateDetails details = NepaliDateConverter.details(LocalDate.of(2024, 4, 13));
+        assertThat(details.bsDate()).isEqualTo("2081-01-01");
     }
 
     @Test
@@ -78,7 +94,7 @@ class BsCalendarServiceTest {
         LocalDate adDate = LocalDate.of(2026, 4, 14);
         MasterBsCalendar entity = MasterBsCalendar.create(
                 adDate, "2083-01-01", 2083, 1, 1,
-                "वैशाख", "Baishakh", 3, "Tuesday", "मङ्गलबार",
+                "बैशाख", "Baisakh", 2, "Tuesday", "मङ्गलबार",
                 false, mockFy2083
         );
         when(calendarRepository.findByAdDate(adDate)).thenReturn(Optional.of(entity));
@@ -108,10 +124,17 @@ class BsCalendarServiceTest {
     }
 
     @Test
-    @DisplayName("Invalid BS date format throws IllegalArgumentException")
+    @DisplayName("Malformed BS date is rejected with a clear message")
     void testInvalidBsDateFormat() {
-        assertThatThrownBy(() -> bsCalendarService.getByBsDate("2083/01/01"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Invalid BS date format");
+        assertThatThrownBy(() -> bsCalendarService.getByBsDate("not-a-date"))
+                .isInstanceOf(NepaliDateException.class)
+                .hasMessageContaining("Malformed BS date");
+    }
+
+    @Test
+    @DisplayName("Out-of-range BS date is rejected")
+    void testOutOfRangeBsDate() {
+        assertThatThrownBy(() -> bsCalendarService.getByBsDate("1900-01-01"))
+                .isInstanceOf(NepaliDateException.class);
     }
 }

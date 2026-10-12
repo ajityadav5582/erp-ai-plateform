@@ -1,0 +1,92 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.4'
+    id 'io.spring.dependency-management'
+    id 'java-library'
+}
+
+group = 'com.erp.business.sales'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+    }
+}
+
+dependencies {
+    // Domain entities + shared TenantScopedEntity live in the sibling domain module.
+    // It is exposed as `api` so the JPA annotations and OptimisticLock base class
+    // remain on the compile classpath of anything consuming this module.
+    api project(':business:sales:domain')
+
+    // Inventory interfaces for cross-module communication (Item, Warehouse, Unit,
+    // and the outbound stock-issue port). Replaces a direct dependency on
+    // inventory:application to maintain module boundaries.
+    implementation project(':business:inventory:interfaces')
+
+    api project(':libraries:common-core')
+    api project(':libraries:common-data')
+    implementation project(':libraries:common-security')
+
+    // Bikram Sambat conversion. Declared here as well as on the domain module
+    // because the service layer cross-checks the submitted BS date against the AD
+    // date, and `implementation` dependencies are not exposed transitively.
+    implementation project(':libraries:common-nepali-date')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Required by @RequiresPermission / @RequiresRole, which are enforced by the
+    // shared PermissionAspect in libraries:common-security. Without AOP on the
+    // classpath those annotations compile, are silently ignored at runtime, and
+    // every endpoint stays open to any authenticated caller - the worst possible
+    // failure mode for a security control, because nothing reports it.
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+    implementation "org.postgresql:postgresql:${postgresqlVersion}"
+
+    // Security - JWT (access & refresh token issuance/validation)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // Security - Password hashing (BCrypt)
+    implementation 'org.springframework.security:spring-security-crypto'
+
+    implementation "org.apache.commons:commons-lang3:${commonsLangVersion}"
+    implementation "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:-processing"
+}
+
+// Host-side run points at the postgres container published on 5434 by
+// compose.development.yml (the in-container port is 5432).
+bootRun {
+    environment = [
+        'POSTGRES_HOST': 'localhost',
+        'POSTGRES_PORT': '5434',
+        'POSTGRES_DB': 'erpai_platform',
+        'POSTGRES_USER': 'erpai',
+        'POSTGRES_PASSWORD': 'erpai_dev_password',
+        'DB_USERNAME': 'erpai',
+        'DB_PASSWORD': 'erpai_dev_password',
+        'SPRING_PROFILES_ACTIVE': 'local'
+    ]
+}

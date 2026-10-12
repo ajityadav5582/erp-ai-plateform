@@ -1,5 +1,6 @@
 package com.erp.business.inventory;
 
+import com.erp.platform.security.web.SecurityExceptionHandler;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -23,7 +24,7 @@ import com.erp.platform.data.audit.AuditingConfig;
 @EntityScan(basePackages = {
         "com.erp.business.inventory.domain"
 })
-@Import(AuditingConfig.class)
+@Import({AuditingConfig.class, SecurityExceptionHandler.class})
 public class InventoryApplication {
 
     public static void main(String[] args) {

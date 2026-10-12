@@ -210,7 +210,8 @@ public class AuthServiceImpl implements AuthService {
                 savedUser.getUsername(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),
-                roles
+                roles,
+                permissions
         );
     }
 
@@ -317,7 +318,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
-                roles
+                roles,
+                permissions
         );
     }
 
@@ -397,7 +399,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
-                roles
+                roles,
+                permissions
         );
     }
 

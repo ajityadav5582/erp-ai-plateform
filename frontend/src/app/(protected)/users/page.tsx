@@ -25,10 +25,6 @@ import {
   type UserStatus,
 } from "@/services/user.service";
 import { UserStatusBadge } from "@/components/users/user-status-badge";
-import { CreateUserDialog } from "@/components/users/create-user-dialog";
-import { EditUserDialog } from "@/components/users/edit-user-dialog";
-import { UserDetailsSheet } from "@/components/users/user-details-sheet";
-import { DeleteUserDialog } from "@/components/users/delete-user-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +46,44 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+import { PermissionGate } from "@/components/auth/permission-gate";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateUserDialog = dynamic(
+  () =>
+    import("@/components/users/create-user-dialog").then((mod) => ({
+      default: mod.CreateUserDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditUserDialog = dynamic(
+  () =>
+    import("@/components/users/edit-user-dialog").then((mod) => ({
+      default: mod.EditUserDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const UserDetailsSheet = dynamic(
+  () =>
+    import("@/components/users/user-details-sheet").then((mod) => ({
+      default: mod.UserDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteUserDialog = dynamic(
+  () =>
+    import("@/components/users/delete-user-dialog").then((mod) => ({
+      default: mod.DeleteUserDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function UsersPage() {
   const [page, setPage] = useState(0);
@@ -120,10 +154,12 @@ export default function UsersPage() {
           </p>
         </div>
 
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 self-start sm:self-auto shadow-sm">
-          <UserPlus className="size-4" />
-          Add User
-        </Button>
+        <PermissionGate permission="USER_CREATE" fallback={null}>
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 self-start sm:self-auto shadow-sm">
+            <UserPlus className="size-4" />
+            Add User
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Filter Toolbar */}
@@ -263,7 +299,18 @@ export default function UsersPage() {
                     </TableCell>
 
                     <TableCell className="text-sm font-medium">
-                      {user.roleName ? (
+                      {user.roles && user.roles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.map((role) => (
+                            <span
+                              key={role.roleId}
+                              className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-xs font-semibold text-secondary-foreground border border-border"
+                            >
+                              {role.roleName}
+                            </span>
+                          ))}
+                        </div>
+                      ) : user.roleName ? (
                         <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-xs font-semibold text-secondary-foreground border border-border">
                           {user.roleName}
                         </span>
@@ -293,39 +340,47 @@ export default function UsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setSelectedUserIdForDetails(user.userId)}>
-                            <Eye className="mr-2 size-4 text-muted-foreground" />
-                            View Details
-                          </DropdownMenuItem>
+                          <PermissionGate permission="USER_VIEW" fallback={null}>
+                            <DropdownMenuItem onClick={() => setSelectedUserIdForDetails(user.userId)}>
+                              <Eye className="mr-2 size-4 text-muted-foreground" />
+                              View Details
+                            </DropdownMenuItem>
+                          </PermissionGate>
 
-                          <DropdownMenuItem onClick={() => setSelectedUserIdForEdit(user.userId)}>
-                            <Pencil className="mr-2 size-4 text-muted-foreground" />
-                            Edit Profile
-                          </DropdownMenuItem>
+                          <PermissionGate permission="USER_UPDATE" fallback={null}>
+                            <DropdownMenuItem onClick={() => setSelectedUserIdForEdit(user.userId)}>
+                              <Pencil className="mr-2 size-4 text-muted-foreground" />
+                              Edit Profile
+                            </DropdownMenuItem>
+                          </PermissionGate>
 
                           <DropdownMenuSeparator />
 
-                          {user.status === "INACTIVE" || user.status === "PENDING_ACTIVATION" ? (
-                            <DropdownMenuItem onClick={() => handleActivate(user)}>
-                              <CheckCircle2 className="mr-2 size-4 text-emerald-600" />
-                              Activate User
-                            </DropdownMenuItem>
-                          ) : user.status === "ACTIVE" ? (
-                            <DropdownMenuItem onClick={() => handleDeactivate(user)}>
-                              <PauseCircle className="mr-2 size-4 text-amber-600" />
-                              Deactivate User
-                            </DropdownMenuItem>
-                          ) : null}
+                          <PermissionGate permission="USER_UPDATE" fallback={null}>
+                            {user.status === "INACTIVE" || user.status === "PENDING_ACTIVATION" ? (
+                              <DropdownMenuItem onClick={() => handleActivate(user)}>
+                                <CheckCircle2 className="mr-2 size-4 text-emerald-600" />
+                                Activate User
+                              </DropdownMenuItem>
+                            ) : user.status === "ACTIVE" ? (
+                              <DropdownMenuItem onClick={() => handleDeactivate(user)}>
+                                <PauseCircle className="mr-2 size-4 text-amber-600" />
+                                Deactivate User
+                              </DropdownMenuItem>
+                            ) : null}
+                          </PermissionGate>
 
                           <DropdownMenuSeparator />
 
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setUserToDelete(user)}
-                          >
-                            <Trash2 className="mr-2 size-4" />
-                            Delete User
-                          </DropdownMenuItem>
+                          <PermissionGate permission="USER_DEACTIVATE" fallback={null}>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setUserToDelete(user)}
+                            >
+                              <Trash2 className="mr-2 size-4" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </PermissionGate>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

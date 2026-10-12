@@ -118,7 +118,7 @@ export function ItemDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto sm:max-w-lg">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background">
           <SheetTitle>Item Details</SheetTitle>
           <SheetDescription>
             Comprehensive item information and metadata

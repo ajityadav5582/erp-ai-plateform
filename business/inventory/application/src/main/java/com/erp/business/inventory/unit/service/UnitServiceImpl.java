@@ -1,6 +1,7 @@
 package com.erp.business.inventory.unit.service;
 
 import com.erp.business.inventory.domain.Unit;
+import com.erp.business.inventory.domain.event.InventoryDomainEvents;
 import com.erp.business.inventory.infrastructure.persistence.UnitRepository;
 import com.erp.business.inventory.unit.dto.UnitCreateRequest;
 import com.erp.business.inventory.unit.dto.UnitResponse;
@@ -9,12 +10,15 @@ import com.erp.business.inventory.unit.exception.DuplicateUnitCodeException;
 import com.erp.business.inventory.unit.exception.DuplicateUnitNameException;
 import com.erp.business.inventory.unit.exception.UnitNotFoundException;
 import com.erp.business.inventory.unit.mapper.UnitMapper;
+import com.erp.platform.events.EventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import java.lang.SuppressWarnings;
 
 /**
  * Default {@link UnitService} implementation.
@@ -32,13 +36,17 @@ public class UnitServiceImpl implements UnitService {
 
     private final UnitRepository unitRepository;
     private final UnitMapper unitMapper;
+    @SuppressWarnings("rawtypes")
+    private final EventPublisher eventPublisher;
 
-    public UnitServiceImpl(UnitRepository unitRepository, UnitMapper unitMapper) {
+    public UnitServiceImpl(UnitRepository unitRepository, UnitMapper unitMapper, @SuppressWarnings("rawtypes") EventPublisher eventPublisher) {
         this.unitRepository = unitRepository;
         this.unitMapper = unitMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public UnitResponse createUnit(Long tenantId, Long companyId, UnitCreateRequest request) {
         String code = normalizeCode(request.code());
 
@@ -60,7 +68,20 @@ public class UnitServiceImpl implements UnitService {
                 request.dimension(), request.symbol(), request.decimalScale()
         );
 
-        return unitMapper.toResponse(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+
+        // Publish domain event
+        var event = InventoryDomainEvents.UnitCreatedEvent.of(
+                tenantId.toString(),
+                saved.getId(),
+                saved.getCode(),
+                saved.getName(),
+                saved.getSymbol(),
+                saved.getDimension().name()
+        );
+        eventPublisher.publishAsync(event);
+
+        return unitMapper.toResponse(saved);
     }
 
     @Override
@@ -109,6 +130,7 @@ public class UnitServiceImpl implements UnitService {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public UnitResponse updateUnit(Long tenantId, Long id, UnitUpdateRequest request) {
         Unit unit = findOrThrow(tenantId, id);
         Long companyId = unit.getCompanyId();
@@ -140,10 +162,25 @@ public class UnitServiceImpl implements UnitService {
                 request.symbol(), request.decimalScale()
         );
 
-        return unitMapper.toResponse(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+
+        // Publish domain event
+        var event = InventoryDomainEvents.UnitUpdatedEvent.of(
+                tenantId.toString(),
+                saved.getId(),
+                saved.getCode(),
+                saved.getName(),
+                saved.getSymbol(),
+                saved.getDimension().name(),
+                saved.getIsActive()
+        );
+        eventPublisher.publishAsync(event);
+
+        return unitMapper.toResponse(saved);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public UnitResponse activateUnit(Long tenantId, Long id) {
         Unit unit = findOrThrow(tenantId, id);
         if (Boolean.TRUE.equals(unit.getIsActive())) {
@@ -152,17 +189,46 @@ public class UnitServiceImpl implements UnitService {
             return unitMapper.toResponse(unit);
         }
         unit.activate();
-        return unitMapper.toResponse(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+
+        // Publish domain event
+        var event = InventoryDomainEvents.UnitUpdatedEvent.of(
+                tenantId.toString(),
+                saved.getId(),
+                saved.getCode(),
+                saved.getName(),
+                saved.getSymbol(),
+                saved.getDimension().name(),
+                saved.getIsActive()
+        );
+        eventPublisher.publishAsync(event);
+
+        return unitMapper.toResponse(saved);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public UnitResponse deactivateUnit(Long tenantId, Long id) {
         Unit unit = findOrThrow(tenantId, id);
         if (Boolean.FALSE.equals(unit.getIsActive())) {
             return unitMapper.toResponse(unit);
         }
         unit.deactivate();
-        return unitMapper.toResponse(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+
+        // Publish domain event
+        var event = InventoryDomainEvents.UnitUpdatedEvent.of(
+                tenantId.toString(),
+                saved.getId(),
+                saved.getCode(),
+                saved.getName(),
+                saved.getSymbol(),
+                saved.getDimension().name(),
+                saved.getIsActive()
+        );
+        eventPublisher.publishAsync(event);
+
+        return unitMapper.toResponse(saved);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.erp.platform.identity.application.dto;
 
+import com.erp.platform.identity.domain.DataScope;
 import jakarta.validation.constraints.Size;
 
 import java.util.Set;
@@ -15,6 +16,8 @@ public record UpdateRoleRequest(
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
     String description,
+
+    DataScope dataScope,
 
     Set<Long> permissionIds
 ) {

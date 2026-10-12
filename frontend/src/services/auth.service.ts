@@ -57,6 +57,7 @@ export interface LoginResponse {
   email: string;
   fullName: string;
   roles: string[];
+  permissions: string[];
 }
 
 export interface OnboardingRequest {
@@ -92,6 +93,7 @@ export interface RefreshTokenResponse {
   email: string;
   fullName: string;
   roles: string[];
+  permissions: string[];
 }
 
 /**

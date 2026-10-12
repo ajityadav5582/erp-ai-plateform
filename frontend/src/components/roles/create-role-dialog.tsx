@@ -41,6 +41,7 @@ const createRoleSchema = z.object({
     .min(1, "Role name is required")
     .max(100, "Role name must not exceed 100 characters"),
   description: z.string().max(500, "Description must not exceed 500 characters").optional(),
+  dataScope: z.enum(["ALL", "OWN_BRANCH", "OWN_DEPARTMENT", "SELF_ONLY"]),
   permissionIds: z.array(z.number()),
 });
 
@@ -67,8 +68,9 @@ export function CreateRoleDialog({ open, onOpenChange }: CreateRoleDialogProps) 
       roleCode: "",
       roleName: "",
       description: "",
+      dataScope: "ALL",
       permissionIds: [],
-    },
+    } satisfies CreateRoleFormValues,
   });
 
   const selectedPermissionIds = form.watch("permissionIds") || [];
@@ -137,6 +139,7 @@ export function CreateRoleDialog({ open, onOpenChange }: CreateRoleDialogProps) 
         roleCode: values.roleCode,
         roleName: values.roleName,
         description: values.description || undefined,
+        dataScope: values.dataScope,
         permissionIds: values.permissionIds,
       };
       const result = await createRole(payload).unwrap();
@@ -186,6 +189,29 @@ export function CreateRoleDialog({ open, onOpenChange }: CreateRoleDialogProps) 
                       form.setValue("roleCode", roleDef.code);
                       form.setValue("roleName", roleDef.name);
                       form.setValue("description", roleDef.description);
+
+                      // Auto-assign permissions from preset
+                      const matchedPermIds: number[] = [];
+                      allPermissions.forEach((perm) => {
+                        if (roleDef.permissionCodes.includes("*")) {
+                          matchedPermIds.push(perm.id);
+                        } else {
+                          roleDef.permissionCodes.forEach((codePattern) => {
+                            // Wildcards are written RESOURCE_* (e.g. "USER_*"),
+                            // matching the RESOURCE_ACTION codes the API issues.
+                            if (codePattern.endsWith("_*")) {
+                              const prefix = codePattern.slice(0, -1);
+                              if (perm.permissionCode.startsWith(prefix)) {
+                                matchedPermIds.push(perm.id);
+                              }
+                            } else if (perm.permissionCode === codePattern) {
+                              matchedPermIds.push(perm.id);
+                            }
+                          });
+                        }
+                      });
+                      const uniqueIds = Array.from(new Set(matchedPermIds));
+                      form.setValue("permissionIds", uniqueIds, { shouldValidate: true });
                     }
                   }}
                   className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -245,6 +271,33 @@ export function CreateRoleDialog({ open, onOpenChange }: CreateRoleDialogProps) 
                     <FormControl>
                       <Input placeholder="Detailed role responsibilities and access scope" disabled={isLoading} {...field} value={field.value ?? ""} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Data Scope Selector */}
+              <FormField
+                control={form.control}
+                name="dataScope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold">Default Data Scope</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        disabled={isLoading}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="ALL">All Tenant Data</option>
+                        <option value="OWN_BRANCH">Own Branch Data</option>
+                        <option value="OWN_DEPARTMENT">Own Department Data</option>
+                        <option value="SELF_ONLY">Self Only</option>
+                      </select>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      This scope applies to all permissions assigned to this role.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

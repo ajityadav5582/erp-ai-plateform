@@ -6,39 +6,53 @@
  */
 
 /**
+ * Reads a single cookie value by name.
+ *
+ * Cookie values may legitimately contain `=` (base64 padding, and JWT segments
+ * produced by some encoders). The previous implementation used
+ * `split("=")[1]`, which silently truncated such values and produced a
+ * corrupt token that the server rejected — logging the user out on refresh.
+ * Splitting on the first `=` only, and URL-decoding, fixes both cases.
+ */
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+
+  const prefix = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const row = part.trim();
+    if (row.startsWith(prefix)) {
+      const raw = row.slice(prefix.length);
+      if (!raw) return null;
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        // Value was not URI-encoded; return it verbatim.
+        return raw;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Retrieves the access token from cookies.
  */
 export function getAccessToken(): string | null {
-  if (typeof document === "undefined") return null;
-
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("access_token="))
-    ?.split("=")[1] ?? null;
+  return readCookie("access_token");
 }
 
 /**
  * Retrieves the refresh token from cookies.
  */
 export function getRefreshToken(): string | null {
-  if (typeof document === "undefined") return null;
-
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("refresh_token="))
-    ?.split("=")[1] ?? null;
+  return readCookie("refresh_token");
 }
 
 /**
  * Retrieves the tenant ID from cookies.
  */
 export function getTenantId(): string | null {
-  if (typeof document === "undefined") return null;
-
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("tenant_id="))
-    ?.split("=")[1] ?? null;
+  return readCookie("tenant_id");
 }
 
 /**
@@ -50,12 +64,18 @@ export function isAuthenticated(): boolean {
 
 /**
  * Clears all authentication cookies.
+ *
+ * Each cookie is expired individually so that a cookie written with the
+ * `Secure` attribute in production is still matched and removed.
  */
 export function clearAuthCookies(): void {
   if (typeof document === "undefined") return;
 
-  document.cookie =
-    "access_token=; refresh_token=; tenant_id=; path=/; max-age=0; SameSite=Strict";
+  const secure =
+    process.env.NODE_ENV === "production" ? "; Secure" : "";
+  for (const name of ["access_token", "refresh_token", "tenant_id"]) {
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Strict${secure}`;
+  }
 }
 
 /**

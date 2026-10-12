@@ -77,7 +77,7 @@ export function CategoryDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background">
           <SheetTitle>Category Details</SheetTitle>
           <SheetDescription>
             Comprehensive category information and metadata

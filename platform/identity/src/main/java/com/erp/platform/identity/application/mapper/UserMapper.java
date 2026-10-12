@@ -3,6 +3,7 @@ package com.erp.platform.identity.application.mapper;
 import com.erp.platform.identity.application.dto.CreateUserRequest;
 import com.erp.platform.identity.application.dto.UserListResponse;
 import com.erp.platform.identity.application.dto.UserResponse;
+import com.erp.platform.identity.application.dto.UserRoleResponse;
 import com.erp.platform.identity.domain.Role;
 import com.erp.platform.identity.domain.User;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 /**
  * Mapper for converting between User entity and DTOs.
@@ -43,10 +45,11 @@ public class UserMapper {
      * Convert User entity and Role to UserResponse.
      *
      * @param user the user entity
-     * @param role the user's role
+     * @param role the user's primary role
+     * @param roles the user's roles
      * @return the UserResponse
      */
-    public UserResponse toResponse(User user, Role role) {
+    public UserResponse toResponse(User user, Role role, List<UserRoleResponse> roles) {
         return new UserResponse(
             user.getId(),
             user.getId(),
@@ -69,8 +72,13 @@ public class UserMapper {
             toLocalDateTime(user.getUpdatedAt()),
             user.getCreatedBy(),
             user.getUpdatedBy(),
-            user.getVersion()
+            user.getVersion(),
+            roles != null ? roles : List.of()
         );
+    }
+
+    public UserResponse toResponse(User user, Role role) {
+        return toResponse(user, role, List.of());
     }
 
     public UserResponse toResponse(User user) {
@@ -81,10 +89,11 @@ public class UserMapper {
      * Convert User entity and Role to UserListResponse.
      *
      * @param user the user entity
-     * @param role the user's role
+     * @param role the user's primary role
+     * @param roles the user's roles
      * @return the UserListResponse
      */
-    public UserListResponse toListResponse(User user, Role role) {
+    public UserListResponse toListResponse(User user, Role role, List<UserRoleResponse> roles) {
         return new UserListResponse(
             user.getId(),
             user.getId(),
@@ -98,8 +107,13 @@ public class UserMapper {
             user.getBranchId(),
             user.getDepartmentId(),
             toLocalDateTime(user.getLastLoginAt()),
-            toLocalDateTime(user.getCreatedAt())
+            toLocalDateTime(user.getCreatedAt()),
+            roles != null ? roles : List.of()
         );
+    }
+
+    public UserListResponse toListResponse(User user, Role role) {
+        return toListResponse(user, role, List.of());
     }
 
     public UserListResponse toListResponse(User user) {

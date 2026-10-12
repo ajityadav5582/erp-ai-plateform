@@ -121,6 +121,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
       IDENTITY_SERVICE_URI: ${IDENTITY_SERVICE_URI:-http://identity-service:8082}
       INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8083}
+      # Present for symmetry with the other two. Without it the gateway still finds
+      # the right default inside application-local.yml, but the service is then
+      # invisible here - and this block is where you look to find out what a
+      # deployed gateway can actually reach.
+      PROCUREMENT_SERVICE_URI: ${PROCUREMENT_SERVICE_URI:-http://procurement-service:8084}
+      # Sales Service is routed to, so the gateway must be able to reach it.
+      SALES_SERVICE_URI: ${SALES_SERVICE_URI:-http://sales-service:8085}
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus,gateways
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
       MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
@@ -135,14 +142,23 @@ services:
         condition: service_healthy
       inventory-service:
         condition: service_healthy
+      # procurement-service is routed to, so the gateway must not come up healthy
+      # while the service behind its route is still starting. Its absence here was
+      # the same omission as the missing route: procurement was added to the
+      # platform and the gateway was never told.
+      procurement-service:
+        condition: service_healthy
+      # sales-service is routed to for the same reason as procurement above.
+      sales-service:
+        condition: service_healthy
     networks:
       - erpai-data-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-8080}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 20
+      start_period: 300s
     deploy:
       resources:
         limits:
@@ -191,8 +207,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_PORT:-8082}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 20
+      start_period: 300s
     deploy:
       resources:
         limits:
@@ -240,8 +256,114 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${INVENTORY_PORT:-8083}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 20
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ===========================================================================
+  # Procurement Service - Branch purchase requisitions, approval chain,
+  # requisition-to-purchase-order traceability
+  # ===========================================================================
+
+  procurement-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: procurement
+      args:
+        SERVICE_NAME: procurement-service
+        JAR_PATH: business/procurement/application/build/libs
+    container_name: erpai-procurement
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${PROCUREMENT_PORT:-8084}
+      # Where Procurement reaches Inventory to post stock movements (hexagonal
+      # port's HTTP adapter). Defaults to the in-network service address.
+      INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8083}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${PROCUREMENT_PORT:-8084}:${PROCUREMENT_PORT:-8084}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PROCUREMENT_PORT:-8084}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ===========================================================================
+  # Sales Service - Customers, sales orders, deliveries, IRD tax invoices,
+  # customer receipts, sales returns and the sales register.
+  # ===========================================================================
+
+  sales-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: sales
+      args:
+        SERVICE_NAME: sales-service
+        JAR_PATH: business/sales/application/build/libs
+    container_name: erpai-sales
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${SALES_PORT:-8085}
+      # Where Sales reaches Inventory to post outbound stock issues (hexagonal
+      # port's HTTP adapter). Defaults to the in-network service address.
+      INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8083}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${SALES_PORT:-8085}:${SALES_PORT:-8085}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${SALES_PORT:-8085}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
     deploy:
       resources:
         limits:

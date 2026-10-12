@@ -46,8 +46,12 @@ export function AuthForm(_props: AuthFormProps) {
     setIsSubmitting(true);
     try {
       await login(credentials, { rememberMe });
+      // `router.push` already fetches the destination route's RSC
+      // payload. A follow-up `router.refresh()` forced a second full
+      // server round-trip (re-running the whole RSC render pass for a
+      // client-rendered route that needs no server data), which made
+      // the post-login redirect feel sluggish.
       router.push("/companies");
-      router.refresh();
     } catch (err) {
       setApiError(getApiErrorMessage(err));
     } finally {

@@ -3,6 +3,7 @@ package com.erp.platform.identity.application.mapper;
 import com.erp.platform.identity.application.dto.CreateRoleRequest;
 import com.erp.platform.identity.application.dto.RoleListResponse;
 import com.erp.platform.identity.application.dto.RoleResponse;
+import com.erp.platform.identity.domain.DataScope;
 import com.erp.platform.identity.domain.Role;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +40,7 @@ public class RoleMapper {
      * @return the RoleResponse
      */
     public RoleResponse toResponse(Role role) {
-        return toResponse(role, Set.of());
+        return toResponse(role, Set.of(), DataScope.ALL);
     }
 
     /**
@@ -50,6 +51,18 @@ public class RoleMapper {
      * @return the RoleResponse
      */
     public RoleResponse toResponse(Role role, Set<Long> permissionIds) {
+        return toResponse(role, permissionIds, DataScope.ALL);
+    }
+
+    /**
+     * Convert Role entity, permission IDs, and data scope to RoleResponse.
+     *
+     * @param role the role entity
+     * @param permissionIds assigned permission IDs
+     * @param dataScope the default data scope for the role
+     * @return the RoleResponse
+     */
+    public RoleResponse toResponse(Role role, Set<Long> permissionIds, DataScope dataScope) {
         return new RoleResponse(
             role.getId(),
             role.getTenantId(),
@@ -62,6 +75,7 @@ public class RoleMapper {
             role.canBeDeactivated(),
             role.isSystemRole(),
             role.isActive(),
+            dataScope,
             permissionIds != null ? permissionIds : Set.of()
         );
     }

@@ -97,6 +97,9 @@ public class TokenAuthenticatedUser implements AuthenticatedUser {
 
     @Override
     public boolean hasPermission(String permission) {
+        if (roles.contains("SUPER_ADMIN") || roles.contains("TENANT_ADMIN") || roles.contains("OWNER")) {
+            return true;
+        }
         return permissions.contains(permission);
     }
 
@@ -112,6 +115,9 @@ public class TokenAuthenticatedUser implements AuthenticatedUser {
 
     @Override
     public boolean hasAllPermissions(String... permissionNames) {
+        if (roles.contains("SUPER_ADMIN") || roles.contains("TENANT_ADMIN") || roles.contains("OWNER")) {
+            return true;
+        }
         for (String permission : permissionNames) {
             if (!permissions.contains(permission)) {
                 return false;

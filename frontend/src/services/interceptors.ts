@@ -45,8 +45,12 @@ export function setupInterceptors(): void {
       // company and fiscal year from these headers instead of query params.
       const selection = readActiveFiscalSelection();
       if (selection && config.headers) {
-        config.headers["X-Company-Id"] = String(selection.companyId);
-        config.headers["X-Fiscal-Year-Id"] = String(selection.fiscalYearId);
+        if (selection.companyId) {
+          config.headers["X-Company-Id"] = String(selection.companyId);
+        }
+        if (selection.fiscalYearId) {
+          config.headers["X-Fiscal-Year-Id"] = String(selection.fiscalYearId);
+        }
       }
 
       return config;

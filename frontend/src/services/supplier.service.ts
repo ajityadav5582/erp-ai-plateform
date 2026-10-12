@@ -83,11 +83,23 @@ export interface UpdateSupplierRequest {
   currency?: string | null;
 }
 
+/**
+ * Query parameters for the supplier list endpoint.
+ *
+ * **Only `page`, `size` and `sort` reach the server.** The backend signature is
+ * `listSuppliers(Pageable pageable)`, so Spring binds the pageable and discards every
+ * other parameter without complaint - a request carrying `search` or `status` returns
+ * 200 with unfiltered rows. Those two fields are kept here because the Suppliers screen
+ * already sends them, but callers must filter and search on the returned page
+ * themselves; treating them as server-side filters silently produces wrong results.
+ */
 export interface GetSuppliersParams {
   page?: number;
   size?: number;
   sort?: string;
+  /** Sent but **ignored by the server**. Filter `content` client-side. */
   search?: string;
+  /** Sent but **ignored by the server**. Filter `content` on `isActive`. */
   status?: boolean;
 }
 

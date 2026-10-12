@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Shield, Search, CheckSquare, Square, ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { Loader2, Shield, Search, CheckSquare, Square, ChevronDown, ChevronRight, Lock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useUpdateRoleMutation, type Role } from "@/services/role.service";
 import { useGetPermissionsQuery, type PermissionResponse } from "@/services/permission.service";
@@ -36,6 +36,7 @@ const editRoleSchema = z.object({
     .min(1, "Role name is required")
     .max(100, "Role name must not exceed 100 characters"),
   description: z.string().max(500, "Description must not exceed 500 characters").optional(),
+  dataScope: z.enum(["ALL", "OWN_BRANCH", "OWN_DEPARTMENT", "SELF_ONLY"]),
   permissionIds: z.array(z.number()),
 });
 
@@ -68,8 +69,9 @@ export function EditRoleDialog({ role, open, onOpenChange }: EditRoleDialogProps
     defaultValues: {
       roleName: "",
       description: "",
+      dataScope: "ALL",
       permissionIds: [],
-    },
+    } satisfies EditRoleFormValues,
   });
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export function EditRoleDialog({ role, open, onOpenChange }: EditRoleDialogProps
       form.reset({
         roleName: role.roleName,
         description: role.description || "",
+        dataScope: role.dataScope || "ALL",
         permissionIds: initialPermIds,
       });
     }
@@ -94,6 +97,30 @@ export function EditRoleDialog({ role, open, onOpenChange }: EditRoleDialogProps
   const allPermissions = useMemo(() => {
     return permissionsData?.permissions ?? [];
   }, [permissionsData]);
+
+  // Detect permission conflicts
+  const permissionConflicts = useMemo(() => {
+    const conflicts: { action: string; missingView: string }[] = [];
+    const selectedPerms = allPermissions.filter((p) => selectedPermissionIds.includes(p.id));
+    const selectedCodes = new Set(selectedPerms.map((p) => p.permissionCode));
+
+    selectedPerms.forEach((perm) => {
+      const parts = perm.permissionCode.split(".");
+      if (parts.length >= 2) {
+        const resource = parts[0];
+        const action = parts[1];
+        const viewCode = `${resource}.view`;
+        if (action !== "view" && !selectedCodes.has(viewCode)) {
+          conflicts.push({
+            action: perm.permissionCode,
+            missingView: viewCode,
+          });
+        }
+      }
+    });
+
+    return conflicts;
+  }, [selectedPermissionIds, allPermissions]);
 
   // Group permissions by resource
   const groupedPermissions = useMemo(() => {
@@ -155,6 +182,7 @@ export function EditRoleDialog({ role, open, onOpenChange }: EditRoleDialogProps
       const payload = {
         roleName: values.roleName,
         description: values.description || undefined,
+        dataScope: values.dataScope,
         permissionIds: values.permissionIds,
       };
       const result = await updateRole({
@@ -228,6 +256,55 @@ export function EditRoleDialog({ role, open, onOpenChange }: EditRoleDialogProps
                   </FormItem>
                 )}
               />
+
+              {/* Data Scope Selector */}
+              <FormField
+                control={form.control}
+                name="dataScope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold">Default Data Scope</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        disabled={isLoading}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="ALL">All Tenant Data</option>
+                        <option value="OWN_BRANCH">Own Branch Data</option>
+                        <option value="OWN_DEPARTMENT">Own Department Data</option>
+                        <option value="SELF_ONLY">Self Only</option>
+                      </select>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      This scope applies to all permissions assigned to this role.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Permission Conflict Warnings */}
+              {permissionConflicts.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-amber-700">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span className="text-xs font-semibold">Permission Conflicts Detected</span>
+                  </div>
+                  <p className="text-[11px] text-amber-600">
+                    The following permissions require their corresponding <strong>view</strong> permission to be functional:
+                  </p>
+                  <ul className="space-y-0.5">
+                    {permissionConflicts.map((conflict, idx) => (
+                      <li key={idx} className="text-[11px] text-amber-700 flex items-center gap-1.5">
+                        <span className="font-mono">{conflict.action}</span>
+                        <span>requires</span>
+                        <span className="font-mono font-medium">{conflict.missingView}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Permission Assignment Section */}
               <div className="space-y-3 pt-2">

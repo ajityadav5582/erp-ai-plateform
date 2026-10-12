@@ -51,6 +51,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findByTenantIdAndBranchId(Long tenantId, Long branchId, Pageable pageable);
 
+    /**
+     * Finds the given users, restricted to a single tenant.
+     *
+     * <p>Resolves the users behind a page of branch assignments in one query
+     * instead of one {@code findById} per row.
+     *
+     * @param ids the user identifiers to load
+     * @param tenantId the tenant ID
+     * @return the users owned by the tenant, never another tenant's rows
+     */
+    java.util.List<User> findAllByIdInAndTenantId(java.util.Collection<Long> ids, Long tenantId);
+
     Page<User> findByTenantIdAndDepartmentId(Long tenantId, Long departmentId, Pageable pageable);
 
     boolean existsByTenantIdAndUsername(Long tenantId, String username);

@@ -1,7 +1,9 @@
 package com.erp.platform.identity.application;
 
+import com.erp.platform.common.nepali.date.BsCalendarData;
+import com.erp.platform.common.nepali.date.NepaliDateConverter;
+import com.erp.platform.common.nepali.date.NepaliDateDetails;
 import com.erp.platform.identity.application.dto.MasterBsCalendarResponse;
-import com.erp.platform.identity.domain.BsCalendarData;
 import com.erp.platform.identity.domain.MasterBsCalendar;
 import com.erp.platform.identity.domain.MasterFiscalYear;
 import com.erp.platform.identity.infrastructure.persistence.MasterBsCalendarRepository;
@@ -14,9 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+/**
+ * Serves Bikram Sambat calendar data.
+ *
+ * <p>All calendar arithmetic is delegated to {@code libraries/common-nepali-date}. This
+ * class no longer holds any month-length data of its own; it only reads persisted rows
+ * and, when a date is missing from the table, computes it with the shared converter.
+ */
 @Service
 @RequiredArgsConstructor
 public class BsCalendarService {
@@ -32,14 +44,9 @@ public class BsCalendarService {
         if (found.isPresent()) {
             return MasterBsCalendarResponse.from(found.get());
         }
-        // Fallback to calculation
-        BsCalendarData.BsDateDetails details = BsCalendarData.convertAdToBs(adDate);
-        MasterFiscalYear matchingFy = findMatchingFiscalYear(adDate);
-        MasterBsCalendar transientEntity = MasterBsCalendar.create(
-                adDate, details.bsDateFormatted(), details.bsYear(), details.bsMonth(), details.bsDay(),
-                details.monthNameNp(), details.monthNameEn(), details.dayOfWeek(), details.dayNameEn(),
-                details.dayNameNp(), details.isHoliday(), matchingFy);
-        return MasterBsCalendarResponse.from(transientEntity);
+        // Not persisted yet: compute it with the shared library.
+        NepaliDateDetails details = NepaliDateConverter.details(adDate);
+        return MasterBsCalendarResponse.from(toTransient(adDate, details));
     }
 
     @Transactional(readOnly = true)
@@ -48,41 +55,29 @@ public class BsCalendarService {
         if (found.isPresent()) {
             return MasterBsCalendarResponse.from(found.get());
         }
-        // Parse BS date YYYY-MM-DD
-        String[] parts = bsDate.split("-");
-        if (parts.length != 3) {
-            throw new IllegalArgumentException("Invalid BS date format: " + bsDate + ". Expected format: YYYY-MM-DD");
-        }
-        int year = Integer.parseInt(parts[0]);
-        int month = Integer.parseInt(parts[1]);
-        int day = Integer.parseInt(parts[2]);
-
-        LocalDate adDate = BsCalendarData.convertBsToAd(year, month, day);
-        return getByAdDate(adDate);
+        // Parse and validate via the library, which rejects malformed or out-of-range input.
+        return getByAdDate(NepaliDateConverter.toAd(bsDate));
     }
 
     @Transactional(readOnly = true)
     public List<MasterBsCalendarResponse> getByMonth(int bsYear, int bsMonth) {
-        List<MasterBsCalendar> list = calendarRepository.findByBsYearAndBsMonthOrderByAdDateAsc(bsYear, bsMonth);
+        List<MasterBsCalendar> list =
+                calendarRepository.findByBsYearAndBsMonthOrderByAdDateAsc(bsYear, bsMonth);
         if (!list.isEmpty()) {
             return list.stream().map(MasterBsCalendarResponse::from).toList();
         }
-        // Fallback: calculate days in month
-        if (bsYear < BsCalendarData.START_YEAR || bsYear > BsCalendarData.END_YEAR || bsMonth < 1 || bsMonth > 12) {
-            throw new IllegalArgumentException("Unsupported BS Year/Month: " + bsYear + "-" + bsMonth);
-        }
-        int maxDays = BsCalendarData.MONTH_DAYS[bsYear - BsCalendarData.START_YEAR][bsMonth - 1];
+        int maxDays = BsCalendarData.daysInMonth(bsYear, bsMonth);
         List<MasterBsCalendarResponse> responses = new ArrayList<>(maxDays);
         for (int d = 1; d <= maxDays; d++) {
-            String bsDate = String.format("%04d-%02d-%02d", bsYear, bsMonth, d);
-            responses.add(getByBsDate(bsDate));
+            responses.add(getByAdDate(NepaliDateConverter.toAd(bsYear, bsMonth, d)));
         }
         return responses;
     }
 
     @Transactional(readOnly = true)
     public List<MasterBsCalendarResponse> getByMasterFiscalYear(Short masterFiscalYearId) {
-        List<MasterBsCalendar> list = calendarRepository.findByMasterFiscalYearIdOrderByAdDateAsc(masterFiscalYearId);
+        List<MasterBsCalendar> list =
+                calendarRepository.findByMasterFiscalYearIdOrderByAdDateAsc(masterFiscalYearId);
         if (!list.isEmpty()) {
             return list.stream().map(MasterBsCalendarResponse::from).toList();
         }
@@ -93,55 +88,76 @@ public class BsCalendarService {
 
     @Transactional(readOnly = true)
     public List<MasterBsCalendarResponse> getByAdDateRange(LocalDate startDate, LocalDate endDate) {
-        List<MasterBsCalendar> list = calendarRepository.findByAdDateBetweenOrderByAdDateAsc(startDate, endDate);
+        List<MasterBsCalendar> list =
+                calendarRepository.findByAdDateBetweenOrderByAdDateAsc(startDate, endDate);
         if (!list.isEmpty()) {
             return list.stream().map(MasterBsCalendarResponse::from).toList();
         }
         List<MasterBsCalendarResponse> responses = new ArrayList<>();
-        LocalDate curr = startDate;
-        while (!curr.isAfter(endDate)) {
+        for (LocalDate curr = startDate; !curr.isAfter(endDate); curr = curr.plusDays(1)) {
             responses.add(getByAdDate(curr));
-            curr = curr.plusDays(1);
         }
         return responses;
     }
 
+    /**
+     * Persists calendar rows for the given BS years using the shared converter.
+     *
+     * <p>This replaces the previous hand-rolled loop that read the fabricated month table
+     * and computed the weekday as {@code getDayOfWeek().getValue() % 7 + 1}, which produced
+     * a Sunday-first index that did not match the Monday-first name arrays.
+     */
     @Transactional
     public void seedBsCalendarRange(int startBsYear, int endBsYear) {
-        log.info("Seeding Master BS Calendar for years {} to {}", startBsYear, endBsYear);
+        log.info("Seeding Master BS Calendar for BS years {} to {}", startBsYear, endBsYear);
         List<MasterFiscalYear> fiscalYears = fiscalYearRepository.findAll();
 
-        List<MasterBsCalendar> batch = new ArrayList<>();
+        // Collect all AD dates and their details first
+        List<LocalDate> allAdDates = new ArrayList<>();
+        List<NepaliDateDetails> allDetails = new ArrayList<>();
         for (int y = startBsYear; y <= endBsYear; y++) {
-            if (y < BsCalendarData.START_YEAR || y > BsCalendarData.END_YEAR) {
+            if (!BsCalendarData.isSupportedYear(y)) {
                 continue;
             }
-            int[] months = BsCalendarData.MONTH_DAYS[y - BsCalendarData.START_YEAR];
-            for (int m = 1; m <= 12; m++) {
-                int daysInMonth = months[m - 1];
-                for (int d = 1; d <= daysInMonth; d++) {
-                    LocalDate adDate = BsCalendarData.convertBsToAd(y, m, d);
-                    if (calendarRepository.existsByAdDate(adDate)) {
-                        continue;
-                    }
-                    String bsDateFormatted = String.format("%04d-%02d-%02d", y, m, d);
-                    int dayOfWeek = adDate.getDayOfWeek().getValue() % 7 + 1;
-                    boolean isHoliday = (dayOfWeek == 7);
-
-                    MasterFiscalYear matchingFy = fiscalYears.stream()
-                            .filter(fy -> !adDate.isBefore(fy.getStartDateAd()) && !adDate.isAfter(fy.getEndDateAd()))
-                            .findFirst()
-                            .orElse(null);
-
-                    MasterBsCalendar calendar = MasterBsCalendar.create(
-                            adDate, bsDateFormatted, y, m, d,
-                            BsCalendarData.MONTH_NAMES_NP[m], BsCalendarData.MONTH_NAMES_EN[m],
-                            dayOfWeek, BsCalendarData.DAY_NAMES_EN[dayOfWeek], BsCalendarData.DAY_NAMES_NP[dayOfWeek],
-                            isHoliday, matchingFy
-                    );
-                    batch.add(calendar);
-                }
+            for (NepaliDateDetails details : NepaliDateConverter.expandBsYear(y)) {
+                allAdDates.add(details.adDate());
+                allDetails.add(details);
             }
+        }
+
+        if (allAdDates.isEmpty()) {
+            return;
+        }
+
+        // Query all existing dates in the range in a single query instead of
+        // N+1 individual existsByAdDate calls.
+        LocalDate minDate = Collections.min(allAdDates);
+        LocalDate maxDate = Collections.max(allAdDates);
+        List<MasterBsCalendar> existing = calendarRepository.findByAdDateBetweenOrderByAdDateAsc(minDate, maxDate);
+        Set<LocalDate> existingDates = existing.stream()
+                .map(MasterBsCalendar::getAdDate)
+                .collect(Collectors.toSet());
+
+        List<MasterBsCalendar> batch = new ArrayList<>();
+        for (int i = 0; i < allAdDates.size(); i++) {
+            LocalDate adDate = allAdDates.get(i);
+            if (existingDates.contains(adDate)) {
+                continue;
+            }
+            NepaliDateDetails details = allDetails.get(i);
+            batch.add(MasterBsCalendar.create(
+                    adDate,
+                    details.bsDate(),
+                    details.bsYear(),
+                    details.bsMonth(),
+                    details.bsDay(),
+                    details.monthNameNp(),
+                    details.monthNameEn(),
+                    details.dayOfWeek().getValue(),
+                    details.dayNameEn(),
+                    details.dayNameNp(),
+                    details.weekend(),
+                    findMatchingFiscalYear(adDate, fiscalYears)));
         }
 
         if (!batch.isEmpty()) {
@@ -150,13 +166,16 @@ public class BsCalendarService {
         }
     }
 
+    /** Re-points every calendar day at the fiscal year that actually contains it. */
     @Transactional
     public void relinkFiscalYears() {
         List<MasterFiscalYear> fiscalYears = fiscalYearRepository.findAll();
         for (MasterFiscalYear fy : fiscalYears) {
-            List<MasterBsCalendar> dates = calendarRepository.findByAdDateBetweenOrderByAdDateAsc(fy.getStartDateAd(), fy.getEndDateAd());
+            List<MasterBsCalendar> dates =
+                    calendarRepository.findByAdDateBetweenOrderByAdDateAsc(fy.getStartDateAd(), fy.getEndDateAd());
             for (MasterBsCalendar date : dates) {
-                if (date.getMasterFiscalYear() == null || !date.getMasterFiscalYear().getId().equals(fy.getId())) {
+                if (date.getMasterFiscalYear() == null
+                        || !date.getMasterFiscalYear().getId().equals(fy.getId())) {
                     date.setMasterFiscalYear(fy);
                 }
             }
@@ -164,8 +183,24 @@ public class BsCalendarService {
         }
     }
 
-    private MasterFiscalYear findMatchingFiscalYear(LocalDate adDate) {
-        return fiscalYearRepository.findAll().stream()
+    private MasterBsCalendar toTransient(LocalDate adDate, NepaliDateDetails details) {
+        return MasterBsCalendar.create(
+                adDate,
+                details.bsDate(),
+                details.bsYear(),
+                details.bsMonth(),
+                details.bsDay(),
+                details.monthNameNp(),
+                details.monthNameEn(),
+                details.dayOfWeek().getValue(),
+                details.dayNameEn(),
+                details.dayNameNp(),
+                details.weekend(),
+                findMatchingFiscalYear(adDate, fiscalYearRepository.findAll()));
+    }
+
+    private MasterFiscalYear findMatchingFiscalYear(LocalDate adDate, List<MasterFiscalYear> fiscalYears) {
+        return fiscalYears.stream()
                 .filter(fy -> !adDate.isBefore(fy.getStartDateAd()) && !adDate.isAfter(fy.getEndDateAd()))
                 .findFirst()
                 .orElse(null);

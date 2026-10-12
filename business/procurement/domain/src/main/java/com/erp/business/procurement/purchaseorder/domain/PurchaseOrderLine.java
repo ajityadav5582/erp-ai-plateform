@@ -1,6 +1,6 @@
 package com.erp.business.procurement.purchaseorder.domain;
 
-import com.erp.business.procurement.shared.domain.TenantScopedEntity;
+import com.erp.platform.data.entity.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -61,7 +61,11 @@ import java.time.LocalDate;
                 @Index(name = "idx_purchase_order_lines_order_item",
                         columnList = "tenant_id, company_id, purchase_order_id, item_id"),
                 @Index(name = "idx_purchase_order_lines_pending",
-                        columnList = "tenant_id, company_id, item_id, purchase_order_id")
+                        columnList = "tenant_id, company_id, item_id, purchase_order_id"),
+                // Answers "which order line satisfied this requisition line?" without
+                // a join, which is the trace query the conversion exists to support.
+                @Index(name = "idx_purchase_order_lines_source_item",
+                        columnList = "tenant_id, company_id, source_purchase_requisition_item_id")
         }
 )
 @Getter
@@ -89,6 +93,16 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
     @Column(name = "item_id", nullable = false)
     private Long itemId;
 
+    /**
+     * The requisition line this was converted from. Null for a line raised directly.
+     *
+     * <p>An id rather than a relation, for the same reason the order link table is:
+     * the two documents are separate aggregates that must stay independently
+     * loadable.
+     */
+    @Column(name = "source_purchase_requisition_item_id")
+    private Long sourcePurchaseRequisitionItemId;
+
     /** Frozen snapshot of the item at issue time. */
     @NotBlank(message = "Item code is required")
     @Column(name = "item_code", nullable = false, length = 100)
@@ -101,6 +115,10 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
     @NotBlank(message = "Unit of measure is required")
     @Column(name = "uom_code", nullable = false, length = 32)
     private String uomCode;
+
+    /** Reference to the Unit master data. Not a database foreign key: cross-service. */
+    @Column(name = "unit_id")
+    private Long unitId;
 
     @NotNull(message = "Quantity is required")
     @Column(name = "quantity", nullable = false, precision = 19, scale = 6)
@@ -178,6 +196,7 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
      * @param itemCode       the item code at issue time
      * @param itemName       the item name at issue time
      * @param uomCode        the unit of measure at issue time
+     * @param unitId         the unit master data id, may be null
      * @param quantity       the ordered quantity, must be positive
      * @param unitPrice      the unit price, must not be negative
      * @param discountRate   the line discount percentage, 0 to 100
@@ -185,9 +204,27 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
      * @return a new unsaved line
      */
     public static PurchaseOrderLine create(Integer lineNumber, Long itemId, String itemCode,
-                                           String itemName, String uomCode, BigDecimal quantity,
-                                           BigDecimal unitPrice, BigDecimal discountRate,
-                                           BigDecimal taxRate) {
+                                           String itemName, String uomCode, Long unitId,
+                                           BigDecimal quantity, BigDecimal unitPrice,
+                                           BigDecimal discountRate, BigDecimal taxRate) {
+        return create(lineNumber, itemId, itemCode, itemName, uomCode, unitId, quantity, unitPrice,
+                discountRate, taxRate, null);
+    }
+
+    /**
+     * Creates a line that records the requisition line it was converted from.
+     *
+     * <p>Conversion copies item, UOM, quantity and planning price rather than
+     * re-entering them, so the origin id is part of construction rather than a
+     * setter that a caller could forget.
+     *
+     * @param sourceRequisitionItemId the originating requisition line id, may be null
+     */
+    public static PurchaseOrderLine create(Integer lineNumber, Long itemId, String itemCode,
+                                           String itemName, String uomCode, Long unitId,
+                                           BigDecimal quantity, BigDecimal unitPrice,
+                                           BigDecimal discountRate, BigDecimal taxRate,
+                                           Long sourceRequisitionItemId) {
         validateQuantity(quantity);
         validateUnitPrice(unitPrice);
         validatePercentage(discountRate, "Discount");
@@ -199,12 +236,14 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
                 .itemCode(itemCode)
                 .itemName(itemName)
                 .uomCode(uomCode)
+                .unitId(unitId)
                 .quantity(quantity.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP))
                 .unitPrice(unitPrice.setScale(MONEY_SCALE, RoundingMode.HALF_UP))
                 .discountPercentage(discountRate.setScale(2, RoundingMode.HALF_UP))
                 .taxRate(taxRate.setScale(2, RoundingMode.HALF_UP))
                 .receivedQuantity(BigDecimal.ZERO.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP))
                 .status(PurchaseOrderLineStatus.OPEN)
+                .sourcePurchaseRequisitionItemId(sourceRequisitionItemId)
                 .build();
     }
 
@@ -242,27 +281,77 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
     /**
      * Records a goods receipt against this line and re-derives the line status.
      *
+     * <p>Partial receipt is supported here. A supplier delivering an order in
+     * instalments is an ordinary event, not an exception: goods arrive in a truckload
+     * now and the balance next week. Refusing a short quantity would force the
+     * receiving clerk to book the full ordered quantity and correct it afterwards,
+     * which is how inventory ends up overstated.
+     *
      * <p>Over-receipt is rejected here rather than only by the database
      * constraint so the caller receives a message naming the line.
      *
-     * @param receivedQuantity the quantity just received, must be positive
+     * @param receivedQuantity the quantity just received, must be positive and
+     *                         must not exceed what is still outstanding
      * @return the new line status
      * @throws IllegalArgumentException  if the quantity is not positive
-     * @throws IllegalStateException     if it would exceed the ordered quantity
+     * @throws IllegalStateException     if the line is cancelled, or it would
+     *                                   exceed the ordered quantity
      */
     public PurchaseOrderLineStatus receive(BigDecimal receivedQuantity) {
         if (receivedQuantity == null || receivedQuantity.signum() <= 0) {
             throw new IllegalArgumentException("Received quantity must be positive");
         }
         if (this.status == PurchaseOrderLineStatus.CANCELLED) {
-            throw new IllegalStateException("Cannot receive against a cancelled line");
+            throw new IllegalStateException(
+                    "Cannot receive against line " + this.lineNumber + "; it has been cancelled");
         }
         BigDecimal newTotal = this.receivedQuantity.add(receivedQuantity);
         if (newTotal.compareTo(this.quantity) > 0) {
             throw new IllegalStateException(
-                    "Receiving " + receivedQuantity.toPlainString()
+                    "Receiving " + receivedQuantity.toPlainString() + " " + this.uomCode
                             + " would exceed the ordered quantity " + this.quantity.toPlainString()
-                            + " on line " + this.lineNumber);
+                            + " on line " + this.lineNumber
+                            + "; only " + outstandingQuantity().toPlainString() + " remains outstanding");
+        }
+        this.receivedQuantity = newTotal.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP);
+        this.status = PurchaseOrderLineStatus.fromReceivedQuantity(this.quantity, this.receivedQuantity);
+        return this.status;
+    }
+
+    /**
+     * Unwinds a goods receipt that has been voided, returning the quantity to
+     * outstanding.
+     *
+     * <p>The counterpart of {@link #receive(BigDecimal)}. Without it a wrong receipt
+     * raised at the gate - goods booked against the wrong order, or counted twice -
+     * is permanent: the order can never be received again because the quantity it
+     * consumed is never given back.
+     *
+     * <p>Guards the two ways a reversal can corrupt the document: unwinding more
+     * than was ever received, and unwinding onto a line that was cancelled after
+     * the fact.
+     *
+     * @param reversedQuantity the quantity to take back off this line
+     * @return the new line status
+     * @throws IllegalArgumentException if the quantity is not positive
+     * @throws IllegalStateException    if the line is cancelled, or more is
+     *                                  reversed than was received
+     */
+    public PurchaseOrderLineStatus reverseReceipt(BigDecimal reversedQuantity) {
+        if (reversedQuantity == null || reversedQuantity.signum() <= 0) {
+            throw new IllegalArgumentException("Reversed quantity must be positive");
+        }
+        if (this.status == PurchaseOrderLineStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "Cannot reverse a receipt against line " + this.lineNumber
+                            + "; it has been cancelled");
+        }
+        BigDecimal newTotal = this.receivedQuantity.subtract(reversedQuantity);
+        if (newTotal.signum() < 0) {
+            throw new IllegalStateException(
+                    "Cannot reverse " + reversedQuantity.toPlainString() + " on line " + this.lineNumber
+                            + "; only " + this.receivedQuantity.toPlainString()
+                            + " has been received against it");
         }
         this.receivedQuantity = newTotal.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP);
         this.status = PurchaseOrderLineStatus.fromReceivedQuantity(this.quantity, this.receivedQuantity);
@@ -323,6 +412,20 @@ public class PurchaseOrderLine extends TenantScopedEntity<Long> {
      */
     public boolean hasOutstandingQuantity() {
         return isCounted() && this.receivedQuantity.compareTo(this.quantity) < 0;
+    }
+
+    /**
+     * Returns the quantity still to be delivered on this line.
+     *
+     * <p>The single definition of "outstanding", shared by the receipt workflow,
+     * the receiving worklist and the header status derivation, so those three
+     * cannot disagree about how much is still owed.
+     *
+     * @return ordered minus received, never negative
+     */
+    public BigDecimal outstandingQuantity() {
+        BigDecimal outstanding = this.quantity.subtract(this.receivedQuantity);
+        return outstanding.signum() < 0 ? BigDecimal.ZERO : outstanding;
     }
 
     private static void validateQuantity(BigDecimal quantity) {

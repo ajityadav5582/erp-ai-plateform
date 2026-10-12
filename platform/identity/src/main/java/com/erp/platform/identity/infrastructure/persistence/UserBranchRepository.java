@@ -32,6 +32,19 @@ public interface UserBranchRepository extends JpaRepository<UserBranch, Long> {
     Optional<UserBranch> findByTenantIdAndUserIdAndBranchId(Long tenantId, Long userId, Long branchId);
 
     /**
+     * Finds an assignment by its id, restricted to a single tenant.
+     *
+     * <p>Keeps the tenant predicate in the WHERE clause. A plain {@code findById}
+     * followed by an in-memory tenant check loads another tenant's row first and
+     * turns a cross-tenant probe into an existence oracle.
+     *
+     * @param id the assignment identifier
+     * @param tenantId the tenant ID
+     * @return the assignment if it exists in the tenant, empty otherwise
+     */
+    Optional<UserBranch> findByIdAndTenantId(Long id, Long tenantId);
+
+    /**
      * Finds all branch assignments for a specific user in a tenant.
      *
      * @param tenantId the tenant ID

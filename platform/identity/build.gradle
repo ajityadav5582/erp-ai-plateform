@@ -27,6 +27,7 @@ dependencyManagement {
 dependencies {
     // Common libraries
     implementation project(':libraries:common-core')
+    implementation project(':libraries:common-nepali-date')
     implementation project(':libraries:common-data')
     implementation project(':libraries:common-events')
     implementation project(':libraries:common-security')

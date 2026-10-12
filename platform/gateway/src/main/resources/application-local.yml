@@ -44,6 +44,30 @@ spring:
                 statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
                 methods: GET,POST,PUT,DELETE,PATCH
 
+        # Procurement Service (localhost:8084) - MUST precede identity catch-all
+        - id: procurement-service-local
+          uri: ${PROCUREMENT_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/procurement/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # Sales Service (localhost:8085) - MUST precede identity catch-all
+        - id: sales-service-local
+          uri: ${SALES_SERVICE_URI:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/sales/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
         # Identity Service (localhost:8082) - broad catch-all so every
         # identity endpoint (companies, branches, departments, roles,
         # permissions, users, auth, onboarding, etc.) is reachable.

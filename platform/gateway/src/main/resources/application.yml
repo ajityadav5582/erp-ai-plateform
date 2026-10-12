@@ -55,6 +55,39 @@ spring:
                 methods: GET,POST,PUT,DELETE,PATCH
 
         # ------------------------------------------------------------------
+        # Procurement Service - Branch purchase requisitions, approval chain.
+        # MUST precede the identity catch-all so /api/v1/procurement/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: procurement-service
+          uri: ${PROCUREMENT_SERVICE_URI:http://procurement-service:8084}
+          predicates:
+            - Path=/api/v1/procurement/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # Sales Service - Customers, sales orders, deliveries, IRD tax
+        # invoices, customer receipts, sales returns and the sales register.
+        # MUST precede the identity catch-all so /api/v1/sales/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: sales-service
+          uri: ${SALES_SERVICE_URI:http://sales-service:8085}
+          predicates:
+            - Path=/api/v1/sales/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
         # Identity Service - User, role, permission, branch, department,
         # province/district management, authentication, onboarding, company,
         # fiscal years, resources, etc.
@@ -101,27 +134,20 @@ erp:
       # downstream service validates the access token with the shared filter,
       # and the servlet-side filter must not be installed in this reactive app.
       enabled: false
-  gateway:
-    routes:
-      # Specific services first, identity catch-all last.
-      - id: inventory-service
-        path: /api/v1/inventory/**
-        uri: http://inventory-service:8083
-        strip-prefix: true
-        retries: 3
-        timeout-ms: 30000
-      - id: identity-service
-        path: /api/v1/identity/**
-        uri: http://identity-service:8082
-        strip-prefix: true
-        retries: 3
-        timeout-ms: 30000
-    allowed-origins:
-      - http://localhost:3000
-      - https://*.erpai.internal
-    rate-limit:
-      enabled: false
-      per-minute: 1000
+  # NOTE: the erp.gateway.* block that used to live here has been removed.
+  #
+  # It declared a second copy of the route list and a second copy of the allowed
+  # origins, bound by GatewayConfigurationProperties, and then nothing ever read
+  # it - Spring Cloud Gateway routes come from spring.cloud.gateway.routes and
+  # CORS from spring.cloud.gateway.global-cors. Two copies of a route list where
+  # one is decorative is worse than one copy: editing the dead one looks correct,
+  # changes nothing, and sends you looking for a bug that is not there. It is
+  # very likely how the procurement route came to be missing from a deployed
+  # gateway while sitting in plain sight in this file.
+  #
+  # If you need to know which services must be routed, read
+  # GatewayRouteCoverageTest: it derives the required routes from docker-compose.yml
+  # and fails the build when one is absent, so there is no list to keep in sync.
 
 logging:
   level:

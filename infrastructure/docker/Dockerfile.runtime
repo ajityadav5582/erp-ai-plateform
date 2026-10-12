@@ -84,3 +84,5 @@ FROM runtime AS gateway
 FROM runtime AS identity
 FROM runtime AS tenant
 FROM runtime AS inventory
+FROM runtime AS procurement
+FROM runtime AS sales

@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public record BranchResponse(
     Long id,
     Long tenantId,
+    Long companyId,
     String branchCode,
     String branchName,
     String email,

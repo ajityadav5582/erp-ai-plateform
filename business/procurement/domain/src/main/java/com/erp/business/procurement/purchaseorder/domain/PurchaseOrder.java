@@ -1,6 +1,6 @@
 package com.erp.business.procurement.purchaseorder.domain;
 
-import com.erp.business.procurement.shared.domain.TenantScopedEntity;
+import com.erp.platform.data.entity.TenantScopedEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,17 +53,27 @@ import java.util.Objects;
 @Entity
 @Table(
         name = "purchase_orders",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_purchase_orders_tenant_company_number",
-                columnNames = {"tenant_id", "company_id", "po_number"}
-        ),
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_purchase_orders_tenant_company_number",
+                        columnNames = {"tenant_id", "company_id", "po_number"}
+                ),
+                // One requisition converts to at most one order through this route.
+                // NULLs are exempt, so orders raised without a requisition are unaffected.
+                @UniqueConstraint(
+                        name = "uk_purchase_orders_source_requisition",
+                        columnNames = {"tenant_id", "company_id", "source_purchase_requisition_id"}
+                )
+        },
         indexes = {
                 @Index(name = "idx_purchase_orders_tenant_company",
                         columnList = "tenant_id, company_id"),
                 @Index(name = "idx_purchase_orders_supplier",
                         columnList = "tenant_id, company_id, supplier_id, order_date"),
                 @Index(name = "idx_purchase_orders_fiscal_year",
-                        columnList = "tenant_id, company_id, fiscal_year_id, order_date")
+                        columnList = "tenant_id, company_id, fiscal_year_id, order_date"),
+                @Index(name = "idx_purchase_orders_source_requisition",
+                        columnList = "tenant_id, company_id, source_purchase_requisition_id")
         }
 )
 @Getter
@@ -90,6 +100,20 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     /** Fiscal year the order belongs to, for period reporting. May be null pre-assignment. */
     @Column(name = "fiscal_year_id")
     private Long fiscalYearId;
+
+    /**
+     * The requisition this order was converted from.
+     *
+     * <p>Null for an order raised directly. Part of a unique key with tenant and
+     * company, which is what makes a second conversion of the same requisition
+     * impossible even if two requests race past the application-level check.
+     */
+    @Column(name = "source_purchase_requisition_id")
+    private Long sourcePurchaseRequisitionId;
+
+    /** Owning branch, copied from the source requisition on conversion. */
+    @Column(name = "branch_id")
+    private Long branchId;
 
     @NotNull(message = "Order date is required")
     @Column(name = "order_date", nullable = false)
@@ -160,8 +184,32 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     @Column(name = "payment_terms_days")
     private Integer paymentTermsDays;
 
-    @Column(name = "delivery_location", length = 255)
-    private String deliveryLocation;
+    /**
+     * The nominated destination for this order's goods.
+     *
+     * <p>A nomination, not a commitment. It is what the supplier is instructed to
+     * deliver to, and goods get redirected constantly in multi-site businesses -
+     * so a goods receipt naming a different warehouse is a routine occurrence, not
+     * an error. The receipt records where the goods actually landed; this records
+     * where they were meant to go, and comparing the two is what surfaces the
+     * difference.
+     *
+     * <p>Nullable, because a requisition may name no destination and the buyer may
+     * not settle one before issuing the order. Resolution falls through to the
+     * company default warehouse at receipt time.
+     *
+     * <p>A bare id with no cross-service foreign key, in the same shape as
+     * {@code supplierId}; the warehouse is mastered in the inventory service.
+     */
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
+
+    /** Frozen warehouse code and name, so a rename never rewrites a sent order. */
+    @Column(name = "warehouse_code", length = 64)
+    private String warehouseCode;
+
+    @Column(name = "warehouse_name", length = 255)
+    private String warehouseName;
 
     @Column(name = "buyer_id")
     private Long buyerId;
@@ -218,6 +266,7 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
             fetch = FetchType.LAZY)
     @OrderBy("lineNumber ASC")
     @ToString.Exclude
+    @Builder.Default
     private List<PurchaseOrderLine> lines = new ArrayList<>();
 
     /**
@@ -240,6 +289,30 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     public static PurchaseOrder draft(String poNumber, LocalDate orderDate, Long supplierId,
                                       String supplierCode, String supplierName, String currency,
                                       Long fiscalYearId) {
+        return build(poNumber, orderDate, supplierId, supplierCode, supplierName,
+                currency, fiscalYearId, null, null, null, null);
+    }
+
+    /**
+     * Creates a draft order raised from an approved requisition.
+     *
+     * <p>The source id is what makes the conversion traceable and what the unique
+     * key uses to refuse a duplicate.
+     */
+    public static PurchaseOrder fromRequisition(String poNumber, LocalDate orderDate,
+                                                Long supplierId, String supplierCode,
+                                                String supplierName, String currency,
+                                                Long fiscalYearId, Long branchId,
+                                                Long sourceRequisitionId) {
+        return build(poNumber, orderDate, supplierId, supplierCode, supplierName,
+                currency, fiscalYearId, branchId, sourceRequisitionId,
+                null, null);
+    }
+
+    private static PurchaseOrder build(String poNumber, LocalDate orderDate, Long supplierId,
+                                       String supplierCode, String supplierName, String currency,
+                                       Long fiscalYearId, Long branchId, Long sourceRequisitionId,
+                                       String reference, String notes) {
         Objects.requireNonNull(orderDate, "Order date is required");
         Objects.requireNonNull(supplierId, "Supplier is required");
 
@@ -251,6 +324,10 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
                 .supplierName(supplierName)
                 .currency(normalizeCurrency(currency))
                 .fiscalYearId(fiscalYearId)
+                .branchId(branchId)
+                .sourcePurchaseRequisitionId(sourceRequisitionId)
+                .reference(reference)
+                .notes(notes)
                 .status(PurchaseOrderStatus.DRAFT)
                 .lines(new ArrayList<>())
                 .build();
@@ -309,6 +386,38 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     }
 
     /**
+     * Applies the delivery destination and reference fields captured at conversion time.
+     *
+     * <p>Separate from the constructor because the requisition's nominated warehouse
+     * and the buyer's expected date are known only once the conversion request has
+     * been read, whereas the header itself is built before the lines.
+     *
+     * <p>The warehouse is only overwritten when the conversion actually names one.
+     * Treating null as "clear" would let a requisition with no destination produce
+     * an order that has silently lost one, so absence keeps whatever was already
+     * there and the resolution falls through to the default at receipt.
+     *
+     * @param expectedDelivery  the committed delivery date, may be null
+     * @param warehouseId       the nominated destination warehouse, or null to leave as is
+     * @param warehouseCode     the nominated warehouse's frozen code
+     * @param warehouseName     the nominated warehouse's frozen name
+     * @param sourceReference   the requisition number this order came from
+     * @param notes             free text notes, may be null
+     */
+    public void adoptDelivery(LocalDate expectedDelivery, Long warehouseId,
+                              String warehouseCode, String warehouseName,
+                              String sourceReference, String notes) {
+        this.expectedDeliveryDate = expectedDelivery;
+        if (warehouseId != null) {
+            this.warehouseId = warehouseId;
+            this.warehouseCode = warehouseCode;
+            this.warehouseName = warehouseName;
+        }
+        this.reference = sourceReference;
+        this.notes = notes;
+    }
+
+    /**
      * Sets the freight charge and refreshes the totals.
      *
      * @param shippingAmount the freight amount, must not be negative
@@ -322,24 +431,97 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     }
 
     /**
-     * Records a goods receipt against a line and moves the header status to
-     * match.
+     * Records a goods receipt against a line and re-derives the header status from
+     * the whole line set.
+     *
+     * <p><strong>The header follows the lines, never the other way round.</strong>
+     * The status is recomputed by {@link #deriveReceiptStatus()} from every line
+     * after the receipt, because a receipt only ever touches one line at a time.
+     * Deriving it from the line that happened to be received in this call was the
+     * defect behind "Goods cannot be received against a purchase order in state
+     * RECEIVED": receiving line 1 of a three line order in full promoted the whole
+     * order to RECEIVED, and the two lines still outstanding could then never be
+     * received because this method refuses a RECEIVED order. The order must stay
+     * receivable for as long as any line is.
      *
      * @param lineNumber       the 1-based line ordinal
-     * @param receivedQuantity the quantity received on this call
+     * @param receivedQuantity the quantity received on this call, may be less than
+     *                         the outstanding quantity for a short delivery
      * @return the resulting header status
-     * @throws IllegalStateException if the order is not in a receivable state
+     * @throws IllegalArgumentException if there is no such line
+     * @throws IllegalStateException    if the order is not in a receivable state
      */
     public PurchaseOrderStatus receiveAgainstLine(int lineNumber, BigDecimal receivedQuantity) {
-        if (status != PurchaseOrderStatus.APPROVED
-                && status != PurchaseOrderStatus.PARTIALLY_RECEIVED) {
+        requireReceivable();
+        PurchaseOrderLine line = findLine(lineNumber);
+        line.receive(receivedQuantity);
+        applyDerivedReceiptStatus();
+        return this.status;
+    }
+
+    /**
+     * Unwinds a voided goods receipt against a line identified by its id.
+     *
+     * <p>The shape a voided receipt needs: a goods receipt note stores the
+     * {@code purchase_order_line_id} it consumed, not the ordinal, so reversing it
+     * means looking lines up by id.
+     *
+     * @param lineId           the order line id
+     * @param reversedQuantity the quantity taken back off this line
+     * @return the resulting header status
+     * @throws IllegalArgumentException if no such line exists
+     * @throws IllegalStateException    if the order is closed, cancelled or rejected
+     */
+    public PurchaseOrderStatus reverseReceiptAgainstLineId(Long lineId, BigDecimal reversedQuantity) {
+        if (lineId == null) {
+            throw new IllegalArgumentException("A line id is required");
+        }
+        PurchaseOrderLine line = findLineById(lineId);
+        return reverseReceiptAgainstLine(line.getLineNumber(), reversedQuantity);
+    }
+
+    /**
+     * Returns the line with the given id.
+     *
+     * @param lineId the line id
+     * @return the matching line
+     * @throws IllegalArgumentException if no such line exists
+     */
+    public PurchaseOrderLine findLineById(Long lineId) {
+        return lines.stream()
+                .filter(line -> line.getId().equals(lineId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Purchase order " + poNumber + " has no line with id " + lineId));
+    }
+
+    /**
+     * Unwinds a voided goods receipt against a line and re-derives the header
+     * status.
+     *
+     * <p>The counterpart of {@link #receiveAgainstLine(int, BigDecimal)}. This is
+     * what lets a receipt posted against the wrong order, or counted twice, be
+     * corrected: without it the consumed quantity is never returned and the order
+     * is unrecoverable.
+     *
+     * <p>Terminal states are refused because they are the accounting record: a
+     * closed order has been matched and settled, and an order that was cancelled
+     * will never be delivered. Both need a new document, not a reversal.
+     *
+     * @param lineNumber       the 1-based line ordinal
+     * @param reversedQuantity the quantity taken back off this line
+     * @return the resulting header status
+     * @throws IllegalStateException if the order is closed, cancelled or rejected
+     */
+    public PurchaseOrderStatus reverseReceiptAgainstLine(int lineNumber, BigDecimal reversedQuantity) {
+        if (status.isTerminal()) {
             throw new IllegalStateException(
-                    "Goods cannot be received against a purchase order in state " + status);
+                    "Purchase order " + poNumber + " is " + status
+                            + "; a voided receipt cannot be reversed against it");
         }
         PurchaseOrderLine line = findLine(lineNumber);
-        PurchaseOrderLineStatus lineStatus = line.receive(receivedQuantity);
-        recalculateTotals();
-        this.status = deriveReceiptStatus(lineStatus);
+        line.reverseReceipt(reversedQuantity);
+        applyDerivedReceiptStatus();
         return this.status;
     }
 
@@ -356,6 +538,13 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
      * @throws IllegalStateException if the transition is not permitted
      */
     public void transitionTo(PurchaseOrderStatus target, String actor, String reason) {
+        // Checked before the state table, not after. From PARTIALLY_RECEIVED the
+        // table refuses CLOSED outright, so a later check would never be reached and
+        // the caller would be told only that the move is not allowed - with no
+        // indication that the reason is goods still being on their way.
+        if (target == PurchaseOrderStatus.CLOSED) {
+            requireFullyReceivedForClose();
+        }
         if (!status.canTransitionTo(target)) {
             throw new IllegalStateException(
                     "Cannot move a purchase order from " + status + " to " + target);
@@ -432,12 +621,44 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
     }
 
     /**
-     * Returns the outstanding goods value, the figure accounts payable needs.
+     * Returns the tax-inclusive value still owed against this order.
      *
-     * @return total minus received, never negative
+     * <p><strong>Measured on the same basis as {@link #totalAmount}.</strong> It was
+     * {@code totalAmount - receivedAmount}, but those two are not on the same basis:
+     * the total is net plus tax plus freight, whereas {@code receivedAmount} is the
+     * net goods value only. On a fully received 20 unit order at 100.00 with 13%
+     * tax that arithmetic reports 260.00 still owed - an order that has received
+     * everything it ordered, still claiming money is outstanding against it.
+     *
+     * <p>So the shortfall is computed straight from the lines, on the total's own
+     * basis: each line's net plus tax, less the proportion already received, plus
+     * the freight while anything at all is still outstanding. Freight clears only
+     * once the last item lands, because a part-delivered order has not been
+     * freighted in full.
+     *
+     * @return the value still owing, never negative
      */
     public BigDecimal outstandingAmount() {
-        return totalAmount.subtract(receivedAmount).max(BigDecimal.ZERO);
+        BigDecimal orderedGross = BigDecimal.ZERO;
+        BigDecimal receivedGross = BigDecimal.ZERO;
+
+        for (PurchaseOrderLine line : lines) {
+            if (!line.isCounted()) {
+                continue;
+            }
+            BigDecimal lineGross = line.netAmount().add(line.taxAmount());
+            orderedGross = orderedGross.add(lineGross);
+            BigDecimal receivedRatio = line.getReceivedQuantity()
+                    .divide(line.getQuantity(), 10, RoundingMode.HALF_UP);
+            receivedGross = receivedGross.add(
+                    lineGross.multiply(receivedRatio).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        }
+
+        BigDecimal outstanding = orderedGross.subtract(receivedGross);
+        if (outstanding.signum() > 0) {
+            outstanding = outstanding.add(this.shippingAmount);
+        }
+        return outstanding.max(BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
     /**
@@ -473,12 +694,95 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
         return status.isEditable();
     }
 
-    private PurchaseOrderStatus deriveReceiptStatus(PurchaseOrderLineStatus lastLineStatus) {
-        if (lastLineStatus == PurchaseOrderLineStatus.RECEIVED
-                || outstandingLines().isEmpty()) {
-            return PurchaseOrderStatus.RECEIVED;
+    /**
+     * Recomputes the header totals and the receipt status together.
+     *
+     * <p>Both are derived, so they are always written from the same line set in
+     * the same step; a caller cannot end up with a fresh status over a stale total.
+     */
+    private void applyDerivedReceiptStatus() {
+        recalculateTotals();
+        this.status = deriveReceiptStatus();
+    }
+
+    /**
+     * Derives the receipt status from <em>every</em> line of the order.
+     *
+     * <p>This is the single source of truth for whether the order is fully
+     * received, and it is deliberately a function of the whole line set rather
+     * than of the line touched by the last receipt:
+     *
+     * <ul>
+     *   <li>Nothing counted left to deliver, and something was received →
+     *       {@link PurchaseOrderStatus#RECEIVED}.</li>
+     *   <li>Something still outstanding and something has arrived →
+     *       {@link PurchaseOrderStatus#PARTIALLY_RECEIVED}, whether the shortfall
+     *       is a whole undelivered line or a short quantity on one line.</li>
+     *   <li>Nothing has arrived at all → stay {@link PurchaseOrderStatus#APPROVED}.</li>
+     * </ul>
+     *
+     * <p>Cancelled lines are excluded by {@link #outstandingLines()}, so an order
+     * whose remaining lines were all withdrawn closes out as received rather than
+     * being permanently stuck.
+     */
+    private PurchaseOrderStatus deriveReceiptStatus() {
+        boolean anyReceived = lines.stream()
+                .filter(PurchaseOrderLine::isCounted)
+                .anyMatch(line -> line.getReceivedQuantity().signum() > 0);
+
+        if (outstandingLines().isEmpty()) {
+            return anyReceived ? PurchaseOrderStatus.RECEIVED : PurchaseOrderStatus.APPROVED;
         }
-        return PurchaseOrderStatus.PARTIALLY_RECEIVED;
+        return anyReceived ? PurchaseOrderStatus.PARTIALLY_RECEIVED : PurchaseOrderStatus.APPROVED;
+    }
+
+    /**
+     * Returns whether this order may still take goods in.
+     *
+     * <p>Delegates to {@link PurchaseOrderStatus#isReceivable()} rather than
+     * repeating the state list, so the guard on the receipt path and the state
+     * table cannot drift apart.
+     *
+     * @return {@code true} while issued to the supplier and not yet fully received
+     */
+    public boolean isReceivable() {
+        return status.isReceivable();
+    }
+
+    /**
+     * Guards the receipt path with a message that says what to do instead.
+     *
+     * <p>A closed, cancelled or rejected order is refused, but so is one that is
+     * already fully received, and the two need different answers: the first is a
+     * workflow problem, the second simply means there is nothing left to book.
+     */
+    private void requireReceivable() {
+        if (isReceivable()) {
+            return;
+        }
+        if (status == PurchaseOrderStatus.RECEIVED) {
+            throw new IllegalStateException(
+                    "Every line on purchase order " + poNumber
+                            + " has already been received in full; there is nothing left to receive");
+        }
+        throw new IllegalStateException(
+                "Goods cannot be received against a purchase order in state " + status);
+    }
+
+    /**
+     * Refuses to close an order that still owes goods.
+     *
+     * <p>Closing means "matched and settled". Permitting it on a half delivered
+     * order would retire the document while goods were still arriving, and every
+     * later receipt would then be refused by {@link #requireReceivable()} - the
+     * deliveries would exist physically and nowhere in the system.
+     */
+    private void requireFullyReceivedForClose() {
+        if (!outstandingLines().isEmpty()) {
+            throw new IllegalStateException(
+                    "Purchase order " + poNumber + " still has "
+                            + outstandingLines().size() + " line(s) awaiting delivery and cannot be closed");
+        }
     }
 
     private void requireEditable() {

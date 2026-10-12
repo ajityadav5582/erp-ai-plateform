@@ -24,10 +24,6 @@ import {
   type Unit,
 } from "@/services/unit.service";
 import { UnitStatusBadge } from "@/components/units/unit-status-badge";
-import { CreateUnitDialog } from "@/components/units/create-unit-dialog";
-import { EditUnitDialog } from "@/components/units/edit-unit-dialog";
-import { UnitDetailsSheet } from "@/components/units/unit-details-sheet";
-import { DeleteUnitDialog } from "@/components/units/delete-unit-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +45,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateUnitDialog = dynamic(
+  () =>
+    import("@/components/units/create-unit-dialog").then((mod) => ({
+      default: mod.CreateUnitDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditUnitDialog = dynamic(
+  () =>
+    import("@/components/units/edit-unit-dialog").then((mod) => ({
+      default: mod.EditUnitDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const UnitDetailsSheet = dynamic(
+  () =>
+    import("@/components/units/unit-details-sheet").then((mod) => ({
+      default: mod.UnitDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteUnitDialog = dynamic(
+  () =>
+    import("@/components/units/delete-unit-dialog").then((mod) => ({
+      default: mod.DeleteUnitDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function UnitsPage() {
   const [page, setPage] = useState(0);

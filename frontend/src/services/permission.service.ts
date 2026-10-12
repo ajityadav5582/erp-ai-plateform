@@ -43,7 +43,13 @@ export type Resource =
   // Procurement & SCM
   | "PURCHASE"
   | "VENDOR"
-  | "PURCHASE_REQUISITION"
+  // Purchase requisitions. Resource `PR` rather than the entity's full name:
+  // it is the resource the Role screen groups by, and a shorter one keeps
+  // `PR_CONVERT_TO_PO` readable in a checkbox label. Actions are per operation
+  // (VIEW/CREATE/EDIT/SUBMIT/APPROVE/REJECT/CANCEL/CONVERT_TO_PO), so a role
+  // can be given "may refuse spend" without also being given "may authorise
+  // spend".
+  | "PR"
   | "PURCHASE_ORDER"
   | "GOODS_RECEIPT"
   // Inventory & Logistics
@@ -81,6 +87,7 @@ export type Action =
   | "CREATE"
   | "VIEW"
   | "UPDATE"
+  | "EDIT"
   | "DELETE"
   | "LIST"
   // Workflow
@@ -88,6 +95,7 @@ export type Action =
   | "APPROVE"
   | "REJECT"
   | "CANCEL"
+  | "CONVERT_TO_PO"
   | "CLOSE"
   | "REOPEN"
   | "VOID"
@@ -101,6 +109,7 @@ export type Action =
   | "REPORT"
   // Admin
   | "MANAGE"
+  | "ADMIN"
   | "ASSIGN"
   | "LOCK"
   | "UNLOCK"

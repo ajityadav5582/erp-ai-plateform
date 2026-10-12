@@ -88,7 +88,11 @@ const RESOURCES: { value: Resource; label: string; group: string }[] = [
   // Procurement & Supply Chain
   { value: "PURCHASE", label: "Purchase Domain", group: "Procurement & SCM" },
   { value: "VENDOR", label: "Vendors & Suppliers", group: "Procurement & SCM" },
-  { value: "PURCHASE_REQUISITION", label: "Purchase Requisitions (PR)", group: "Procurement & SCM" },
+  // Resource `PR`, one action per operation. `PR` and not `PURCHASE_REQUISITION`
+  // because that is the resource Identity seeds and the one the requisition
+  // service checks against; a permission created under the longer name would
+  // look right in this dialog and gate nothing.
+  { value: "PR", label: "Purchase Requisitions (PR)", group: "Procurement & SCM" },
   { value: "PURCHASE_ORDER", label: "Purchase Orders (PO)", group: "Procurement & SCM" },
   { value: "GOODS_RECEIPT", label: "Goods Receipt (GRN)", group: "Procurement & SCM" },
 
@@ -130,6 +134,7 @@ const ACTIONS: { value: Action; label: string; category: string }[] = [
   { value: "CREATE", label: "Create", category: "CRUD" },
   { value: "VIEW", label: "View", category: "CRUD" },
   { value: "UPDATE", label: "Update", category: "CRUD" },
+  { value: "EDIT", label: "Edit", category: "CRUD" },
   { value: "DELETE", label: "Delete", category: "CRUD" },
   { value: "LIST", label: "List", category: "CRUD" },
 
@@ -138,6 +143,7 @@ const ACTIONS: { value: Action; label: string; category: string }[] = [
   { value: "APPROVE", label: "Approve", category: "Workflow" },
   { value: "REJECT", label: "Reject", category: "Workflow" },
   { value: "CANCEL", label: "Cancel", category: "Workflow" },
+  { value: "CONVERT_TO_PO", label: "Convert to Purchase Order", category: "Workflow" },
   { value: "CLOSE", label: "Close", category: "Workflow" },
   { value: "REOPEN", label: "Reopen", category: "Workflow" },
   { value: "VOID", label: "Void", category: "Workflow" },
@@ -154,6 +160,7 @@ const ACTIONS: { value: Action; label: string; category: string }[] = [
 
   // Admin
   { value: "MANAGE", label: "Manage Settings", category: "Admin" },
+  { value: "ADMIN", label: "Act on Other Users' Records", category: "Admin" },
   { value: "ASSIGN", label: "Assign Roles/Permissions", category: "Admin" },
   { value: "LOCK", label: "Lock Record/Period", category: "Admin" },
   { value: "UNLOCK", label: "Unlock Record/Period", category: "Admin" },

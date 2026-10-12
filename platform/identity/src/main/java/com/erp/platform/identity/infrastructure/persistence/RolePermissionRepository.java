@@ -45,21 +45,23 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
 
     @Modifying(clearAutomatically = true)
     @Query(value = """
-            INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active)
-            SELECT :roleId, :permissionId, :assignedBy, :assignedAt, TRUE
+            INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active, data_scope)
+            SELECT :roleId, :permissionId, :assignedBy, :assignedAt, TRUE, :dataScope
             WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role_id = :roleId AND permission_id = :permissionId)
             """, nativeQuery = true)
     int insertIdempotent(@Param("roleId") Long roleId, @Param("permissionId") Long permissionId,
-                         @Param("assignedBy") String assignedBy, @Param("assignedAt") LocalDateTime assignedAt);
+                         @Param("assignedBy") String assignedBy, @Param("assignedAt") LocalDateTime assignedAt,
+                         @Param("dataScope") String dataScope);
 
     @Modifying(clearAutomatically = true)
     @Query(value = """
-            INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active)
-            VALUES (:roleId, :permissionId, :assignedBy, :assignedAt, TRUE)
+            INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active, data_scope)
+            VALUES (:roleId, :permissionId, :assignedBy, :assignedAt, TRUE, :dataScope)
             ON CONFLICT (role_id, permission_id) DO NOTHING
             """, nativeQuery = true)
     int insertOnConflictDoNothing(@Param("roleId") Long roleId, @Param("permissionId") Long permissionId,
-                                 @Param("assignedBy") String assignedBy, @Param("assignedAt") LocalDateTime assignedAt);
+                                 @Param("assignedBy") String assignedBy, @Param("assignedAt") LocalDateTime assignedAt,
+                                 @Param("dataScope") String dataScope);
 
     @Modifying(clearAutomatically = true)
     @Query(value = "DELETE FROM role_permissions WHERE role_id = :roleId AND permission_id NOT IN (:permissionIds)",

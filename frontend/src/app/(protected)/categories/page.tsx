@@ -24,15 +24,11 @@ import {
   type CategoryListResponse,
 } from "@/services/category.service";
 import { CompanySelect } from "@/components/common/company-select";
+import { TableSkeletonRows } from "@/components/common/table-state";
 import { CategoryStatusBadge } from "@/components/categories/category-status-badge";
-import { CreateCategoryDialog } from "@/components/categories/create-category-dialog";
-import { EditCategoryDialog } from "@/components/categories/edit-category-dialog";
-import { CategoryDetailsSheet } from "@/components/categories/category-details-sheet";
-import { DeleteCategoryDialog } from "@/components/categories/delete-category-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -50,6 +46,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateCategoryDialog = dynamic(
+  () =>
+    import("@/components/categories/create-category-dialog").then((mod) => ({
+      default: mod.CreateCategoryDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditCategoryDialog = dynamic(
+  () =>
+    import("@/components/categories/edit-category-dialog").then((mod) => ({
+      default: mod.EditCategoryDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const CategoryDetailsSheet = dynamic(
+  () =>
+    import("@/components/categories/category-details-sheet").then((mod) => ({
+      default: mod.CategoryDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteCategoryDialog = dynamic(
+  () =>
+    import("@/components/categories/delete-category-dialog").then((mod) => ({
+      default: mod.DeleteCategoryDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function CategoriesPage() {
   const [page, setPage] = useState(0);
@@ -203,24 +236,7 @@ export default function CategoriesPage() {
 
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-9 rounded-lg" />
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="size-8 rounded-md ml-auto" /></TableCell>
-                </TableRow>
-              ))
+              <TableSkeletonRows columns={6} />
             ) : categories.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-64 text-center">

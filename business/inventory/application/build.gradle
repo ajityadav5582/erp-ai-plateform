@@ -25,23 +25,28 @@ dependencyManagement {
 }
 
 dependencies {
+    // Domain module (pure domain entities)
+    api project(':business:inventory:domain')
+
+    // Interfaces module (public contracts)
+    api project(':business:inventory:interfaces')
+
+    // Infrastructure module (JPA repositories)
+    implementation project(':business:inventory:infrastructure')
+
     // Common libraries
     implementation project(':libraries:common-core')
     implementation project(':libraries:common-data')
     implementation project(':libraries:common-events')
     implementation project(':libraries:common-security')
-
-    // NOTE: the inventory domain/application/infrastructure/interfaces code all
-    // lives in this single module as layered packages under
-    // src/main/java/com/erp/business/inventory/. The former
-    // :business:inventory:domain module was merged here because it also held the
-    // REST controller and JPA repository, so it was never a pure domain module.
+    implementation project(':libraries:common-nepali-date')
 
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // Database
     implementation "org.postgresql:postgresql:${postgresqlVersion}"
@@ -55,15 +60,12 @@ dependencies {
     implementation "org.mapstruct:mapstruct:1.5.5.Final"
     annotationProcessor "org.mapstruct:mapstruct-processor:1.5.5.Final"
 
-    // Security - JWT (access & refresh token issuance/validation)
+    // Security - JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
-    // Security - Spring Security for JWT authentication filter chain
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-
-    // Security - Password hashing (BCrypt)
+    // Security - Password hashing
     implementation 'org.springframework.security:spring-security-crypto'
 
     // Utilities

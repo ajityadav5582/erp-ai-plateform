@@ -26,10 +26,6 @@ import {
 } from "@/services/supplier.service";
 import { CompanySelect } from "@/components/common/company-select";
 import { SupplierStatusBadge } from "@/components/suppliers/supplier-status-badge";
-import { CreateSupplierDialog } from "@/components/suppliers/create-supplier-dialog";
-import { EditSupplierDialog } from "@/components/suppliers/edit-supplier-dialog";
-import { SupplierDetailsSheet } from "@/components/suppliers/supplier-details-sheet";
-import { DeleteSupplierDialog } from "@/components/suppliers/delete-supplier-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +47,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateSupplierDialog = dynamic(
+  () =>
+    import("@/components/suppliers/create-supplier-dialog").then((mod) => ({
+      default: mod.CreateSupplierDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditSupplierDialog = dynamic(
+  () =>
+    import("@/components/suppliers/edit-supplier-dialog").then((mod) => ({
+      default: mod.EditSupplierDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const SupplierDetailsSheet = dynamic(
+  () =>
+    import("@/components/suppliers/supplier-details-sheet").then((mod) => ({
+      default: mod.SupplierDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteSupplierDialog = dynamic(
+  () =>
+    import("@/components/suppliers/delete-supplier-dialog").then((mod) => ({
+      default: mod.DeleteSupplierDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function SuppliersPage() {
   const [page, setPage] = useState(0);

@@ -24,14 +24,10 @@ import {
   type ItemListResponse,
 } from "@/services/item.service";
 import { ItemStatusBadge } from "@/components/items/item-status-badge";
-import { CreateItemDialog } from "@/components/items/create-item-dialog";
-import { EditItemDialog } from "@/components/items/edit-item-dialog";
-import { ItemDetailsSheet } from "@/components/items/item-details-sheet";
-import { DeleteItemDialog } from "@/components/items/delete-item-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeletonRows } from "@/components/common/table-state";
 import {
   Table,
   TableBody,
@@ -49,6 +45,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateItemDialog = dynamic(
+  () =>
+    import("@/components/items/create-item-dialog").then((mod) => ({
+      default: mod.CreateItemDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditItemDialog = dynamic(
+  () =>
+    import("@/components/items/edit-item-dialog").then((mod) => ({
+      default: mod.EditItemDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const ItemDetailsSheet = dynamic(
+  () =>
+    import("@/components/items/item-details-sheet").then((mod) => ({
+      default: mod.ItemDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteItemDialog = dynamic(
+  () =>
+    import("@/components/items/delete-item-dialog").then((mod) => ({
+      default: mod.DeleteItemDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function ItemsPage() {
   const [page, setPage] = useState(0);
@@ -174,28 +207,7 @@ export default function ItemsPage() {
 
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-9 rounded-lg" />
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="ml-auto size-8 rounded-md" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <TableSkeletonRows columns={8} />
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-64 text-center">

@@ -25,19 +25,21 @@ public class BranchMapper {
     /**
      * Convert CreateBranchRequest to Branch entity.
      *
+     * <p>Uses {@link Branch#updateDetails} rather than {@code toBuilder()} so the
+     * company id is never lost and the entity keeps its invariants.
+     *
      * @param request the create request
      * @param tenantId the tenant ID
+     * @param companyId the active company ID
      * @return the Branch entity
      */
-    public Branch toEntity(CreateBranchRequest request, Long tenantId) {
-        Branch branch = Branch.create(tenantId, request.branchCode(), request.branchName());
-        return branch.toBuilder()
-                .email(request.email())
-                .phone(request.phone())
-                .address(request.address())
-                .localLevelId(request.localLevelId())
-                .wardNo(request.wardNo())
-                .build();
+    public Branch toEntity(CreateBranchRequest request, Long tenantId, Long companyId) {
+        Branch branch = Branch.create(tenantId, companyId, request.branchCode(), request.branchName());
+        branch.updateDetails(
+                null, null,
+                request.email(), request.phone(), request.address(),
+                request.localLevelId(), request.wardNo());
+        return branch;
     }
 
     /**
@@ -50,6 +52,7 @@ public class BranchMapper {
         return new BranchResponse(
                 branch.getId(),
                 branch.getTenantId(),
+                branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
                 branch.getEmail(),
@@ -75,6 +78,7 @@ public class BranchMapper {
     public BranchListResponse toListResponse(Branch branch) {
         return new BranchListResponse(
                 branch.getId(),
+                branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
                 branch.getLocalLevelId(),

@@ -4,7 +4,9 @@ import com.erp.platform.identity.application.dto.CreateUserRequest;
 import com.erp.platform.identity.application.dto.UpdateUserRequest;
 import com.erp.platform.identity.application.dto.UserListResponse;
 import com.erp.platform.identity.application.dto.UserResponse;
+import com.erp.platform.identity.application.dto.UserRoleResponse;
 import com.erp.platform.identity.application.mapper.UserMapper;
+import com.erp.platform.identity.application.mapper.UserRoleMapper;
 import com.erp.platform.identity.domain.Role;
 import com.erp.platform.identity.domain.User;
 import com.erp.platform.identity.domain.UserRole;
@@ -25,7 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Implementation of UserService.
@@ -43,6 +48,7 @@ public class UserServiceImpl implements UserService {
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final AuthorizationService authorizationService;
+    private final UserRoleMapper userRoleMapper;
 
     public UserServiceImpl(
             UserRepository userRepository,
@@ -50,13 +56,15 @@ public class UserServiceImpl implements UserService {
             PasswordEncoder passwordEncoder,
             UserRoleRepository userRoleRepository,
             RoleRepository roleRepository,
-            AuthorizationService authorizationService) {
+            AuthorizationService authorizationService,
+            UserRoleMapper userRoleMapper) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
         this.authorizationService = authorizationService;
+        this.userRoleMapper = userRoleMapper;
     }
 
     @Override
@@ -92,35 +100,53 @@ public class UserServiceImpl implements UserService {
         // Save user
         User savedUser = userRepository.save(user);
 
-        // Assign role (from request or default)
-        Role roleToAssign = null;
-        if (request.roleId() != null) {
-            roleToAssign = roleRepository.findByIdAndTenantIdOrGlobalSystem(request.roleId(), tenantId)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found with ID: " + request.roleId()));
+        // Assign roles (from request or default)
+        List<UserRoleResponse> assignedRoles = new ArrayList<>();
+        Role primaryRole = null;
+
+        if (request.roleIds() != null && !request.roleIds().isEmpty()) {
+            for (Long roleId : request.roleIds()) {
+                Role role = roleRepository.findByIdAndTenantIdOrGlobalSystem(roleId, tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found with ID: " + roleId));
+                if (primaryRole == null) {
+                    primaryRole = role;
+                }
+                UserRole userRole = UserRole.assign(
+                        savedUser.getId(),
+                        role.getId(),
+                        savedUser.getTenantId(),
+                        "system",
+                        Instant.now(),
+                        null,
+                        primaryRole == role
+                );
+                userRoleRepository.save(userRole);
+                assignedRoles.add(userRoleMapper.toResponse(userRole, role));
+            }
         } else {
+            // Default role assignment
             List<Role> tenantRoles = roleRepository.findByTenantId(tenantId, Pageable.unpaged()).getContent();
             if (!tenantRoles.isEmpty()) {
-                roleToAssign = tenantRoles.stream()
+                Role defaultRole = tenantRoles.stream()
                         .filter(r -> "EMPLOYEE".equalsIgnoreCase(r.getRoleCode()))
                         .findFirst()
                         .orElse(tenantRoles.get(0));
+                primaryRole = defaultRole;
+                UserRole userRole = UserRole.assign(
+                        savedUser.getId(),
+                        defaultRole.getId(),
+                        savedUser.getTenantId(),
+                        "system",
+                        Instant.now(),
+                        null,
+                        true
+                );
+                userRoleRepository.save(userRole);
+                assignedRoles.add(userRoleMapper.toResponse(userRole, defaultRole));
             }
         }
 
-        if (roleToAssign != null) {
-            UserRole userRole = UserRole.assign(
-                    savedUser.getId(),
-                    roleToAssign.getId(),
-                    savedUser.getTenantId(),
-                    "system",
-                    Instant.now(),
-                    null,
-                    true
-            );
-            userRoleRepository.save(userRole);
-        }
-
-        return userMapper.toResponse(savedUser, roleToAssign);
+        return userMapper.toResponse(savedUser, primaryRole, assignedRoles);
     }
 
     @Override
@@ -153,14 +179,14 @@ public class UserServiceImpl implements UserService {
         String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
         if (cleanSearch == null && status == null) {
             return userRepository.findByTenantId(tenantId, pageable)
-                .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId)));
+                .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId), getUserRolesForResponse(u.getId(), tenantId)));
         }
         if (cleanSearch == null) {
             return userRepository.findByTenantIdAndStatus(tenantId, status, pageable)
-                .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId)));
+                .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId), getUserRolesForResponse(u.getId(), tenantId)));
         }
         return userRepository.findByTenantIdAndSearchAndStatus(tenantId, cleanSearch, status, pageable)
-            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId)));
+            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId), getUserRolesForResponse(u.getId(), tenantId)));
     }
 
     @Override
@@ -173,14 +199,14 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public Page<UserListResponse> listUsersByBranch(Long tenantId, Long branchId, Pageable pageable) {
         return userRepository.findByTenantIdAndBranchId(tenantId, branchId, pageable)
-            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId)));
+            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId), getUserRolesForResponse(u.getId(), tenantId)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<UserListResponse> listUsersByDepartment(Long tenantId, Long departmentId, Pageable pageable) {
         return userRepository.findByTenantIdAndDepartmentId(tenantId, departmentId, pageable)
-            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId)));
+            .map(u -> userMapper.toListResponse(u, findRoleForUser(u.getId(), tenantId), getUserRolesForResponse(u.getId(), tenantId)));
     }
 
     @Override
@@ -227,27 +253,40 @@ public class UserServiceImpl implements UserService {
 
         User updatedUser = userRepository.save(user);
 
-        // Update role if roleId is provided
-        if (request.roleId() != null) {
-            Role newRole = roleRepository.findByIdAndTenantIdOrGlobalSystem(request.roleId(), tenantId)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found with ID: " + request.roleId()));
-
+        // Update roles if roleIds is provided
+        if (request.roleIds() != null && !request.roleIds().isEmpty()) {
+            // Delete existing roles
             userRoleRepository.deleteByUserIdAndTenantId(userId, tenantId);
 
-            UserRole userRole = UserRole.assign(
-                updatedUser.getId(),
-                newRole.getId(),
-                updatedUser.getTenantId(),
-                "system",
-                Instant.now(),
-                null,
-                true
-            );
-            userRoleRepository.save(userRole);
+            // Assign new roles
+            List<UserRoleResponse> assignedRoles = new ArrayList<>();
+            Role primaryRole = null;
+
+            for (Long roleId : request.roleIds()) {
+                Role role = roleRepository.findByIdAndTenantIdOrGlobalSystem(roleId, tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found with ID: " + roleId));
+                if (primaryRole == null) {
+                    primaryRole = role;
+                }
+                UserRole userRole = UserRole.assign(
+                    updatedUser.getId(),
+                    role.getId(),
+                    updatedUser.getTenantId(),
+                    "system",
+                    Instant.now(),
+                    null,
+                    primaryRole == role
+                );
+                userRoleRepository.save(userRole);
+                assignedRoles.add(userRoleMapper.toResponse(userRole, role));
+            }
+
+            return userMapper.toResponse(updatedUser, primaryRole, assignedRoles);
         }
 
         Role currentRole = findRoleForUser(userId, tenantId);
-        return userMapper.toResponse(updatedUser, currentRole);
+        List<UserRoleResponse> userRoles = getUserRolesForResponse(userId, tenantId);
+        return userMapper.toResponse(updatedUser, currentRole, userRoles);
     }
 
     @Override
@@ -269,7 +308,8 @@ public class UserServiceImpl implements UserService {
         User activatedUser = userRepository.save(user);
 
         Role role = findRoleForUser(activatedUser.getId(), tenantId);
-        return userMapper.toResponse(activatedUser, role);
+        List<UserRoleResponse> userRoles = getUserRolesForResponse(activatedUser.getId(), tenantId);
+        return userMapper.toResponse(activatedUser, role, userRoles);
     }
 
     @Override
@@ -291,7 +331,8 @@ public class UserServiceImpl implements UserService {
         User deactivatedUser = userRepository.save(user);
 
         Role role = findRoleForUser(deactivatedUser.getId(), tenantId);
-        return userMapper.toResponse(deactivatedUser, role);
+        List<UserRoleResponse> userRoles = getUserRolesForResponse(deactivatedUser.getId(), tenantId);
+        return userMapper.toResponse(deactivatedUser, role, userRoles);
     }
 
     @Override
@@ -317,15 +358,33 @@ public class UserServiceImpl implements UserService {
         if (userId == null) {
             return null;
         }
-        List<UserRole> userRoles = userRoleRepository.findActiveByUserIdAndTenantId(
-                userId, tenantId, java.time.LocalDateTime.now());
-        if (userRoles.isEmpty()) {
-            userRoles = userRoleRepository.findByUserIdAndTenantId(userId, tenantId);
-        }
+        List<UserRole> activeUserRoles = userRoleRepository.findActiveByUserIdAndTenantId(
+                userId, tenantId, LocalDateTime.now());
+        List<UserRole> userRoles = activeUserRoles.isEmpty()
+                ? userRoleRepository.findByUserIdAndTenantId(userId, tenantId)
+                : activeUserRoles;
         if (!userRoles.isEmpty()) {
-            Long roleId = userRoles.get(0).getRoleId();
+            // Find primary role first
+            Optional<UserRole> primaryRole = userRoles.stream()
+                    .filter(UserRole::isPrimaryRole)
+                    .findFirst();
+            Long roleId = primaryRole.map(UserRole::getRoleId)
+                    .orElseGet(() -> userRoles.get(0).getRoleId());
             return roleRepository.findByIdAndTenantIdOrGlobalSystem(roleId, tenantId).orElse(null);
         }
         return null;
+    }
+
+    private List<UserRoleResponse> getUserRolesForResponse(Long userId, Long tenantId) {
+        if (userId == null) {
+            return List.of();
+        }
+        List<UserRole> userRoles = userRoleRepository.findByUserIdAndTenantId(userId, tenantId);
+        return userRoles.stream()
+                .map(userRole -> {
+                    Role role = roleRepository.findByIdAndTenantIdOrGlobalSystem(userRole.getRoleId(), tenantId).orElse(null);
+                    return userRoleMapper.toResponse(userRole, role);
+                })
+                .toList();
     }
 }

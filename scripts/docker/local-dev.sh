@@ -61,9 +61,9 @@ WAIT_FOR_HEALTHY=false
 # spurious "Timeout waiting for services to become healthy" on every restart even
 # though the services came up correctly a few minutes later. Override with
 # HEALTH_WAIT_TIMEOUT=600 ./scripts/docker/local-dev.sh restart --wait
-HEALTH_WAIT_TIMEOUT=${HEALTH_WAIT_TIMEOUT:-600}
-SERVICES="postgres gateway identity-service inventory-service"
-COMPOSE_SERVICES="postgres gateway identity-service inventory-service"
+HEALTH_WAIT_TIMEOUT=${HEALTH_WAIT_TIMEOUT:-900}
+SERVICES="postgres gateway identity-service inventory-service sales-service"
+COMPOSE_SERVICES="postgres gateway identity-service inventory-service procurement-service sales-service"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -208,6 +208,7 @@ show_access_urls() {
     echo ""
     echo "  Identity (internal)  http://localhost:8082"
     echo "  Inventory (internal) http://localhost:8083"
+    echo "  Procurement (internal) http://localhost:8084"
     echo "  Tenant (internal)    http://localhost:8081"
     echo ""
 }
@@ -233,7 +234,7 @@ cmd_start() {
     if [ "$SKIP_BUILD" = false ]; then
         log_info "Building application JARs..."
         echo ""
-        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar --no-daemon -x test; then
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar --no-daemon -x test; then
             log_error "Failed to build JARs"
             exit 3
         fi
@@ -315,7 +316,7 @@ cmd_restart() {
     if [ "$SKIP_BUILD" = false ]; then
         log_info "Building application JARs..."
         echo ""
-        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar --no-daemon -x test; then
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar --no-daemon -x test; then
             log_error "Failed to build JARs"
             exit 3
         fi

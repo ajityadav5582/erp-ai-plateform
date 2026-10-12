@@ -34,6 +34,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    /** Header carrying the selected company (legal entity) id. */
+    public static final String HEADER_COMPANY_ID = "X-Company-Id";
+
+    /** Header carrying the selected fiscal year id. */
+    public static final String HEADER_FISCAL_YEAR_ID = "X-Fiscal-Year-Id";
+
+    /** Header carrying the request id. */
+    public static final String HEADER_REQUEST_ID = "X-Request-Id";
+
+    /** Header carrying the correlation id used for tracing. */
+    public static final String HEADER_CORRELATION_ID = "X-Correlation-Id";
+
     private final JwtService jwtService;
 
     @Override
@@ -41,6 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
+
+        // Tracing / client metadata is useful even for unauthenticated calls.
+        RequestContext.setRequestId(request.getHeader(HEADER_REQUEST_ID));
+        RequestContext.setCorrelationId(request.getHeader(HEADER_CORRELATION_ID));
+        RequestContext.setClientIp(request.getRemoteAddr());
+        RequestContext.setUserAgent(request.getHeader("User-Agent"));
 
         final String authHeader = request.getHeader("Authorization");
 
@@ -62,6 +80,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         if (claims.tenantId() != null) {
                             RequestContext.setTenantId(claims.tenantId().toString());
                         }
+
+                        // Company / fiscal year are request-scoped selections rather
+                        // than token claims, so the user can switch them without
+                        // re-authenticating. They are read only from the headers and
+                        // never from the body or query string.
+                        RequestContext.setCompanyId(request.getHeader(HEADER_COMPANY_ID));
+                        RequestContext.setFiscalYearId(request.getHeader(HEADER_FISCAL_YEAR_ID));
 
                         // Create authenticated user
                         AuthenticatedUser authenticatedUser = JwtAuthenticatedUser.from(claims);
@@ -85,6 +110,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
         } finally {
+            // Always clear thread-locals so nothing leaks to the next request
+            // served by this pooled thread.
             TenantContext.clear();
             RequestContext.clear();
         }

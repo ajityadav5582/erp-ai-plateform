@@ -19,6 +19,7 @@ import java.util.List;
  * @param email                  the user's email
  * @param fullName               the user's full name
  * @param roles                  the user's active role codes
+ * @param permissions            the permission codes granted to the user's roles
  *
  * @since 1.0.0
  */
@@ -33,7 +34,8 @@ public record TokenResponse(
         String username,
         String email,
         String fullName,
-        List<String> roles) {
+        List<String> roles,
+        List<String> permissions) {
 
     /**
      * Convenience factory for a Bearer token response.
@@ -48,7 +50,8 @@ public record TokenResponse(
             String username,
             String email,
             String fullName,
-            List<String> roles) {
+            List<String> roles,
+            List<String> permissions) {
         return new TokenResponse(
                 accessToken,
                 refreshToken,
@@ -60,6 +63,7 @@ public record TokenResponse(
                 username,
                 email,
                 fullName,
-                roles);
+                roles,
+                permissions);
     }
 }

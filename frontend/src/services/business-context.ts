@@ -14,7 +14,7 @@ export const ACTIVE_FISCAL_SELECTION_STORAGE_KEY = "erpai.activeFiscalSelection"
 /** The company/fiscal-year pair the user is currently working in. */
 export interface ActiveFiscalSelection {
   companyId: number;
-  fiscalYearId: number;
+  fiscalYearId?: number;
   companyName: string;
   fiscalYearName: string;
 }
@@ -31,11 +31,11 @@ export function readActiveFiscalSelection(): ActiveFiscalSelection | null {
     if (!stored) return null;
 
     const candidate = JSON.parse(stored) as Partial<ActiveFiscalSelection>;
-    if (!candidate.companyId || !candidate.fiscalYearId) return null;
+    if (!candidate.companyId) return null;
 
     return {
       companyId: candidate.companyId,
-      fiscalYearId: candidate.fiscalYearId,
+      fiscalYearId: candidate.fiscalYearId ?? undefined,
       companyName: candidate.companyName || "Selected company",
       fiscalYearName: candidate.fiscalYearName || "Active fiscal year",
     };

@@ -5,6 +5,7 @@ export type BranchStatus = "ACTIVE" | "INACTIVE";
 
 export interface BranchListResponse {
   id: number;
+  companyId: number;
   branchCode: string;
   branchName: string;
   localLevelId: string | null;
@@ -15,6 +16,7 @@ export interface BranchListResponse {
 export interface Branch {
   id: number;
   tenantId: number;
+  companyId: number;
   branchCode: string;
   branchName: string;
   email: string;

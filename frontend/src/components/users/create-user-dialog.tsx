@@ -39,7 +39,7 @@ const createUserSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(50),
   lastName: z.string().min(1, "Last name is required").max(50),
   password: z.string().optional(),
-  roleId: z.coerce.number().optional(),
+  roleIds: z.array(z.coerce.number()).optional(),
   phoneNumber: z.string().optional(),
   branchId: z.coerce.number().optional(),
   departmentId: z.coerce.number().optional(),
@@ -65,7 +65,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
       firstName: "",
       lastName: "",
       password: "",
-      roleId: undefined,
+      roleIds: [],
       phoneNumber: "",
     },
   });
@@ -75,6 +75,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
       const payload = {
         ...values,
         password: values.password && values.password.trim() !== "" ? values.password : "UserPassword123!",
+        roleIds: values.roleIds && values.roleIds.length > 0 ? values.roleIds : undefined,
       };
       const result = await createUser(payload).unwrap();
       toast.success(`User ${result.fullName} created successfully!`, {
@@ -202,24 +203,37 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="roleId"
+                name="roleIds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>User Role</FormLabel>
+                    <FormLabel>User Roles</FormLabel>
                     <FormControl>
-                      <select
-                        disabled={isLoading || isLoadingRoles}
-                        value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="">Select Role...</option>
+                      <div className="max-h-48 overflow-y-auto rounded-md border border-input p-2 space-y-2">
                         {rolesData?.content.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.roleName} ({role.roleCode})
-                          </option>
+                          <label
+                            key={role.id}
+                            className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value?.includes(role.id) ?? false}
+                              onChange={(e) => {
+                                const current = field.value ?? [];
+                                if (e.target.checked) {
+                                  field.onChange([...current, role.id]);
+                                } else {
+                                  field.onChange(current.filter((id) => id !== role.id));
+                                }
+                              }}
+                              disabled={isLoading || isLoadingRoles}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm">
+                              {role.roleName} <span className="text-muted-foreground">({role.roleCode})</span>
+                            </span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

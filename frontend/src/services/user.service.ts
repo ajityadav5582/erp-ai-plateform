@@ -8,6 +8,19 @@ export type UserStatus =
   | "PENDING_ACTIVATION"
   | "ARCHIVED";
 
+export interface UserRoleResponse {
+  id: number;
+  userId: number;
+  roleId: number;
+  roleName: string;
+  roleCode: string;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  expiresAt?: string | null;
+  isPrimaryRole: boolean;
+  active: boolean;
+}
+
 export interface UserListResponse {
   id: number;
   userId: number;
@@ -22,6 +35,7 @@ export interface UserListResponse {
   departmentId?: number | null;
   lastLoginAt?: string | null;
   createdAt?: string | null;
+  roles?: UserRoleResponse[];
 }
 
 export interface User {
@@ -47,6 +61,7 @@ export interface User {
   createdBy?: string | null;
   updatedBy?: string | null;
   version?: number;
+  roles?: UserRoleResponse[];
 }
 
 export interface CreateUserRequest {
@@ -56,7 +71,7 @@ export interface CreateUserRequest {
   lastName: string;
   password?: string;
   phoneNumber?: string;
-  roleId?: number;
+  roleIds?: number[];
   profileImageUrl?: string;
   branchId?: number;
   departmentId?: number;
@@ -67,7 +82,7 @@ export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
-  roleId?: number;
+  roleIds?: number[];
   profileImageUrl?: string;
   branchId?: number;
   departmentId?: number;

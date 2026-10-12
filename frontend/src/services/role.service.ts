@@ -3,6 +3,7 @@ import type { PageResponse } from "@/types/api";
 
 export type RoleType = "SYSTEM" | "CUSTOM";
 export type RoleStatus = "ACTIVE" | "INACTIVE";
+export type DataScope = "ALL" | "OWN_BRANCH" | "OWN_DEPARTMENT" | "SELF_ONLY";
 
 export interface RoleListResponse {
   id: number;
@@ -24,6 +25,7 @@ export interface Role {
   roleType: RoleType;
   isSystemRole: boolean;
   isActive: boolean;
+  dataScope?: DataScope;
   permissionIds?: number[];
 }
 
@@ -31,12 +33,14 @@ export interface CreateRoleRequest {
   roleCode: string;
   roleName: string;
   description?: string;
+  dataScope?: DataScope;
   permissionIds?: number[];
 }
 
 export interface UpdateRoleRequest {
   roleName?: string;
   description?: string;
+  dataScope?: DataScope;
   permissionIds?: number[];
 }
 

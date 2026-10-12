@@ -21,14 +21,48 @@ import {
   type RoleType,
 } from "@/services/role.service";
 import { RoleStatusBadge } from "@/components/roles/role-status-badge";
-import { CreateRoleDialog } from "@/components/roles/create-role-dialog";
-import { EditRoleDialog } from "@/components/roles/edit-role-dialog";
-import { RoleDetailsSheet } from "@/components/roles/role-details-sheet";
-import { DeleteRoleDialog } from "@/components/roles/delete-role-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import dynamic from "next/dynamic";
+import { PermissionGate } from "@/components/auth/permission-gate";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateRoleDialog = dynamic(
+  () =>
+    import("@/components/roles/create-role-dialog").then((mod) => ({
+      default: mod.CreateRoleDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditRoleDialog = dynamic(
+  () =>
+    import("@/components/roles/edit-role-dialog").then((mod) => ({
+      default: mod.EditRoleDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const RoleDetailsSheet = dynamic(
+  () =>
+    import("@/components/roles/role-details-sheet").then((mod) => ({
+      default: mod.RoleDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteRoleDialog = dynamic(
+  () =>
+    import("@/components/roles/delete-role-dialog").then((mod) => ({
+      default: mod.DeleteRoleDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 import {
   Table,
   TableBody,
@@ -93,10 +127,12 @@ export default function RolesPage() {
           </p>
         </div>
 
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 self-start sm:self-auto shadow-sm">
-          <Plus className="size-4" />
-          Add Role
-        </Button>
+        <PermissionGate permission="ROLE_CREATE" fallback={null}>
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 self-start sm:self-auto shadow-sm">
+            <Plus className="size-4" />
+            Add Role
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Filter Toolbar */}
@@ -247,29 +283,35 @@ export default function RolesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="z-[9999] w-48">
-                          <DropdownMenuItem onClick={() => setSelectedRoleIdForDetails(role.id)}>
-                            <Eye className="mr-2 size-4 text-muted-foreground" />
-                            View Details
-                          </DropdownMenuItem>
-
-                          {!role.isSystemRole && (
-                            <DropdownMenuItem onClick={() => setSelectedRoleIdForEdit(role.id)}>
-                              <Pencil className="mr-2 size-4 text-muted-foreground" />
-                              Edit Role
+                          <PermissionGate permission="ROLE_VIEW" fallback={null}>
+                            <DropdownMenuItem onClick={() => setSelectedRoleIdForDetails(role.id)}>
+                              <Eye className="mr-2 size-4 text-muted-foreground" />
+                              View Details
                             </DropdownMenuItem>
-                          )}
+                          </PermissionGate>
+
+                          <PermissionGate permission="ROLE_UPDATE" fallback={null}>
+                            {!role.isSystemRole && (
+                              <DropdownMenuItem onClick={() => setSelectedRoleIdForEdit(role.id)}>
+                                <Pencil className="mr-2 size-4 text-muted-foreground" />
+                                Edit Role
+                              </DropdownMenuItem>
+                            )}
+                          </PermissionGate>
 
                           <DropdownMenuSeparator />
 
-                          {!role.isSystemRole && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setRoleToDelete(role)}
-                            >
-                              <Trash2 className="mr-2 size-4" />
-                              Delete Role
-                            </DropdownMenuItem>
-                          )}
+                          <PermissionGate permission="ROLE_DEACTIVATE" fallback={null}>
+                            {!role.isSystemRole && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setRoleToDelete(role)}
+                              >
+                                <Trash2 className="mr-2 size-4" />
+                                Delete Role
+                              </DropdownMenuItem>
+                            )}
+                          </PermissionGate>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

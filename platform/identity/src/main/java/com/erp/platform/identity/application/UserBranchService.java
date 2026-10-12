@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,6 +54,7 @@ public class UserBranchService {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final CurrentTenantProvider currentTenantProvider;
+    private final CurrentCompanyProvider currentCompanyProvider;
 
     /**
      * Creates a new UserBranchService with the required dependencies.
@@ -60,16 +63,19 @@ public class UserBranchService {
      * @param userRepository the user repository
      * @param branchRepository the branch repository
      * @param currentTenantProvider the current tenant provider
+     * @param currentCompanyProvider the current company provider
      */
     public UserBranchService(
             UserBranchRepository userBranchRepository,
             UserRepository userRepository,
             BranchRepository branchRepository,
-            CurrentTenantProvider currentTenantProvider) {
+            CurrentTenantProvider currentTenantProvider,
+            CurrentCompanyProvider currentCompanyProvider) {
         this.userBranchRepository = userBranchRepository;
         this.userRepository = userRepository;
         this.branchRepository = branchRepository;
         this.currentTenantProvider = currentTenantProvider;
+        this.currentCompanyProvider = currentCompanyProvider;
     }
 
     /**
@@ -98,9 +104,13 @@ public class UserBranchService {
                 .orElseThrow(() -> new UserBranchNotFoundException(
                         "User not found with ID: " + request.userId()));
 
-        // Validate branch exists and belongs to current tenant
-        Branch branch = branchRepository.findById(request.branchId())
-                .filter(b -> b.getTenantId().equals(tenantId))
+        // Validate the branch exists and belongs to the active company. Without the
+        // company predicate a user could be assigned to a branch of a sibling
+        // company owned by the same tenant.
+        Long companyId = currentCompanyProvider.getCurrentCompanyIdOrNull();
+        Branch branch = (companyId != null
+                ? branchRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, request.branchId())
+                : branchRepository.findByTenantIdAndId(tenantId, request.branchId()))
                 .orElseThrow(() -> new UserBranchNotFoundException(
                         "Branch not found with ID: " + request.branchId()));
 
@@ -147,14 +157,8 @@ public class UserBranchService {
     public void removeBranch(Long userBranchId) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
 
-        UserBranch userBranch = userBranchRepository.findById(userBranchId)
+        UserBranch userBranch = userBranchRepository.findByIdAndTenantId(userBranchId, tenantId)
                 .orElseThrow(() -> new UserBranchNotFoundException(userBranchId));
-
-        // Validate tenant isolation
-        if (!userBranch.getTenantId().equals(tenantId)) {
-            throw new UserBranchNotFoundException(
-                    "Access denied: user-branch assignment belongs to a different tenant");
-        }
 
         userBranchRepository.delete(userBranch);
     }
@@ -179,12 +183,14 @@ public class UserBranchService {
         Pageable pageable = PageRequest.of(page, size, DEFAULT_SORT);
         Page<UserBranch> userBranchPage = userBranchRepository.findByTenantIdAndUserId(tenantId, userId, pageable);
 
+        // Resolve the branches in one query instead of one findById per row (N+1),
+        // and without loading branches from other tenants or other companies.
+        Long companyId = currentCompanyProvider.getCurrentCompanyIdOrNull();
+        Map<Long, Branch> branches = loadBranches(tenantId, companyId,
+                userBranchPage.getContent().stream().map(UserBranch::getBranchId).collect(Collectors.toSet()));
+
         List<UserBranchResponse> responses = userBranchPage.getContent().stream()
-                .map(ub -> {
-                    Branch branch = branchRepository.findById(ub.getBranchId())
-                            .orElse(null);
-                    return mapToResponse(ub, user, branch);
-                })
+                .map(ub -> mapToResponse(ub, user, branches.get(ub.getBranchId())))
                 .collect(Collectors.toList());
 
         return new UserBranchListResponse(
@@ -209,21 +215,23 @@ public class UserBranchService {
     public UserBranchListResponse listBranchUsers(Long branchId, int page, int size) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
 
-        // Validate branch exists and belongs to current tenant
-        Branch branch = branchRepository.findById(branchId)
-                .filter(b -> b.getTenantId().equals(tenantId))
+        // Validate the branch exists and belongs to the active company, so the
+        // assignment list cannot be used to enumerate another company's staff.
+        Long companyId = currentCompanyProvider.getCurrentCompanyIdOrNull();
+        Branch branch = (companyId != null
+                ? branchRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, branchId)
+                : branchRepository.findByTenantIdAndId(tenantId, branchId))
                 .orElseThrow(() -> new UserBranchNotFoundException(
                         "Branch not found with ID: " + branchId));
 
         Pageable pageable = PageRequest.of(page, size, DEFAULT_SORT);
         Page<UserBranch> userBranchPage = userBranchRepository.findByTenantIdAndBranchId(tenantId, branchId, pageable);
 
+        Map<Long, User> users = loadUsers(tenantId,
+                userBranchPage.getContent().stream().map(UserBranch::getUserId).collect(Collectors.toSet()));
+
         List<UserBranchResponse> responses = userBranchPage.getContent().stream()
-                .map(ub -> {
-                    User user = userRepository.findById(ub.getUserId())
-                            .orElse(null);
-                    return mapToResponse(ub, user, branch);
-                })
+                .map(ub -> mapToResponse(ub, users.get(ub.getUserId()), branch))
                 .collect(Collectors.toList());
 
         return new UserBranchListResponse(
@@ -234,6 +242,39 @@ public class UserBranchService {
                 userBranchPage.getTotalPages(),
                 userBranchPage.isLast()
         );
+    }
+
+    /**
+     * Loads the given branches for the tenant in a single query.
+     *
+     * @param tenantId the owning tenant
+     * @param companyId the active company, or null to fall back to tenant scope
+     * @param branchIds the branch ids referenced by the page
+     * @return branch id to branch, containing only rows owned by that scope
+     */
+    private Map<Long, Branch> loadBranches(Long tenantId, Long companyId, Set<Long> branchIds) {
+        if (branchIds.isEmpty()) {
+            return Map.of();
+        }
+        return (companyId != null
+                ? branchRepository.findAllByIdInAndTenantIdAndCompanyId(branchIds, tenantId, companyId)
+                : branchRepository.findAllByIdInAndTenantId(branchIds, tenantId)).stream()
+                .collect(Collectors.toMap(Branch::getId, b -> b));
+    }
+
+    /**
+     * Loads the given users for the tenant in a single query.
+     *
+     * @param tenantId the owning tenant
+     * @param userIds the user ids referenced by the page
+     * @return user id to user, containing only rows owned by the tenant
+     */
+    private Map<Long, User> loadUsers(Long tenantId, Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllByIdInAndTenantId(userIds, tenantId).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
     }
 
     /**
