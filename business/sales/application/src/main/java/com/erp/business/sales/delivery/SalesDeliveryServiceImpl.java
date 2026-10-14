@@ -75,6 +75,39 @@ public class SalesDeliveryServiceImpl implements SalesDeliveryService {
     public SalesDeliveryResponse createDelivery(Long tenantId, Long companyId, CreateDeliveryRequest request) {
         SalesOrderResponse order = salesOrderService.getOrderById(tenantId, companyId, request.salesOrderId());
 
+        if (order.status() != com.erp.business.sales.salesorder.domain.SalesOrderStatus.CONFIRMED
+                && order.status() != com.erp.business.sales.salesorder.domain.SalesOrderStatus.PARTIALLY_DELIVERED) {
+            throw new IllegalStateException("Cannot deliver goods against Sales Order " + order.soNumber()
+                    + ": Order is in " + order.status() + " status. Sales orders must be Confirmed before dispatching goods.");
+        }
+
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Delivery must contain at least one line item.");
+        }
+
+        java.util.Map<Integer, com.erp.business.sales.salesorder.dto.SalesOrderLineResponse> orderLinesByNumber =
+                order.lines().stream().collect(java.util.stream.Collectors.toMap(
+                        com.erp.business.sales.salesorder.dto.SalesOrderLineResponse::lineNumber, l -> l));
+
+        for (DeliveryLineRequest lineRequest : request.lines()) {
+            com.erp.business.sales.salesorder.dto.SalesOrderLineResponse orderLine =
+                    orderLinesByNumber.get(lineRequest.salesOrderLineNumber());
+            if (orderLine == null) {
+                throw new IllegalArgumentException("Line " + lineRequest.salesOrderLineNumber()
+                        + " does not exist on Sales Order " + order.soNumber() + ".");
+            }
+            if (lineRequest.quantity() == null || lineRequest.quantity().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Delivery quantity must be greater than zero for item "
+                        + orderLine.itemCode() + " (" + orderLine.itemName() + ").");
+            }
+            if (lineRequest.quantity().compareTo(orderLine.outstandingQuantity()) > 0) {
+                throw new IllegalStateException("Delivery quantity (" + lineRequest.quantity()
+                        + ") exceeds the remaining outstanding quantity (" + orderLine.outstandingQuantity()
+                        + ") for item " + orderLine.itemCode() + " (" + orderLine.itemName()
+                        + ") on Sales Order " + order.soNumber() + ".");
+            }
+        }
+
         String periodKey = context.findFiscalYearId() != null
                 ? "FY" + context.findFiscalYearId() : "CY" + request.deliveryDate().getYear();
         String deliveryNumber = documentNumberService.nextNumber(

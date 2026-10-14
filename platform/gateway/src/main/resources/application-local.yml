@@ -68,6 +68,18 @@ spring:
                 statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
                 methods: GET,POST,PUT,DELETE,PATCH
 
+        # POS Service (localhost:8086) - MUST precede identity catch-all
+        - id: pos-service-local
+          uri: ${POS_SERVICE_URI:http://localhost:8086}
+          predicates:
+            - Path=/api/v1/pos/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
         # Identity Service (localhost:8082) - broad catch-all so every
         # identity endpoint (companies, branches, departments, roles,
         # permissions, users, auth, onboarding, etc.) is reachable.

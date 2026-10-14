@@ -25,6 +25,7 @@ import {
 } from "@/services/sales-order.service";
 import { useGetActiveWarehousesQuery } from "@/services/warehouse.service";
 import { formatQty } from "@/lib/sales-format";
+import { getApiErrorMessage } from "@/services/error-handler";
 
 interface CreateDeliveryDialogProps {
   order?: SalesOrder | null;
@@ -142,6 +143,14 @@ export function CreateDeliveryDialog({
     if (!warehouseId) return setError("Please select a shipping warehouse.");
     if (selectedLinesToShip.length === 0) return setError("Select at least one line with a positive quantity.");
 
+    for (const l of selectedLinesToShip) {
+      if (l.quantity > l.outstandingQuantity) {
+        return setError(
+          `Delivery quantity (${l.quantity}) for item "${l.itemCode} — ${l.itemName}" exceeds remaining outstanding order quantity (${l.outstandingQuantity}).`
+        );
+      }
+    }
+
     const payloadLines: DeliveryLineRequest[] = selectedLinesToShip.map((l) => ({
       salesOrderLineNumber: l.salesOrderLineNumber,
       itemId: l.itemId,
@@ -166,8 +175,7 @@ export function CreateDeliveryDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
-      const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to create delivery";
-      setError(msg);
+      setError(getApiErrorMessage(err));
     }
   };
 

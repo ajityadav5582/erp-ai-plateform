@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,14 +56,18 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<CustomerResponse>> listCustomers(Pageable pageable) {
+    public ResponseEntity<Page<CustomerResponse>> listCustomers(
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerService.listCustomers(
                 context.getTenantId(), context.getCompanyId(), pageable));
     }
 
     @GetMapping("/search")
     public ResponseEntity<Page<CustomerResponse>> searchCustomers(
-            @RequestParam("name") String name, Pageable pageable) {
+            @RequestParam("name") String name,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerService.searchCustomers(
                 context.getTenantId(), context.getCompanyId(), name, pageable));
     }

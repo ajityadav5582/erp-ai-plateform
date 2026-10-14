@@ -57,7 +57,7 @@ public class SalesInvoiceController {
 
     @GetMapping
     public ResponseEntity<Page<SalesInvoiceResponse>> listInvoices(
-            @PageableDefault(size = 20, sort = "invoiceDate", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(salesInvoiceService.listInvoices(
                 context.getTenantId(), context.getCompanyId(), pageable));
@@ -65,21 +65,27 @@ public class SalesInvoiceController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<SalesInvoiceResponse>> searchInvoices(
-            @RequestParam("term") String term, Pageable pageable) {
+            @RequestParam("term") String term,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesInvoiceService.searchInvoices(
                 context.getTenantId(), context.getCompanyId(), term, pageable));
     }
 
     @GetMapping("/by-status")
     public ResponseEntity<Page<SalesInvoiceResponse>> listInvoicesByStatus(
-            @RequestParam("status") SalesInvoiceStatus status, Pageable pageable) {
+            @RequestParam("status") SalesInvoiceStatus status,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesInvoiceService.listInvoicesByStatus(
                 context.getTenantId(), context.getCompanyId(), status, pageable));
     }
 
     @GetMapping("/by-customer")
     public ResponseEntity<Page<SalesInvoiceResponse>> listInvoicesByCustomer(
-            @RequestParam("customerId") Long customerId, Pageable pageable) {
+            @RequestParam("customerId") Long customerId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesInvoiceService.listInvoicesByCustomer(
                 context.getTenantId(), context.getCompanyId(), customerId, pageable));
     }

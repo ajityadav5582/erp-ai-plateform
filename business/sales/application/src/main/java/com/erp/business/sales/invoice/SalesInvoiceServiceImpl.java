@@ -1,6 +1,8 @@
 package com.erp.business.sales.invoice;
 
 import com.erp.business.inventory.interfaces.item.ItemService;
+import com.erp.business.sales.customer.domain.Customer;
+import com.erp.business.sales.customer.infrastructure.persistence.CustomerRepository;
 import com.erp.business.sales.invoice.domain.SalesInvoice;
 import com.erp.business.sales.invoice.domain.SalesInvoiceLine;
 import com.erp.business.sales.invoice.domain.SalesInvoiceStatus;
@@ -46,6 +48,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     private final SalesInvoiceRepository invoiceRepository;
     private final SalesOrderService salesOrderService;
     private final ItemService itemService;
+    private final CustomerRepository customerRepository;
     private final SalesInvoiceMapper invoiceMapper;
     private final TaxInvoiceMapper taxInvoiceMapper;
     private final DocumentNumberService documentNumberService;
@@ -54,6 +57,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     public SalesInvoiceServiceImpl(SalesInvoiceRepository invoiceRepository,
                                    SalesOrderService salesOrderService,
                                    ItemService itemService,
+                                   CustomerRepository customerRepository,
                                    SalesInvoiceMapper invoiceMapper,
                                    TaxInvoiceMapper taxInvoiceMapper,
                                    DocumentNumberService documentNumberService,
@@ -61,6 +65,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         this.invoiceRepository = invoiceRepository;
         this.salesOrderService = salesOrderService;
         this.itemService = itemService;
+        this.customerRepository = customerRepository;
         this.invoiceMapper = invoiceMapper;
         this.taxInvoiceMapper = taxInvoiceMapper;
         this.documentNumberService = documentNumberService;
@@ -71,6 +76,25 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_CREATE)
     public SalesInvoiceResponse createInvoice(Long tenantId, Long companyId, CreateInvoiceRequest request) {
         SalesOrderResponse order = salesOrderService.getOrderById(tenantId, companyId, request.salesOrderId());
+
+        if (order.status() == com.erp.business.sales.salesorder.domain.SalesOrderStatus.DRAFT
+                || order.status() == com.erp.business.sales.salesorder.domain.SalesOrderStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot create Tax Invoice for Sales Order " + order.soNumber()
+                    + ": Order is in " + order.status() + " status. Sales orders must be Confirmed or Delivered before invoicing.");
+        }
+
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Tax Invoice must contain at least one line item.");
+        }
+
+        for (InvoiceLineRequest lineRequest : request.lines()) {
+            if (lineRequest.quantity() == null || lineRequest.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Invoice line quantity must be greater than zero.");
+            }
+            if (lineRequest.unitPrice() != null && lineRequest.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Unit price must not be negative.");
+            }
+        }
 
         String periodKey = context.findFiscalYearId() != null
                 ? "FY" + context.findFiscalYearId() : "CY" + request.invoiceDate().getYear();
@@ -121,7 +145,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_VIEW)
     public SalesInvoiceResponse getInvoiceByOrder(Long tenantId, Long companyId, Long salesOrderId) {
         SalesInvoice invoice = invoiceRepository
-                .findByTenantIdAndCompanyIdAndSalesOrderId(tenantId, companyId, salesOrderId)
+                .findFirstByTenantIdAndCompanyIdAndSalesOrderIdOrderByInvoiceDateDesc(tenantId, companyId, salesOrderId)
                 .orElseThrow(() -> new SalesInvoiceNotFoundException(
                         "Sales invoice not found for order: " + salesOrderId));
         return invoiceMapper.toResponse(invoice);
@@ -166,7 +190,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_VIEW)
     public List<SalesInvoiceResponse> listOutstandingInvoices(Long tenantId, Long companyId) {
         return invoiceRepository
-                .findByTenantIdAndCompanyIdAndStatusInAndBalanceAmountGreaterThan(
+                .findByTenantIdAndCompanyIdAndStatusInAndBalanceAmountGreaterThanOrderByIdDesc(
                         tenantId, companyId,
                         List.of(SalesInvoiceStatus.ISSUED, SalesInvoiceStatus.PARTIALLY_PAID),
                         BigDecimal.ZERO)
@@ -184,6 +208,16 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_ISSUE)
     public SalesInvoiceResponse issueInvoice(Long tenantId, Long companyId, Long id) {
         SalesInvoice invoice = loadInvoice(tenantId, companyId, id);
+
+        if (invoice.getStatus() != SalesInvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Invoice " + invoice.getInvoiceNumber()
+                    + " cannot be issued because it is already in " + invoice.getStatus() + " status.");
+        }
+        if (invoice.getLines() == null || invoice.getLines().isEmpty()) {
+            throw new IllegalStateException("Cannot issue Tax Invoice " + invoice.getInvoiceNumber()
+                    + ": Invoice has no line items.");
+        }
+
         invoice.issue(currentUser());
         return invoiceMapper.toResponse(invoiceRepository.save(invoice));
     }
@@ -193,6 +227,19 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     public SalesInvoiceResponse cancelInvoice(Long tenantId, Long companyId, Long id,
                                               InvoiceDecisionRequest request) {
         SalesInvoice invoice = loadInvoice(tenantId, companyId, id);
+
+        if (invoice.getStatus() == SalesInvoiceStatus.CANCELLED) {
+            throw new IllegalStateException("Invoice " + invoice.getInvoiceNumber() + " is already cancelled.");
+        }
+        if (invoice.getPaidAmount() != null && invoice.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Cannot cancel Tax Invoice " + invoice.getInvoiceNumber()
+                    + ": Payments totaling NPR " + invoice.getPaidAmount()
+                    + " have already been received. Under Nepal IRD regulations, please issue a Sales Return / Credit Note (अनुसूची ७) to refund the customer instead.");
+        }
+        if (request == null || request.reason() == null || request.reason().isBlank()) {
+            throw new IllegalArgumentException("A cancellation reason is required to cancel Invoice " + invoice.getInvoiceNumber() + ".");
+        }
+
         invoice.cancel(currentUser(), request.reason());
         return invoiceMapper.toResponse(invoiceRepository.save(invoice));
     }
@@ -218,10 +265,11 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_VIEW)
     public TaxInvoiceView getTaxInvoiceView(Long tenantId, Long companyId, Long id) {
         SalesInvoice invoice = loadInvoice(tenantId, companyId, id);
-        // Seller identity comes from the issuing company's IRD profile, which this
-        // service does not own; it is supplied here as empty until the company
-        // profile is wired in, so the view and QR stay well-formed.
-        return taxInvoiceMapper.toView(invoice, null, null, null, null);
+        String buyerAddress = customerRepository
+                .findByTenantIdAndCompanyIdAndId(tenantId, companyId, invoice.getCustomerId())
+                .map(Customer::getAddress)
+                .orElse(null);
+        return taxInvoiceMapper.toView(invoice, null, null, null, buyerAddress);
     }
 
     // -----------------------------------------------------------------------

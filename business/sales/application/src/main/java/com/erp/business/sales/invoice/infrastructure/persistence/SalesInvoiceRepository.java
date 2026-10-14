@@ -24,7 +24,10 @@ public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, Long
     Optional<SalesInvoice> findByTenantIdAndCompanyIdAndInvoiceNumber(
             Long tenantId, Long companyId, String invoiceNumber);
 
-    Optional<SalesInvoice> findByTenantIdAndCompanyIdAndSalesOrderId(
+    List<SalesInvoice> findByTenantIdAndCompanyIdAndSalesOrderId(
+            Long tenantId, Long companyId, Long salesOrderId);
+
+    Optional<SalesInvoice> findFirstByTenantIdAndCompanyIdAndSalesOrderIdOrderByInvoiceDateDesc(
             Long tenantId, Long companyId, Long salesOrderId);
 
     Page<SalesInvoice> findByTenantIdAndCompanyId(Long tenantId, Long companyId, Pageable pageable);
@@ -36,7 +39,7 @@ public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, Long
                                                                 Long customerId, Pageable pageable);
 
     /** Invoices still owing money, for the receivables ageing / collection view. */
-    List<SalesInvoice> findByTenantIdAndCompanyIdAndStatusInAndBalanceAmountGreaterThan(
+    List<SalesInvoice> findByTenantIdAndCompanyIdAndStatusInAndBalanceAmountGreaterThanOrderByIdDesc(
             Long tenantId, Long companyId, List<SalesInvoiceStatus> statuses,
             java.math.BigDecimal balanceThreshold);
 
@@ -65,4 +68,8 @@ public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, Long
                          @Param("statuses") List<SalesInvoiceStatus> statuses,
                          @Param("from") java.time.LocalDate from,
                          @Param("to") java.time.LocalDate to);
+
+    List<SalesInvoice> findByTenantIdAndCompanyIdAndCbmsSyncedFalse(Long tenantId, Long companyId);
+
+    List<SalesInvoice> findByCbmsSyncedFalseAndStatusIn(List<SalesInvoiceStatus> statuses);
 }

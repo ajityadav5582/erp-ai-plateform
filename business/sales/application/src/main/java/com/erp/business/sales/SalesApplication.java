@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.erp.platform.data.audit.AuditingConfig;
 import com.erp.platform.security.aspect.PermissionAspect;
@@ -43,6 +44,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
  * @since 1.0.0
  */
 @SpringBootApplication
+@EnableScheduling
 @ComponentScan(basePackages = {
         "com.erp.business.sales",
         "com.erp.business.sales.interfaces.rest"
@@ -51,6 +53,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @EntityScan(basePackages = {
         "com.erp.business.sales.customer.domain",
         "com.erp.business.sales.salesorder.domain",
+        "com.erp.business.sales.quotation.domain",
         "com.erp.business.sales.delivery.domain",
         "com.erp.business.sales.invoice.domain",
         "com.erp.business.sales.receipt.domain",
@@ -60,6 +63,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @EnableJpaRepositories(basePackages = {
         "com.erp.business.sales.customer.infrastructure.persistence",
         "com.erp.business.sales.salesorder.infrastructure.persistence",
+        "com.erp.business.sales.quotation.infrastructure.persistence",
         "com.erp.business.sales.delivery.infrastructure.persistence",
         "com.erp.business.sales.invoice.infrastructure.persistence",
         "com.erp.business.sales.receipt.infrastructure.persistence",

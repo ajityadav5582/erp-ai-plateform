@@ -90,6 +90,18 @@ export const customerApi = api.injectEndpoints({
       ],
     }),
 
+    searchCustomers: build.query<
+      PageResponse<Customer>,
+      { name: string; page?: number; size?: number }
+    >({
+      query: ({ name, page = 0, size = 20 }) => ({
+        url: `${BASE_URL}/search`,
+        method: "GET",
+        params: { name, page, size },
+      }),
+      providesTags: ["Customer"],
+    }),
+
     getActiveCustomers: build.query<Customer[], void>({
       query: () => ({ url: `${BASE_URL}/active`, method: "GET" }),
       providesTags: ["Customer"],
@@ -132,6 +144,7 @@ export const customerApi = api.injectEndpoints({
 
 export const {
   useGetCustomersQuery,
+  useSearchCustomersQuery,
   useGetActiveCustomersQuery,
   useGetCustomerQuery,
   useCreateCustomerMutation,

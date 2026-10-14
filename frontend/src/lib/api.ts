@@ -12,13 +12,16 @@ import type { ApiError } from "@/services/api";
  * Extracts a user-friendly error message from an API error.
  */
 export function getApiErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "error" in error) {
-    const apiError = error as ApiError;
-    if (apiError.data && typeof apiError.data === "object" && "message" in apiError.data) {
-      return (apiError.data as { message: string }).message;
+  if (error && typeof error === "object") {
+    const err = error as { data?: { message?: string; code?: string }; error?: string; message?: string };
+    if (typeof err.data?.message === "string" && err.data.message.trim().length > 0) {
+      return err.data.message;
     }
-    if (apiError.error) {
-      return apiError.error;
+    if (err.error) {
+      return err.error;
+    }
+    if (err.message) {
+      return err.message;
     }
   }
 

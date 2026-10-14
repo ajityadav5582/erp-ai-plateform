@@ -36,6 +36,7 @@ import {
 import { useGetCompaniesQuery, useGetCompanyFiscalYearsQuery } from "@/services/company.service";
 import { useGetProcurementMenuQuery, getProcurementIcon } from "@/services/procurement-menu.service";
 import { useGetSalesMenuQuery, getSalesIcon } from "@/services/sales-menu.service";
+import { useGetPosMenuQuery, getPosIcon } from "@/services/pos-menu.service";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 
@@ -280,6 +281,22 @@ const navigation: NavItem[] = [
     children: [], // Will be populated dynamically from backend
   },
   {
+    title: "POS",
+    requiredPermission: "POS_SCAN",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+        <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+        <path d="M7 8h10" />
+        <path d="M7 12h10" />
+        <path d="M7 16h6" />
+      </svg>
+    ),
+    children: [], // Will be populated dynamically from backend
+  },
+  {
     title: "Reports",
     href: "/reports",
     requiredPermission: "REPORTING_VIEW",
@@ -364,6 +381,7 @@ const AppSidebar = React.memo(function AppSidebar({
   const pathname = usePathname();
   const { data: procurementMenu } = useGetProcurementMenuQuery(undefined, { skip: !selection });
   const { data: salesMenu } = useGetSalesMenuQuery(undefined, { skip: !selection });
+  const { data: posMenu } = useGetPosMenuQuery(undefined, { skip: !selection });
   const userPermissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
 
   // Check if user has a specific permission
@@ -414,9 +432,20 @@ const AppSidebar = React.memo(function AppSidebar({
           })),
         };
       }
+      if (item.title === "POS" && posMenu?.items) {
+        return {
+          ...item,
+          children: posMenu.items.map((menuItem) => ({
+            title: menuItem.title,
+            href: menuItem.href,
+            icon: getPosIcon(menuItem.icon),
+            requiredPermission: menuItem.permission,
+          })),
+        };
+      }
       return item;
     });
-  }, [filteredNavigation, procurementMenu, salesMenu]);
+  }, [filteredNavigation, procurementMenu, salesMenu, posMenu]);
 
   return (
     <Sidebar collapsible="icon" variant="inset">

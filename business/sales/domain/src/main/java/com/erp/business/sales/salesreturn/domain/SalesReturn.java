@@ -163,6 +163,21 @@ public class SalesReturn extends TenantScopedEntity<Long> {
     @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 
+    // ---- IRD CBMS Sync Fields ----
+    @Column(name = "cbms_synced", nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private Boolean cbmsSynced = false;
+
+    @Column(name = "cbms_sync_time")
+    private Instant cbmsSyncTime;
+
+    @Column(name = "cbms_response", length = 500)
+    private String cbmsResponse;
+
+    @Column(name = "cbms_retry_count", nullable = false, columnDefinition = "integer default 0")
+    @Builder.Default
+    private Integer cbmsRetryCount = 0;
+
     @OneToMany(mappedBy = "salesReturn", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
     @OrderBy("lineNumber ASC")
@@ -263,6 +278,18 @@ public class SalesReturn extends TenantScopedEntity<Long> {
         this.cancelledAt = Instant.now();
         this.cancelledBy = actor;
         this.cancellationReason = reason;
+    }
+
+    public void markCbmsSynced(String response) {
+        this.cbmsSynced = true;
+        this.cbmsSyncTime = Instant.now();
+        this.cbmsResponse = response != null && response.length() > 500 ? response.substring(0, 500) : response;
+    }
+
+    public void recordCbmsSyncFailure(String error) {
+        this.cbmsSynced = false;
+        this.cbmsRetryCount = (this.cbmsRetryCount != null ? this.cbmsRetryCount : 0) + 1;
+        this.cbmsResponse = error != null && error.length() > 500 ? error.substring(0, 500) : error;
     }
 
     private void requireDraft(String action) {

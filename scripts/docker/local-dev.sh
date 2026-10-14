@@ -62,8 +62,8 @@ WAIT_FOR_HEALTHY=false
 # though the services came up correctly a few minutes later. Override with
 # HEALTH_WAIT_TIMEOUT=600 ./scripts/docker/local-dev.sh restart --wait
 HEALTH_WAIT_TIMEOUT=${HEALTH_WAIT_TIMEOUT:-900}
-SERVICES="postgres gateway identity-service inventory-service sales-service"
-COMPOSE_SERVICES="postgres gateway identity-service inventory-service procurement-service sales-service"
+SERVICES="postgres gateway identity-service inventory-service procurement-service sales-service pos-service"
+COMPOSE_SERVICES="postgres gateway identity-service inventory-service procurement-service sales-service pos-service"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -234,7 +234,7 @@ cmd_start() {
     if [ "$SKIP_BUILD" = false ]; then
         log_info "Building application JARs..."
         echo ""
-        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar --no-daemon -x test; then
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar :business:pos:application:bootJar --no-daemon -x test; then
             log_error "Failed to build JARs"
             exit 3
         fi
@@ -316,7 +316,7 @@ cmd_restart() {
     if [ "$SKIP_BUILD" = false ]; then
         log_info "Building application JARs..."
         echo ""
-        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar --no-daemon -x test; then
+        if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar :business:pos:application:bootJar --no-daemon -x test; then
             log_error "Failed to build JARs"
             exit 3
         fi
@@ -428,6 +428,33 @@ cmd_health_check() {
         log_success "Inventory Service is healthy"
     else
         log_error "Inventory Service is not healthy"
+        all_healthy=false
+    fi
+
+    # Check Procurement Service
+    log_info "Checking Procurement Service..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps procurement-service | grep -q "healthy\|running"; then
+        log_success "Procurement Service is healthy"
+    else
+        log_error "Procurement Service is not healthy"
+        all_healthy=false
+    fi
+
+    # Check Sales Service
+    log_info "Checking Sales Service..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps sales-service | grep -q "healthy\|running"; then
+        log_success "Sales Service is healthy"
+    else
+        log_error "Sales Service is not healthy"
+        all_healthy=false
+    fi
+
+    # Check POS Service
+    log_info "Checking POS Service..."
+    if docker compose $COMPOSE_FILES $VERBOSE ps pos-service | grep -q "healthy\|running"; then
+        log_success "POS Service is healthy"
+    else
+        log_error "POS Service is not healthy"
         all_healthy=false
     fi
 

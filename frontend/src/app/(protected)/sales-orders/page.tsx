@@ -11,6 +11,8 @@ import {
   type SalesOrder,
 } from "@/services/sales-order.service";
 import { useGetInvoicedOrderIdsQuery } from "@/services/sales-invoice.service";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/error-handler";
 import { ListPageHeader } from "@/components/common/list-page-header";
 import { ListPagination } from "@/components/common/list-pagination";
 import { SalesOrderStatusBadge } from "@/components/sales/sales-status-badge";
@@ -25,7 +27,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { TableSkeletonRows, TableEmptyRow } from "@/components/common/table-state";
 
@@ -39,11 +41,41 @@ export default function SalesOrdersPage() {
   const [invoiceOrder, setInvoiceOrder] = React.useState<SalesOrder | null>(null);
   const [selected, setSelected] = React.useState<SalesOrder | null>(null);
 
-  const { data, isLoading, isFetching } = useGetSalesOrdersQuery({ page, size: 20 });
+  const { data, isLoading, isFetching } = useGetSalesOrdersQuery({ page, size: 20, sort: "createdAt,desc" });
   const { data: invoicedOrderIds } = useGetInvoicedOrderIdsQuery();
   const [confirm] = useConfirmSalesOrderMutation();
   const [cancel] = useCancelSalesOrderMutation();
   const [close] = useCloseSalesOrderMutation();
+
+  const handleConfirmOrder = async (id: number) => {
+    try {
+      await confirm(id).unwrap();
+      toast.success("Sales order confirmed successfully");
+      if (selected?.id === id) setSelected(null);
+    } catch (err) {
+      toast.error("Cannot confirm sales order", { description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleCancelOrder = async (id: number) => {
+    try {
+      await cancel({ id, data: { reason: "Cancelled by user" } }).unwrap();
+      toast.success("Sales order cancelled");
+      if (selected?.id === id) setSelected(null);
+    } catch (err) {
+      toast.error("Cannot cancel sales order", { description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleCloseOrder = async (id: number) => {
+    try {
+      await close(id).unwrap();
+      toast.success("Sales order closed");
+      if (selected?.id === id) setSelected(null);
+    } catch (err) {
+      toast.error("Cannot close sales order", { description: getApiErrorMessage(err) });
+    }
+  };
 
   const invoicedSet = React.useMemo(() => new Set(invoicedOrderIds ?? []), [invoicedOrderIds]);
 
@@ -110,7 +142,9 @@ export default function SalesOrdersPage() {
                           <DropdownMenuItem onClick={() => setEditOrder(o)}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                         )}
                         {o.status === "DRAFT" && (
-                          <DropdownMenuItem onClick={() => confirm(o.id)}><Check className="mr-2 h-4 w-4" />Confirm</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleConfirmOrder(o.id)}>
+                            <Check className="mr-2 h-4 w-4 text-emerald-600" />Confirm
+                          </DropdownMenuItem>
                         )}
                         {(o.status === "CONFIRMED" || o.status === "PARTIALLY_DELIVERED") && (
                           <>
@@ -127,10 +161,14 @@ export default function SalesOrdersPage() {
                           </>
                         )}
                         {(o.status === "DRAFT" || o.status === "CONFIRMED") && (
-                          <DropdownMenuItem onClick={() => cancel({ id: o.id, data: { reason: "Cancelled" } })}><X className="mr-2 h-4 w-4" />Cancel</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCancelOrder(o.id)}>
+                            <X className="mr-2 h-4 w-4 text-red-600" />Cancel
+                          </DropdownMenuItem>
                         )}
                         {(o.status === "DELIVERED" || o.status === "CONFIRMED") && (
-                          <DropdownMenuItem onClick={() => close(o.id)}><Lock className="mr-2 h-4 w-4" />Close</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCloseOrder(o.id)}>
+                            <Lock className="mr-2 h-4 w-4" />Close
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -168,7 +206,8 @@ export default function SalesOrdersPage() {
         open={!!selected}
         onOpenChange={(o) => !o && setSelected(null)}
         title={selected ? `Order ${selected.soNumber}` : ""}
-        subtitle="Sales order details"
+        subtitle={selected ? `${selected.customerName} (${selected.customerCode})` : "Sales order details"}
+        badge={selected ? <SalesOrderStatusBadge status={selected.status} /> : null}
         fields={fields}
         lines={selected ? {
           headers: ["#", "Item", "Qty", "Price", "Amount"],
@@ -177,6 +216,54 @@ export default function SalesOrdersPage() {
             cells: [l.lineNumber, `${l.itemCode} — ${l.itemName}`, formatQty(l.quantity), formatMoney(l.unitPrice, selected.currency), formatMoney(l.lineAmount, selected.currency)],
           })),
         } : undefined}
+        actions={
+          selected ? (
+            <div className="flex w-full items-center justify-between gap-2">
+              {(selected.status === "DRAFT" || selected.status === "CONFIRMED") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => handleCancelOrder(selected.id)}
+                >
+                  <X className="mr-1.5 h-3.5 w-3.5" />Cancel Order
+                </Button>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                {selected.status === "DRAFT" && (
+                  <Button size="sm" onClick={() => handleConfirmOrder(selected.id)}>
+                    <Check className="mr-1.5 h-3.5 w-3.5" />Confirm Order
+                  </Button>
+                )}
+                {(selected.status === "CONFIRMED" || selected.status === "PARTIALLY_DELIVERED") && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDeliveryOrder(selected);
+                        setSelected(null);
+                      }}
+                    >
+                      <Truck className="mr-1.5 h-3.5 w-3.5" />Deliver Goods
+                    </Button>
+                    {!invoicedSet.has(selected.id) && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setInvoiceOrder(selected);
+                          setSelected(null);
+                        }}
+                      >
+                        <Receipt className="mr-1.5 h-3.5 w-3.5" />Create Invoice
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : undefined
+        }
       />
     </div>
   );

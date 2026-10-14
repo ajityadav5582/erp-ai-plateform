@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: pos-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-erpai_platform}
+    username: ${DB_USERNAME:-${POSTGRES_USER:-erpai}}
+    password: ${DB_PASSWORD:-${POSTGRES_PASSWORD:-erpai_dev_password}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    generate-ddl: ${SPRING_JPA_GENERATE_DDL:true}
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: false
+
+server:
+  port: ${SERVER_PORT:8086}
+
+# Platform security (libraries:common-security). The signing secret/issuer MUST
+# match platform/identity's auth.jwt values or access tokens fail validation.
+erp:
+  security:
+    jwt:
+      enabled: true
+      secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
+      issuer: ${JWT_ISSUER:erp-ai-platform-identity}
+
+# Nepal IRD CBMS real-time reporting. Disabled by default: pushes are
+# simulated as successful so the outbox flow can be exercised without IRD
+# credentials. Enable with real credentials in production.
+ird:
+  cbms:
+    url: ${IRD_CBMS_URL:https://cbms.ird.gov.np/api}
+    username: ${IRD_CBMS_USERNAME:}
+    password: ${IRD_CBMS_PASSWORD:}
+    enabled: ${IRD_CBMS_ENABLED:false}
+    seller-pan: ${IRD_CBMS_SELLER_PAN:123456789}
+    max-retries: ${IRD_CBMS_MAX_RETRIES:5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

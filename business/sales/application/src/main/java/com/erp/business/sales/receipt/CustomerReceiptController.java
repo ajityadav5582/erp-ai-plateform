@@ -54,7 +54,7 @@ public class CustomerReceiptController {
 
     @GetMapping
     public ResponseEntity<Page<CustomerReceiptResponse>> listReceipts(
-            @PageableDefault(size = 20, sort = "receiptDate", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(customerReceiptService.listReceipts(
                 context.getTenantId(), context.getCompanyId(), pageable));
@@ -62,28 +62,36 @@ public class CustomerReceiptController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<CustomerReceiptResponse>> searchReceipts(
-            @RequestParam("term") String term, Pageable pageable) {
+            @RequestParam("term") String term,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerReceiptService.searchReceipts(
                 context.getTenantId(), context.getCompanyId(), term, pageable));
     }
 
     @GetMapping("/by-status")
     public ResponseEntity<Page<CustomerReceiptResponse>> listReceiptsByStatus(
-            @RequestParam("status") ReceiptStatus status, Pageable pageable) {
+            @RequestParam("status") ReceiptStatus status,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerReceiptService.listReceiptsByStatus(
                 context.getTenantId(), context.getCompanyId(), status, pageable));
     }
 
     @GetMapping("/by-invoice")
     public ResponseEntity<Page<CustomerReceiptResponse>> listReceiptsByInvoice(
-            @RequestParam("invoiceId") Long invoiceId, Pageable pageable) {
+            @RequestParam("invoiceId") Long invoiceId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerReceiptService.listReceiptsByInvoice(
                 context.getTenantId(), context.getCompanyId(), invoiceId, pageable));
     }
 
     @GetMapping("/by-customer")
     public ResponseEntity<Page<CustomerReceiptResponse>> listReceiptsByCustomer(
-            @RequestParam("customerId") Long customerId, Pageable pageable) {
+            @RequestParam("customerId") Long customerId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(customerReceiptService.listReceiptsByCustomer(
                 context.getTenantId(), context.getCompanyId(), customerId, pageable));
     }

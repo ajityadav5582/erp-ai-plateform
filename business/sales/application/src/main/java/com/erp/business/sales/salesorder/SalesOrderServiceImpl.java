@@ -72,6 +72,24 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Customer not found with ID: " + request.customerId()));
 
+        if (Boolean.FALSE.equals(customer.getIsActive())) {
+            throw new IllegalStateException("Customer '" + customer.getName() + " (" + customer.getCode()
+                    + ")' is inactive. Cannot create sales orders for an inactive customer.");
+        }
+
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Sales order must contain at least one line item.");
+        }
+
+        for (SalesOrderLineRequest lineReq : request.lines()) {
+            if (lineReq.quantity() == null || lineReq.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Line quantity must be greater than zero.");
+            }
+            if (lineReq.unitPrice() != null && lineReq.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Unit price must not be negative.");
+            }
+        }
+
         String periodKey = resolvePeriodKey(request.orderDate());
         String soNumber = documentNumberService.nextNumber(
                 tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
@@ -100,10 +118,33 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     public SalesOrderResponse updateOrder(Long tenantId, Long companyId, Long id, UpdateSalesOrderRequest request) {
         SalesOrder order = loadOrder(tenantId, companyId, id);
 
+        if (order.getStatus() != SalesOrderStatus.DRAFT) {
+            throw new IllegalStateException("Sales Order " + order.getSoNumber()
+                    + " is in " + order.getStatus() + " status and cannot be modified. Only DRAFT orders can be edited.");
+        }
+
         Customer customer = customerRepository
                 .findByTenantIdAndCompanyIdAndId(tenantId, companyId, request.customerId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Customer not found with ID: " + request.customerId()));
+
+        if (Boolean.FALSE.equals(customer.getIsActive())) {
+            throw new IllegalStateException("Customer '" + customer.getName() + " (" + customer.getCode()
+                    + ")' is inactive. Cannot assign an inactive customer.");
+        }
+
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Sales order must contain at least one line item.");
+        }
+
+        for (SalesOrderLineRequest lineReq : request.lines()) {
+            if (lineReq.quantity() == null || lineReq.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Line quantity must be greater than zero.");
+            }
+            if (lineReq.unitPrice() != null && lineReq.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Unit price must not be negative.");
+            }
+        }
 
         order.updateDraft(
                 request.orderDate(), request.expectedDeliveryDate(),
@@ -179,7 +220,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     @Transactional(readOnly = true)
     @RequiresPermission(SalesOrderPermissions.SALES_ORDER_VIEW)
     public List<SalesOrderResponse> listOpenOrders(Long tenantId, Long companyId) {
-        return orderRepository.findByTenantIdAndCompanyIdAndStatusIn(
+        return orderRepository.findByTenantIdAndCompanyIdAndStatusInOrderByIdDesc(
                         tenantId, companyId,
                         List.of(SalesOrderStatus.CONFIRMED, SalesOrderStatus.PARTIALLY_DELIVERED))
                 .stream().map(orderMapper::toResponse).toList();
@@ -189,6 +230,26 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     @RequiresPermission(SalesOrderPermissions.SALES_ORDER_CONFIRM)
     public SalesOrderResponse confirmOrder(Long tenantId, Long companyId, Long id) {
         SalesOrder order = loadOrder(tenantId, companyId, id);
+
+        if (order.getStatus() != SalesOrderStatus.DRAFT) {
+            throw new IllegalStateException("Sales Order " + order.getSoNumber()
+                    + " cannot be confirmed because it is already in " + order.getStatus() + " status.");
+        }
+
+        Customer customer = customerRepository
+                .findByTenantIdAndCompanyIdAndId(tenantId, companyId, order.getCustomerId())
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + order.getCustomerId()));
+
+        if (Boolean.FALSE.equals(customer.getIsActive())) {
+            throw new IllegalStateException("Cannot confirm Sales Order " + order.getSoNumber()
+                    + ": Customer '" + customer.getName() + " (" + customer.getCode() + ")' is inactive.");
+        }
+
+        if (order.getLines() == null || order.getLines().isEmpty()) {
+            throw new IllegalStateException("Cannot confirm Sales Order " + order.getSoNumber()
+                    + ": The order contains no line items.");
+        }
+
         order.confirm(currentUser());
         return orderMapper.toResponse(orderRepository.save(order));
     }
@@ -198,6 +259,22 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     public SalesOrderResponse cancelOrder(Long tenantId, Long companyId, Long id,
                                           SalesOrderDecisionRequest request) {
         SalesOrder order = loadOrder(tenantId, companyId, id);
+
+        if (order.getStatus() == SalesOrderStatus.CANCELLED) {
+            throw new IllegalStateException("Sales Order " + order.getSoNumber() + " is already cancelled.");
+        }
+        if (order.getStatus() == SalesOrderStatus.CLOSED) {
+            throw new IllegalStateException("Sales Order " + order.getSoNumber() + " is closed and cannot be cancelled.");
+        }
+        if (order.getDeliveredAmount() != null && order.getDeliveredAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Cannot cancel Sales Order " + order.getSoNumber()
+                    + ": Goods have already been delivered (Delivered value: NPR " + order.getDeliveredAmount()
+                    + "). You must cancel the associated delivery first.");
+        }
+        if (request == null || request.reason() == null || request.reason().isBlank()) {
+            throw new IllegalArgumentException("A cancellation reason is required to cancel Sales Order " + order.getSoNumber() + ".");
+        }
+
         order.cancel(currentUser(), request.reason());
         return orderMapper.toResponse(orderRepository.save(order));
     }

@@ -54,7 +54,7 @@ public class SalesDeliveryController {
 
     @GetMapping
     public ResponseEntity<Page<SalesDeliveryResponse>> listDeliveries(
-            @PageableDefault(size = 20, sort = "deliveryDate", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(salesDeliveryService.listDeliveries(
                 context.getTenantId(), context.getCompanyId(), pageable));
@@ -62,21 +62,27 @@ public class SalesDeliveryController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<SalesDeliveryResponse>> searchDeliveries(
-            @RequestParam("term") String term, Pageable pageable) {
+            @RequestParam("term") String term,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesDeliveryService.searchDeliveries(
                 context.getTenantId(), context.getCompanyId(), term, pageable));
     }
 
     @GetMapping("/by-status")
     public ResponseEntity<Page<SalesDeliveryResponse>> listDeliveriesByStatus(
-            @RequestParam("status") DeliveryStatus status, Pageable pageable) {
+            @RequestParam("status") DeliveryStatus status,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesDeliveryService.listDeliveriesByStatus(
                 context.getTenantId(), context.getCompanyId(), status, pageable));
     }
 
     @GetMapping("/by-order")
     public ResponseEntity<Page<SalesDeliveryResponse>> listDeliveriesByOrder(
-            @RequestParam("salesOrderId") Long salesOrderId, Pageable pageable) {
+            @RequestParam("salesOrderId") Long salesOrderId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesDeliveryService.listDeliveriesByOrder(
                 context.getTenantId(), context.getCompanyId(), salesOrderId, pageable));
     }

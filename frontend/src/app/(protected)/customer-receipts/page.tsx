@@ -9,6 +9,8 @@ import {
   type CustomerReceipt,
 } from "@/services/customer-receipt.service";
 import { PAYMENT_METHOD_LABELS } from "@/services/customer-receipt.service";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/error-handler";
 import {
   useGetOutstandingInvoicesQuery,
   type SalesInvoice,
@@ -38,10 +40,24 @@ export default function CustomerReceiptsPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [selectedInvoice, setSelectedInvoice] = React.useState<SalesInvoice | null>(null);
 
-  const { data, isLoading, isFetching } = useGetReceiptsQuery({ page, size: 20 });
+  const { data, isLoading, isFetching } = useGetReceiptsQuery({ page, size: 20, sort: "createdAt,desc" });
   const { data: outstandingInvoices, isLoading: outstandingLoading } =
     useGetOutstandingInvoicesQuery();
   const [cancel] = useCancelReceiptMutation();
+
+  const handleCancelReceipt = async (id: number) => {
+    const reason = window.prompt("Reason for voiding / cancelling this receipt (mandatory):");
+    if (reason === null) return;
+    try {
+      await cancel({ id, data: { reason } }).unwrap();
+      toast.success("Receipt cancelled successfully");
+      setSelected(null);
+    } catch (err) {
+      toast.error("Failed to cancel receipt", {
+        description: getApiErrorMessage(err),
+      });
+    }
+  };
 
   const rows = data?.content ?? [];
   const unpaidInvoices = outstandingInvoices ?? [];
@@ -131,7 +147,7 @@ export default function CustomerReceiptsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setSelected(r)}><Eye className="mr-2 h-4 w-4" />View</DropdownMenuItem>
                             {r.status === "POSTED" && (
-                              <DropdownMenuItem className="text-red-600" onClick={() => cancel({ id: r.id, data: { reason: "Cancelled" } })}><X className="mr-2 h-4 w-4" />Cancel</DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600" onClick={() => handleCancelReceipt(r.id)}><X className="mr-2 h-4 w-4" />Cancel</DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -219,8 +235,21 @@ export default function CustomerReceiptsPage() {
         open={!!selected}
         onOpenChange={(o) => !o && setSelected(null)}
         title={selected ? `Receipt ${selected.receiptNumber}` : ""}
-        subtitle="Customer receipt"
+        subtitle={selected ? `${selected.customerName} (${selected.customerCode})` : "Customer receipt"}
+        badge={selected ? <ReceiptStatusBadge status={selected.status} /> : null}
         fields={fields}
+        actions={
+          selected && selected.status === "POSTED" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-auto"
+              onClick={() => handleCancelReceipt(selected.id)}
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" />Cancel Receipt
+            </Button>
+          ) : undefined
+        }
       />
     </div>
   );

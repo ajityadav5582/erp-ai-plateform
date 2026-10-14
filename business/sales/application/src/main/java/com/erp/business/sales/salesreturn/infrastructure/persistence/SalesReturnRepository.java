@@ -52,4 +52,8 @@ public interface SalesReturnRepository extends JpaRepository<SalesReturn, Long> 
                          @Param("status") ReturnStatus status,
                          @Param("from") java.time.LocalDate from,
                          @Param("to") java.time.LocalDate to);
+
+    java.util.List<SalesReturn> findByTenantIdAndCompanyIdAndCbmsSyncedFalse(Long tenantId, Long companyId);
+
+    java.util.List<SalesReturn> findByCbmsSyncedFalseAndStatus(ReturnStatus status);
 }

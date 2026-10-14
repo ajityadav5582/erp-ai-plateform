@@ -74,6 +74,43 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     public SalesReturnResponse createReturn(Long tenantId, Long companyId, CreateReturnRequest request) {
         SalesInvoiceResponse invoice = salesInvoiceService.getInvoiceById(tenantId, companyId, request.invoiceId());
 
+        if (invoice.status() == com.erp.business.sales.invoice.domain.SalesInvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Cannot process Sales Return: Invoice " + invoice.invoiceNumber()
+                    + " is in DRAFT status. Returns can only be issued against Issued or Paid invoices.");
+        }
+        if (invoice.status() == com.erp.business.sales.invoice.domain.SalesInvoiceStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot process Sales Return: Invoice " + invoice.invoiceNumber()
+                    + " has been CANCELLED.");
+        }
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new IllegalArgumentException("A valid return reason is legally required under Nepal VAT Rule 17(2) to issue a Credit Note.");
+        }
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Sales Return must contain at least one line item.");
+        }
+
+        java.util.Map<Long, java.math.BigDecimal> invoicedQtyByItem = invoice.lines().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.erp.business.sales.invoice.dto.SalesInvoiceLineResponse::itemId,
+                        com.erp.business.sales.invoice.dto.SalesInvoiceLineResponse::quantity,
+                        java.math.BigDecimal::add));
+
+        for (ReturnLineRequest lineRequest : request.lines()) {
+            if (lineRequest.quantity() == null || lineRequest.quantity().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Return quantity must be greater than zero.");
+            }
+            java.math.BigDecimal invoicedQty = invoicedQtyByItem.get(lineRequest.itemId());
+            if (invoicedQty == null) {
+                throw new IllegalArgumentException("Item ID " + lineRequest.itemId()
+                        + " does not exist on original Invoice " + invoice.invoiceNumber() + ".");
+            }
+            if (lineRequest.quantity().compareTo(invoicedQty) > 0) {
+                throw new IllegalStateException("Return quantity (" + lineRequest.quantity()
+                        + ") exceeds the invoiced quantity (" + invoicedQty
+                        + ") on Invoice " + invoice.invoiceNumber() + ".");
+            }
+        }
+
         String periodKey = context.findFiscalYearId() != null
                 ? "FY" + context.findFiscalYearId() : "CY" + request.returnDate().getYear();
         String creditNoteNumber = documentNumberService.nextNumber(

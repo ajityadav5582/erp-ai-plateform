@@ -97,15 +97,15 @@ export function getApiErrorMessage(error: unknown): string {
       message?: string;
     };
 
-    // Try backend error code first
+    // 1. Always prioritize specific backend error message when present
+    if (typeof err.data?.message === "string" && err.data.message.trim().length > 0) {
+      return err.data.message;
+    }
+
+    // 2. Fall back to backend error code mapping
     const errorCode = err.data?.code;
     if (errorCode && ERROR_CODE_MESSAGES[errorCode]) {
       return ERROR_CODE_MESSAGES[errorCode];
-    }
-
-    // Try backend error message
-    if (err.data?.message) {
-      return err.data.message;
     }
 
     // Try HTTP status code

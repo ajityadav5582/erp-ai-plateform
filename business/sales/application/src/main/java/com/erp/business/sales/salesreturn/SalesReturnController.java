@@ -54,7 +54,7 @@ public class SalesReturnController {
 
     @GetMapping
     public ResponseEntity<Page<SalesReturnResponse>> listReturns(
-            @PageableDefault(size = 20, sort = "returnDate", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(salesReturnService.listReturns(
                 context.getTenantId(), context.getCompanyId(), pageable));
@@ -62,21 +62,27 @@ public class SalesReturnController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<SalesReturnResponse>> searchReturns(
-            @RequestParam("term") String term, Pageable pageable) {
+            @RequestParam("term") String term,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesReturnService.searchReturns(
                 context.getTenantId(), context.getCompanyId(), term, pageable));
     }
 
     @GetMapping("/by-status")
     public ResponseEntity<Page<SalesReturnResponse>> listReturnsByStatus(
-            @RequestParam("status") ReturnStatus status, Pageable pageable) {
+            @RequestParam("status") ReturnStatus status,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesReturnService.listReturnsByStatus(
                 context.getTenantId(), context.getCompanyId(), status, pageable));
     }
 
     @GetMapping("/by-invoice")
     public ResponseEntity<Page<SalesReturnResponse>> listReturnsByInvoice(
-            @RequestParam("invoiceId") Long invoiceId, Pageable pageable) {
+            @RequestParam("invoiceId") Long invoiceId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesReturnService.listReturnsByInvoice(
                 context.getTenantId(), context.getCompanyId(), invoiceId, pageable));
     }

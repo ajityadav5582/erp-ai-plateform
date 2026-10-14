@@ -5,11 +5,14 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, MoreVertical, Eye, Pencil, Trash2, Power } from "lucide-react";
 import {
   useGetCustomersQuery,
+  useSearchCustomersQuery,
   useDeleteCustomerMutation,
   useActivateCustomerMutation,
   useDeactivateCustomerMutation,
   type Customer,
 } from "@/services/customer.service";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/error-handler";
 import { CUSTOMER_TYPE_LABELS } from "@/services/customer.service";
 import { ListPageHeader } from "@/components/common/list-page-header";
 import { ListPagination } from "@/components/common/list-pagination";
@@ -34,10 +37,56 @@ export default function CustomersPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Customer | null>(null);
 
-  const { data, isLoading, isFetching } = useGetCustomersQuery({ page, size: 20 });
+  const trimmed = term.trim();
+  const isSearching = trimmed.length > 0;
+  const { data: pagedData, isLoading: pagedLoading, isFetching: pagedFetching } =
+    useGetCustomersQuery({ page, size: 20, sort: "createdAt,desc" }, { skip: isSearching });
+  const { data: searchData, isLoading: searchLoading, isFetching: searchFetching } =
+    useSearchCustomersQuery({ name: trimmed, page, size: 20 }, { skip: !isSearching });
+
+  const data = isSearching ? searchData : pagedData;
+  const isLoading = isSearching ? searchLoading : pagedLoading;
+  const isFetching = isSearching ? searchFetching : pagedFetching;
   const [remove] = useDeleteCustomerMutation();
   const [activate] = useActivateCustomerMutation();
   const [deactivate] = useDeactivateCustomerMutation();
+
+  const handleActivate = async (id: number) => {
+    try {
+      await activate(id).unwrap();
+      toast.success("Customer activated successfully");
+      setSelected((prev) => (prev && prev.id === id ? { ...prev, isActive: true } : prev));
+    } catch (err) {
+      toast.error("Failed to activate customer", {
+        description: getApiErrorMessage(err),
+      });
+    }
+  };
+
+  const handleDeactivate = async (id: number) => {
+    try {
+      await deactivate(id).unwrap();
+      toast.success("Customer deactivated");
+      setSelected((prev) => (prev && prev.id === id ? { ...prev, isActive: false } : prev));
+    } catch (err) {
+      toast.error("Failed to deactivate customer", {
+        description: getApiErrorMessage(err),
+      });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this customer?")) return;
+    try {
+      await remove(id).unwrap();
+      toast.success("Customer deleted");
+      setSelected(null);
+    } catch (err) {
+      toast.error("Failed to delete customer", {
+        description: getApiErrorMessage(err),
+      });
+    }
+  };
 
   const customers = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
@@ -110,11 +159,11 @@ export default function CustomersPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setSelected(c)}><Eye className="mr-2 h-4 w-4" />View</DropdownMenuItem>
                         {c.isActive ? (
-                          <DropdownMenuItem onClick={() => deactivate(c.id)}><Power className="mr-2 h-4 w-4" />Deactivate</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeactivate(c.id)}><Power className="mr-2 h-4 w-4" />Deactivate</DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onClick={() => activate(c.id)}><Power className="mr-2 h-4 w-4" />Activate</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleActivate(c.id)}><Power className="mr-2 h-4 w-4" />Activate</DropdownMenuItem>
                         )}
-                        <DropdownMenuItem className="text-red-600" onClick={() => remove(c.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(c.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -138,8 +187,31 @@ export default function CustomersPage() {
         open={!!selected}
         onOpenChange={(o) => !o && setSelected(null)}
         title={selected?.name ?? ""}
-        subtitle="Customer details"
+        subtitle={selected ? `${selected.code} · ${CUSTOMER_TYPE_LABELS[selected.type]}` : "Customer details"}
+        badge={selected ? <ActiveBadge active={selected.isActive} /> : null}
         fields={fields}
+        actions={
+          selected ? (
+            <div className="flex items-center gap-2 ml-auto">
+              {selected.isActive ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeactivate(selected.id)}
+                >
+                  <Power className="mr-1.5 h-3.5 w-3.5" />Deactivate
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => handleActivate(selected.id)}
+                >
+                  <Power className="mr-1.5 h-3.5 w-3.5" />Activate
+                </Button>
+              )}
+            </div>
+          ) : undefined
+        }
       />
     </div>
   );

@@ -3,6 +3,7 @@ package com.erp.business.inventory.interfaces.item;
 import com.erp.platform.common.dto.PageRequest;
 import com.erp.platform.common.dto.PageResponse;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -93,6 +94,12 @@ public interface ItemService {
         // Stock information (optional, for modules that need it)
         default Long getAvailableStock() { return null; }
         default Long getReservedStock() { return null; }
+
+        // Pricing (optional). Defaulted to null so existing adapters that do not
+        // carry price keep compiling; consumers such as POS read these to resolve
+        // a selling price without coupling to Inventory internals.
+        default BigDecimal getSellingPrice() { return null; }
+        default BigDecimal getVatRate() { return null; }
     }
 
     /**

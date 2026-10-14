@@ -4,6 +4,10 @@ import { StatusBadge } from "@/components/common/status-badge";
 
 type StatusVariant = "default" | "success" | "warning" | "error" | "info";
 import {
+  SALES_QUOTATION_STATUS_LABELS,
+  type SalesQuotationStatus,
+} from "@/services/sales-quotation.service";
+import {
   SALES_ORDER_STATUS_LABELS,
   type SalesOrderStatus,
 } from "@/services/sales-order.service";
@@ -20,6 +24,15 @@ import {
   type ReceiptStatus,
 } from "@/services/customer-receipt.service";
 import { RETURN_STATUS_LABELS, type ReturnStatus } from "@/services/sales-return.service";
+
+const quotationVariants: Record<SalesQuotationStatus, StatusVariant> = {
+  DRAFT: "default",
+  SENT: "info",
+  ACCEPTED: "success",
+  REJECTED: "error",
+  EXPIRED: "warning",
+  CONVERTED: "success",
+};
 
 const orderVariants: Record<SalesOrderStatus, StatusVariant> = {
   DRAFT: "default",
@@ -54,6 +67,10 @@ const returnVariants: Record<ReturnStatus, StatusVariant> = {
   POSTED: "success",
   CANCELLED: "error",
 };
+
+export function SalesQuotationStatusBadge({ status }: { status: SalesQuotationStatus }) {
+  return <StatusBadge status={SALES_QUOTATION_STATUS_LABELS[status] ?? status} variant={quotationVariants[status] ?? "default"} />;
+}
 
 export function SalesOrderStatusBadge({ status }: { status: SalesOrderStatus }) {
   return <StatusBadge status={SALES_ORDER_STATUS_LABELS[status] ?? status} variant={orderVariants[status] ?? "default"} />;

@@ -66,7 +66,7 @@ public class SalesOrderController {
 
     @GetMapping
     public ResponseEntity<Page<SalesOrderResponse>> listOrders(
-            @PageableDefault(size = 20, sort = "orderDate", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(salesOrderService.listOrders(
                 context.getTenantId(), context.getCompanyId(), pageable));
@@ -74,21 +74,27 @@ public class SalesOrderController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<SalesOrderResponse>> searchOrders(
-            @RequestParam("term") String term, Pageable pageable) {
+            @RequestParam("term") String term,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesOrderService.searchOrders(
                 context.getTenantId(), context.getCompanyId(), term, pageable));
     }
 
     @GetMapping("/by-status")
     public ResponseEntity<Page<SalesOrderResponse>> listOrdersByStatus(
-            @RequestParam("status") SalesOrderStatus status, Pageable pageable) {
+            @RequestParam("status") SalesOrderStatus status,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesOrderService.listOrdersByStatus(
                 context.getTenantId(), context.getCompanyId(), status, pageable));
     }
 
     @GetMapping("/by-customer")
     public ResponseEntity<Page<SalesOrderResponse>> listOrdersByCustomer(
-            @RequestParam("customerId") Long customerId, Pageable pageable) {
+            @RequestParam("customerId") Long customerId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return ResponseEntity.ok(salesOrderService.listOrdersByCustomer(
                 context.getTenantId(), context.getCompanyId(), customerId, pageable));
     }

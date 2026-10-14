@@ -32,6 +32,7 @@ import {
   type SalesInvoice,
 } from "@/services/sales-invoice.service";
 import { formatMoney, formatDate } from "@/lib/sales-format";
+import { getApiErrorMessage } from "@/services/error-handler";
 
 interface CreateReceiptDialogProps {
   invoice?: SalesInvoice | null;
@@ -136,10 +137,7 @@ export function CreateReceiptDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
-      const msg =
-        (err as { data?: { message?: string } })?.data?.message ??
-        "Failed to create customer receipt";
-      setError(msg);
+      setError(getApiErrorMessage(err));
     }
   };
 

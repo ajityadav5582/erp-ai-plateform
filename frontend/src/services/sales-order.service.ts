@@ -196,9 +196,11 @@ export const {
   useGetSalesOrdersQuery,
   useGetOpenSalesOrdersQuery,
   useGetSalesOrderQuery,
+  useLazyGetSalesOrderQuery,
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
   useConfirmSalesOrderMutation,
   useCancelSalesOrderMutation,
   useCloseSalesOrderMutation,
 } = salesOrderApi;
+

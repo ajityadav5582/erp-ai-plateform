@@ -27,6 +27,7 @@ import {
   type SalesOrderLine,
 } from "@/services/sales-order.service";
 import { formatMoney } from "@/lib/sales-format";
+import { getApiErrorMessage } from "@/services/error-handler";
 
 interface CreateInvoiceDialogProps {
   order?: SalesOrder | null;
@@ -193,8 +194,7 @@ export function CreateInvoiceDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
-      const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to create invoice";
-      setError(msg);
+      setError(getApiErrorMessage(err));
     }
   };
 

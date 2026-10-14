@@ -128,6 +128,8 @@ services:
       PROCUREMENT_SERVICE_URI: ${PROCUREMENT_SERVICE_URI:-http://procurement-service:8084}
       # Sales Service is routed to, so the gateway must be able to reach it.
       SALES_SERVICE_URI: ${SALES_SERVICE_URI:-http://sales-service:8085}
+      # POS Service is routed to, so the gateway must be able to reach it.
+      POS_SERVICE_URI: ${POS_SERVICE_URI:-http://pos-service:8086}
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus,gateways
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
       MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
@@ -150,6 +152,9 @@ services:
         condition: service_healthy
       # sales-service is routed to for the same reason as procurement above.
       sales-service:
+        condition: service_healthy
+      # pos-service is routed to for the same reason as procurement above.
+      pos-service:
         condition: service_healthy
     networks:
       - erpai-data-network
@@ -360,6 +365,68 @@ services:
       - erpai-data-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${SALES_PORT:-8085}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ===========================================================================
+  # POS Service - Registers, cashier sessions, checkout, quick items and
+  # IRD CBMS real-time bill reporting.
+  # ===========================================================================
+
+  pos-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: pos
+      args:
+        SERVICE_NAME: pos-service
+        JAR_PATH: business/pos/application/build/libs
+    container_name: erpai-pos
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${POS_PORT:-8086}
+      # Where POS reaches Inventory for item lookup (scan-to-price) and the
+      # outbound stock-issue port (hexagonal ports' HTTP adapters). Defaults to
+      # the in-network service address.
+      INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8083}
+      # IRD CBMS real-time reporting. Disabled by default: pushes are simulated
+      # as successful so the outbox flow can be exercised without credentials.
+      IRD_CBMS_URL: ${IRD_CBMS_URL:-https://cbms.ird.gov.np/api}
+      IRD_CBMS_USERNAME: ${IRD_CBMS_USERNAME:-}
+      IRD_CBMS_PASSWORD: ${IRD_CBMS_PASSWORD:-}
+      IRD_CBMS_ENABLED: ${IRD_CBMS_ENABLED:-false}
+      IRD_CBMS_SELLER_PAN: ${IRD_CBMS_SELLER_PAN:-123456789}
+      IRD_CBMS_MAX_RETRIES: ${IRD_CBMS_MAX_RETRIES:-5}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${POS_PORT:-8086}:${POS_PORT:-8086}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${POS_PORT:-8086}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 20

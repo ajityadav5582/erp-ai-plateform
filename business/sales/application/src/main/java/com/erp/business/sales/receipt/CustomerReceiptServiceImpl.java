@@ -58,8 +58,25 @@ public class CustomerReceiptServiceImpl implements CustomerReceiptService {
     public CustomerReceiptResponse createReceipt(Long tenantId, Long companyId, CreateReceiptRequest request) {
         SalesInvoiceResponse invoice = salesInvoiceService.getInvoiceById(tenantId, companyId, request.invoiceId());
         if (invoice.status() == com.erp.business.sales.invoice.domain.SalesInvoiceStatus.DRAFT) {
-            throw new IllegalStateException("Invoice " + invoice.invoiceNumber()
+            throw new IllegalStateException("Cannot record payment: Invoice " + invoice.invoiceNumber()
                     + " is in DRAFT status. It must be issued before customer payments can be recorded.");
+        }
+        if (invoice.status() == com.erp.business.sales.invoice.domain.SalesInvoiceStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot record payment: Invoice " + invoice.invoiceNumber()
+                    + " has been CANCELLED.");
+        }
+        if (invoice.status() == com.erp.business.sales.invoice.domain.SalesInvoiceStatus.PAID
+                || invoice.balanceAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("Invoice " + invoice.invoiceNumber()
+                    + " is already fully paid (Balance: NPR 0.00).");
+        }
+        if (request.amount() == null || request.amount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Receipt payment amount must be greater than zero.");
+        }
+        if (request.amount().compareTo(invoice.balanceAmount()) > 0) {
+            throw new IllegalStateException("Receipt payment amount (" + request.amount() + " " + invoice.currency()
+                    + ") exceeds the remaining invoice balance (" + invoice.balanceAmount() + " " + invoice.currency()
+                    + ") on Invoice " + invoice.invoiceNumber() + ".");
         }
 
         String periodKey = context.findFiscalYearId() != null
@@ -147,6 +164,12 @@ public class CustomerReceiptServiceImpl implements CustomerReceiptService {
     public CustomerReceiptResponse cancelReceipt(Long tenantId, Long companyId, Long id,
                                                  ReceiptDecisionRequest request) {
         CustomerReceipt receipt = loadReceipt(tenantId, companyId, id);
+        if (receipt.getStatus() == ReceiptStatus.CANCELLED) {
+            throw new IllegalStateException("Customer receipt " + receipt.getReceiptNumber() + " is already cancelled.");
+        }
+        if (request == null || request.reason() == null || request.reason().isBlank()) {
+            throw new IllegalArgumentException("A cancellation reason is required to cancel Customer receipt " + receipt.getReceiptNumber() + ".");
+        }
         receipt.cancel(currentUser(), request.reason());
         CustomerReceipt saved = receiptRepository.save(receipt);
         // Roll the money back off the invoice in the same transaction.

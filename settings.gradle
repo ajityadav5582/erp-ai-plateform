@@ -51,6 +51,14 @@ include "business:manufacturing:application"
 include "business:manufacturing:infrastructure"
 include "business:manufacturing:interfaces"
 
+// POS Module - Point of Sale
+// Separate from the Sales module: POS is an atomic checkout flow
+// (OPEN → COMPLETED in seconds), while Sales is a multi-step ERP workflow.
+// POS reuses Inventory for item lookup and stock deduction.
+// It publishes events that the future Accounts module can consume.
+include "business:pos:domain"
+include "business:pos:application"
+
 // Inventory module with proper hexagonal boundaries:
 // - interfaces: public contracts (DTOs, service interfaces) for other modules
 // - domain: pure domain entities, value objects, domain events (no Spring)

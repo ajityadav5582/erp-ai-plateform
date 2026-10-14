@@ -49,6 +49,11 @@ public class SalesMenuController {
                 "View and manage customers"));
 
         items.add(new MenuItem(
+                "Sales Quotations", "/sales-quotations", "file-text",
+                SalesOrderPermissions.SALES_ORDER_VIEW,
+                "Price quotes and estimates for clients"));
+
+        items.add(new MenuItem(
                 "Sales Orders", "/sales-orders", "shopping-cart",
                 SalesOrderPermissions.SALES_ORDER_VIEW,
                 "View and manage sales orders"));

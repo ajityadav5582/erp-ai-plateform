@@ -31,8 +31,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     Page<SalesOrder> findByTenantIdAndCompanyIdAndCustomerId(Long tenantId, Long companyId,
                                                               Long customerId, Pageable pageable);
 
-    List<SalesOrder> findByTenantIdAndCompanyIdAndStatusIn(Long tenantId, Long companyId,
-                                                            List<SalesOrderStatus> statuses);
+    List<SalesOrder> findByTenantIdAndCompanyIdAndStatusInOrderByIdDesc(Long tenantId, Long companyId,
+                                                                        List<SalesOrderStatus> statuses);
 
     boolean existsByTenantIdAndCompanyIdAndSoNumber(Long tenantId, Long companyId, String soNumber);
 

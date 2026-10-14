@@ -173,6 +173,7 @@ public class DataInitializer implements CommandLineRunner {
         // person doing each job; the roles exist here so that assignment is
         // a checkbox, not a build.
         ensureProcurementCloseOutRolesExist(permissions);
+        ensurePosRolesExist(permissions);
     }
 
     /**
@@ -204,6 +205,58 @@ public class DataInitializer implements CommandLineRunner {
                 "TREASURY", "Treasury",
                 "Releases supplier payments against booked invoices",
                 List.of("SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CANCEL"),
+                permissions);
+    }
+
+    /**
+     * Seeds the two platform roles the POS terminal is built around, each
+     * granted only its own permission group.
+     *
+     * <p>The split is the point of the module: a cashier rings sales all day
+     * but must not be able to void one after the customer has left, and must
+     * not be able to close a shift with a cash variance unrecorded. The
+     * supervisor holds the void, the session close and the register
+     * administration. Both roles are SYSTEM roles with a null tenant id, the
+     * same shape as {@code SUPER_ADMIN} and {@code TENANT_ADMIN}, so every
+     * tenant's administrator can assign them to their own staff.
+     *
+     * <p>Idempotent: an existing role with the same code and type is reused
+     * rather than duplicated, and {@link #assignPermissions} replaces only the
+     * role it is given, so re-running never strips a grant an administrator
+     * added to another role.
+     *
+     * @param permissions every supported permission, to resolve codes against
+     */
+    private void ensurePosRolesExist(List<Permission> permissions) {
+        seedCloseOutRole(
+                "POS_CASHIER", "POS Cashier",
+                "Rings sales at a POS register: scans items, checks out and parks carts",
+                List.of(
+                        "POS_SCAN",
+                        "POS_TRANSACTION_VIEW",
+                        "POS_TRANSACTION_CHECKOUT",
+                        "POS_SESSION_VIEW",
+                        "POS_QUICK_ITEM_VIEW"),
+                permissions);
+        seedCloseOutRole(
+                "POS_SUPERVISOR", "POS Supervisor",
+                "Oversees the POS floor: voids sales, closes shifts and administers registers",
+                List.of(
+                        "POS_SCAN",
+                        "POS_REGISTER_VIEW",
+                        "POS_REGISTER_CREATE",
+                        "POS_REGISTER_UPDATE",
+                        "POS_REGISTER_MANAGE",
+                        "POS_SESSION_VIEW",
+                        "POS_SESSION_OPEN",
+                        "POS_SESSION_CLOSE",
+                        "POS_TRANSACTION_VIEW",
+                        "POS_TRANSACTION_CHECKOUT",
+                        "POS_TRANSACTION_VOID",
+                        "POS_QUICK_ITEM_VIEW",
+                        "POS_QUICK_ITEM_CREATE",
+                        "POS_QUICK_ITEM_UPDATE",
+                        "POS_QUICK_ITEM_DELETE"),
                 permissions);
     }
 
@@ -388,6 +441,54 @@ public class DataInitializer implements CommandLineRunner {
                 new PermissionSeed("SALES_RETURN", "CREATE"),
                 new PermissionSeed("SALES_RETURN", "POST"),
                 new PermissionSeed("SALES_RETURN", "CANCEL"),
+
+                // POS register (terminal). Managing a register - activating and
+                // deactivating it - is separate from editing its details because
+                // deactivating a register with an open session is refused, and
+                // that decision belongs to a supervisor. Referenced by
+                // @RequiresPermission in business:pos:application
+                // (PosRegisterPermissions) and must be kept in step with it by hand.
+                new PermissionSeed("POS_REGISTER", "VIEW"),
+                new PermissionSeed("POS_REGISTER", "CREATE"),
+                new PermissionSeed("POS_REGISTER", "UPDATE"),
+                new PermissionSeed("POS_REGISTER", "MANAGE"),
+
+                // POS cashier session (shift). Opening and closing a shift are
+                // separate controls: the closer records the cash count and owns
+                // the variance. Referenced by @RequiresPermission in
+                // business:pos:application (PosSessionPermissions) and must be
+                // kept in step with it by hand.
+                new PermissionSeed("POS_SESSION", "VIEW"),
+                new PermissionSeed("POS_SESSION", "OPEN"),
+                new PermissionSeed("POS_SESSION", "CLOSE"),
+
+                // POS scan-to-price. Resolving a scanned code to a priced item
+                // is the terminal's hot path; pricing itself is internal and
+                // carries no permission of its own. Referenced by
+                // @RequiresPermission in business:pos:application
+                // (PosScanPermissions) and must be kept in step with it by hand.
+                new PermissionSeed("POS", "SCAN"),
+
+                // POS transaction (checkout). Checkout takes payment and
+                // deducts stock; void reverses both. They are separate controls
+                // because the cashier who rings a sale should not be the one who
+                // cancels it after the fact. Refund is seeded for the future
+                // returns flow - v1 routes returns through Sales credit notes.
+                // Referenced by @RequiresPermission in business:pos:application
+                // (PosTransactionPermissions) and must be kept in step with it by hand.
+                new PermissionSeed("POS_TRANSACTION", "VIEW"),
+                new PermissionSeed("POS_TRANSACTION", "CHECKOUT"),
+                new PermissionSeed("POS_TRANSACTION", "VOID"),
+                new PermissionSeed("POS_TRANSACTION", "REFUND"),
+
+                // POS quick item (terminal grid tile). Pure terminal
+                // configuration: create, edit and remove tiles. Referenced by
+                // @RequiresPermission in business:pos:application
+                // (PosQuickItemPermissions) and must be kept in step with it by hand.
+                new PermissionSeed("POS_QUICK_ITEM", "VIEW"),
+                new PermissionSeed("POS_QUICK_ITEM", "CREATE"),
+                new PermissionSeed("POS_QUICK_ITEM", "UPDATE"),
+                new PermissionSeed("POS_QUICK_ITEM", "DELETE"),
 
                 new PermissionSeed("INVENTORY", "VIEW"),
                 new PermissionSeed("INVENTORY", "ADJUST"),
