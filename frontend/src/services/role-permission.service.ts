@@ -47,7 +47,7 @@ export const rolePermissionApi = api.injectEndpoints({
   endpoints: (build) => ({
     getRolePermissions: build.query<RolePermissionListResponse, { roleId: number; params?: GetRolePermissionsParams }>({
       query: ({ roleId, params }) => ({
-        url: `/role-permissions/role/${roleId}`,
+        url: `/identity/role-permissions/role/${roleId}`,
         method: "GET",
         params,
       }),
@@ -56,7 +56,7 @@ export const rolePermissionApi = api.injectEndpoints({
 
     assignPermission: build.mutation<RolePermissionResponse, AssignPermissionRequest>({
       query: (body) => ({
-        url: "/role-permissions",
+        url: "/identity/role-permissions",
         method: "POST",
         data: body,
       }),
@@ -68,7 +68,7 @@ export const rolePermissionApi = api.injectEndpoints({
 
     removePermission: build.mutation<void, RemovePermissionRequest>({
       query: (body) => ({
-        url: "/role-permissions",
+        url: "/identity/role-permissions",
         method: "DELETE",
         data: body,
       }),

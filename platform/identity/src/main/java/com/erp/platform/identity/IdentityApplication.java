@@ -1,5 +1,6 @@
 package com.erp.platform.identity;
 
+import com.erp.platform.security.web.SecurityExceptionHandler;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,7 +26,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         "com.erp.platform.identity.domain",
         "com.erp.platform.tenant.domain"
 })
-@Import(com.erp.platform.data.audit.AuditingConfig.class)
+@Import({
+        com.erp.platform.data.audit.AuditingConfig.class,
+        SecurityExceptionHandler.class})
 @EnableConfigurationProperties({
         com.erp.platform.identity.application.security.JwtProperties.class,
         com.erp.platform.identity.application.security.PasswordResetProperties.class

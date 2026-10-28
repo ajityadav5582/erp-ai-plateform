@@ -1,12 +1,11 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
- * Exception thrown when the tenant context is missing or cannot be resolved
- * for the current authenticated request.
+ * Exception thrown when a request carries no tenant context.
  *
- * <p>This is a security-level exception that maps to a 403 Forbidden response,
- * indicating that the authenticated user does not have an associated tenant
- * context required to proceed.
+ * <p>Reports {@code 403 MISSING_TENANT_CONTEXT}.
  *
  * @since 1.0.0
  */
@@ -15,10 +14,11 @@ public class MissingTenantContextException extends AuthenticationException {
     private static final long serialVersionUID = 1L;
 
     public MissingTenantContextException() {
-        super("Tenant context is missing for the current request");
+        super(HttpStatus.FORBIDDEN, "MISSING_TENANT_CONTEXT",
+                "Tenant context is missing for the current request");
     }
 
     public MissingTenantContextException(String message) {
-        super(message);
+        super(HttpStatus.FORBIDDEN, "MISSING_TENANT_CONTEXT", message);
     }
 }

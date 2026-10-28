@@ -1,5 +1,7 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
  * Exception thrown when a branch name already exists within a tenant.
  *
@@ -13,10 +15,10 @@ public class DuplicateBranchNameException extends BranchOperationException {
     private static final long serialVersionUID = 1L;
 
     public DuplicateBranchNameException(String message) {
-        super(message);
+        super(HttpStatus.CONFLICT, "DUPLICATE_BRANCH_NAME", message, null);
     }
 
     public DuplicateBranchNameException(String message, Throwable cause) {
-        super(message, cause);
+        super(HttpStatus.CONFLICT, "DUPLICATE_BRANCH_NAME", message, cause);
     }
 }

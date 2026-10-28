@@ -7,6 +7,17 @@ import { axiosInstance } from "@/services/http-client";
 import type { RefreshTokenResponse } from "@/services/auth.service";
 
 /**
+ * Canonical identity endpoints, relative to the API gateway base URL.
+ *
+ * The gateway only routes `/identity/**`, `/inventory/**` and
+ * `/procurement/**`. Requesting a bare `/auth/**` path yields a 404 from the
+ * gateway, which the session-restore flow used to interpret as an
+ * unrecoverable auth failure — logging the user out on every hard refresh.
+ */
+const AUTH_REFRESH_URL = "/identity/auth/refresh";
+const AUTH_ME_URL = "/identity/auth/me";
+
+/**
  * Shape of the authenticated user as returned by the backend.
  *
  * Mirrors the fields from the backend `TokenResponse` and `/auth/me` endpoint.
@@ -17,6 +28,7 @@ export interface AuthUser {
   username: string;
   fullName: string;
   roles: string[];
+  permissions: string[];
   tenantId: string;
   [key: string]: unknown;
 }
@@ -62,7 +74,7 @@ export const refreshTokenThunk = createAsyncThunk<
 >("auth/refreshToken", async (refreshToken, { rejectWithValue }) => {
   try {
     const { data } = await axiosInstance.post<RefreshTokenResponse>(
-      "/auth/refresh",
+      AUTH_REFRESH_URL,
       { refreshToken },
       { _skipAuthRefresh: true } as never
     );
@@ -87,7 +99,7 @@ export const fetchCurrentUserThunk = createAsyncThunk<
   { rejectValue: string }
 >("auth/fetchCurrentUser", async (_, { rejectWithValue }) => {
   try {
-    const { data } = await axiosInstance.get<AuthUser>("/auth/me", {
+    const { data } = await axiosInstance.get<AuthUser>(AUTH_ME_URL, {
       _skipAuthRefresh: true,
     } as never);
     return data;

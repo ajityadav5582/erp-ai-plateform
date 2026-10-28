@@ -92,6 +92,9 @@ create_topic "dev.retry.commands" 6 1
 # Audit log topics
 create_topic "dev.audit.events" 6 1
 
+# POS -> Sales integration topic
+create_topic "pos.transaction.completed" 12 1
+
 echo "Infrastructure topics created successfully"
 
 # =============================================================================

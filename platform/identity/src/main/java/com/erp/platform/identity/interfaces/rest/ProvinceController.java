@@ -24,7 +24,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/provinces")
+@RequestMapping("/api/v1/identity/provinces")
 @RequiredArgsConstructor
 public class ProvinceController {
 
@@ -43,7 +43,7 @@ public class ProvinceController {
             UriComponentsBuilder uriBuilder) {
         ProvinceResponse response = provinceService.createProvince(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/provinces/{id}").buildAndExpand(response.id()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/provinces/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 

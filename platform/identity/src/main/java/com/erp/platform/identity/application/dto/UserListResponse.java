@@ -3,6 +3,7 @@ package com.erp.platform.identity.application.dto;
 import com.erp.platform.identity.domain.UserStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for user list data (summary view).
@@ -22,6 +23,7 @@ public record UserListResponse(
     Long branchId,
     Long departmentId,
     LocalDateTime lastLoginAt,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    List<UserRoleResponse> roles
 ) {
 }

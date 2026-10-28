@@ -1,0 +1,173 @@
+# =============================================================================
+# ERP AI Platform - API Gateway Service Configuration
+# Unified API entry point exposing a single port to the frontend.
+# =============================================================================
+
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      global-cors:
+        corsConfigurations:
+          '[/**]':
+            allowed-origin-patterns:
+              - "http://localhost:3000"
+              - "https://*.erpai.internal"
+            allowed-methods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "PATCH"
+              - "DELETE"
+              - "OPTIONS"
+            allowed-headers:
+              - "*"
+            exposed-headers:
+              - "Authorization"
+              - "Location"
+              - "X-Tenant-ID"
+              - "X-Correlation-Id"
+              - "X-Request-Id"
+            allow-credentials: true
+            max-age: 3600
+      routes:
+        # ------------------------------------------------------------------
+        # Inventory Service - Category, product, stock management.
+        # MUST precede the identity catch-all so /api/v1/inventory/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: inventory-service
+          uri: ${INVENTORY_SERVICE_URI:http://inventory-service:8083}
+          predicates:
+            - Path=/api/v1/inventory/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # Procurement Service - Branch purchase requisitions, approval chain.
+        # MUST precede the identity catch-all so /api/v1/procurement/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: procurement-service
+          uri: ${PROCUREMENT_SERVICE_URI:http://procurement-service:8084}
+          predicates:
+            - Path=/api/v1/procurement/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # Sales Service - Customers, sales orders, deliveries, IRD tax
+        # invoices, customer receipts, sales returns and the sales register.
+        # MUST precede the identity catch-all so /api/v1/sales/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: sales-service
+          uri: ${SALES_SERVICE_URI:http://sales-service:8085}
+          predicates:
+            - Path=/api/v1/sales/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # POS Service - Registers, cashier sessions, checkout, quick items
+        # and IRD CBMS real-time bill reporting.
+        # MUST precede the identity catch-all so /api/v1/pos/** is not
+        # swallowed by the broader /api/v1/** predicate.
+        # ------------------------------------------------------------------
+        - id: pos-service
+          uri: ${POS_SERVICE_URI:http://pos-service:8086}
+          predicates:
+            - Path=/api/v1/pos/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # Identity Service - User, role, permission, branch, department,
+        # province/district management, authentication, onboarding, company,
+        # fiscal years, resources, etc.
+        #
+        # Placed AFTER the specific inventory/tenant routes and given a broad
+        # catch-all predicate so EVERY identity endpoint is reachable (new
+        # controllers do not need to be registered here individually).
+        # ------------------------------------------------------------------
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URI:http://identity-service:8082}
+          predicates:
+            - Path=/api/v1/identity/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # ------------------------------------------------------------------
+        # Health check passthrough (for load balancers / monitoring).
+        # ------------------------------------------------------------------
+        - id: health-check
+          uri: ${IDENTITY_SERVICE_URI:http://identity-service:8082}
+          predicates:
+            - Path=/actuator/health
+          filters:
+            - StripPrefix=0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateways
+  endpoint:
+    health:
+      show-details: always
+
+# Gateway-specific configuration
+erp:
+  security:
+    jwt:
+      # The gateway only routes; it does not validate tokens itself. Each
+      # downstream service validates the access token with the shared filter,
+      # and the servlet-side filter must not be installed in this reactive app.
+      enabled: false
+  # NOTE: the erp.gateway.* block that used to live here has been removed.
+  #
+  # It declared a second copy of the route list and a second copy of the allowed
+  # origins, bound by GatewayConfigurationProperties, and then nothing ever read
+  # it - Spring Cloud Gateway routes come from spring.cloud.gateway.routes and
+  # CORS from spring.cloud.gateway.global-cors. Two copies of a route list where
+  # one is decorative is worse than one copy: editing the dead one looks correct,
+  # changes nothing, and sends you looking for a bug that is not there. It is
+  # very likely how the procurement route came to be missing from a deployed
+  # gateway while sitting in plain sight in this file.
+  #
+  # If you need to know which services must be routed, read
+  # GatewayRouteCoverageTest: it derives the required routes from docker-compose.yml
+  # and fails the build when one is absent, so there is no list to keep in sync.
+
+logging:
+  level:
+    com.erp.platform.gateway: INFO
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: INFO

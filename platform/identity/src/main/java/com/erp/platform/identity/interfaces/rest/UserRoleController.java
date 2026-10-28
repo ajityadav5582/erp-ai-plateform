@@ -21,7 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * <p>Exposes a standard REST API for managing the many-to-many relationship
  * between users and roles, following the platform API standards:
  * <ul>
- *   <li>Versioned base path {@code /api/v1/user-roles}</li>
+ *   <li>Versioned base path {@code /api/v1/identity/user-roles}</li>
  *   <li>Proper HTTP methods (GET, POST, DELETE)</li>
  *   <li>Appropriate status codes (201 + Location on create, 204 on delete)</li>
  *   <li>Pagination on collection endpoints</li>
@@ -30,7 +30,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/user-roles")
+@RequestMapping("/api/v1/identity/user-roles")
 @RequiredArgsConstructor
 public class UserRoleController {
 
@@ -49,7 +49,7 @@ public class UserRoleController {
             UriComponentsBuilder uriBuilder) {
         UserRoleResponse response = userRoleService.assignRole(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/user-roles/{id}").buildAndExpand(response.id()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/user-roles/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 

@@ -24,6 +24,12 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
 
   // Validation errors
   VALIDATION_ERROR: "Please check the information you entered and try again.",
+  INVALID_ARGUMENT: "The request was rejected because a value was not valid.",
+  CONSTRAINT_VIOLATION:
+    "This change conflicts with data that already exists. Refresh and try again.",
+  CONCURRENT_MODIFICATION:
+    "Someone else changed this record while you were editing it. Reload and try again.",
+  METHOD_NOT_ALLOWED: "That action is not supported on this resource.",
 
   // Password reset errors
   PASSWORD_RESET_TOKEN_ERROR:
@@ -42,6 +48,17 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   CANNOT_DEACTIVATE_USER: "This user cannot be deactivated.",
   CANNOT_DELETE_USER: "This user cannot be deleted.",
   CANNOT_DELETE_ROLE: "This role cannot be deleted.",
+
+  // Category errors
+  // These deliberately have no entry in this table. The backend already sends a
+  // message that names the specific rule that was broken (for example
+  // "Category with slug 'electronics' already exists in this company"), and
+  // getApiErrorMessage falls through to that message when no generic entry
+  // exists. Adding generic entries here would replace it with vaguer text.
+
+  // Unit errors
+  UNIT_CODE_DUPLICATE: "A unit with this code already exists in this company.",
+  UNIT_NAME_DUPLICATE: "A unit with this name already exists in this company.",
 
   // Server errors
   INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
@@ -82,23 +99,38 @@ export function getApiErrorMessage(error: unknown): string {
       data?: { code?: string; message?: string };
       status?: number;
       message?: string;
+      error?: string;
     };
 
-    // Try backend error code first
+    // 1. Always prioritize specific backend error message when present
+    if (typeof err.data?.message === "string" && err.data.message.trim().length > 0) {
+      return err.data.message;
+    }
+
+    // 2. Fall back to backend error code mapping
     const errorCode = err.data?.code;
     if (errorCode && ERROR_CODE_MESSAGES[errorCode]) {
       return ERROR_CODE_MESSAGES[errorCode];
-    }
-
-    // Try backend error message
-    if (err.data?.message) {
-      return err.data.message;
     }
 
     // Try HTTP status code
     const status = err.status;
     if (status && STATUS_CODE_MESSAGES[status]) {
       return STATUS_CODE_MESSAGES[status];
+    }
+
+    // RTK Query / Axios base query errors carry the underlying message under
+    // `error` (e.g. "Network Error") rather than `message`. Surface it so a
+    // failed request does not collapse into the generic "unexpected error"
+    // fallback, which hides the real cause (most often a connectivity issue).
+    if (typeof err.error === "string" && err.error.trim().length > 0) {
+      if (err.error === "Network Error") {
+        return "Unable to connect to the server. Please check your internet connection and try again.";
+      }
+      if (err.error.includes("timeout")) {
+        return "The request timed out. Please check your connection and try again.";
+      }
+      return err.error;
     }
 
     // Try generic error message

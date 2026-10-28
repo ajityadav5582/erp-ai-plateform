@@ -91,6 +91,50 @@ public final class RequestContext {
     }
 
     /**
+     * Sets the active company ID.
+     *
+     * <p>The company (legal entity) is the second level of scoping, selected by
+     * the user after login and carried on every subsequent request via the
+     * {@code X-Company-Id} header. It is deliberately <em>not</em> part of the
+     * JWT so the user can switch companies without re-authenticating.
+     *
+     * @param companyId the company ID
+     */
+    public static void setCompanyId(String companyId) {
+        getHolder().setCompanyId(companyId);
+    }
+
+    /**
+     * Returns the active company ID.
+     *
+     * @return the company ID, or null if not set
+     */
+    public static String getCompanyId() {
+        return getHolder().getCompanyId();
+    }
+
+    /**
+     * Sets the active fiscal year ID.
+     *
+     * <p>Carried on every request via the {@code X-Fiscal-Year-Id} header and
+     * scoped per company, so switching fiscal years does not require a new token.
+     *
+     * @param fiscalYearId the fiscal year ID
+     */
+    public static void setFiscalYearId(String fiscalYearId) {
+        getHolder().setFiscalYearId(fiscalYearId);
+    }
+
+    /**
+     * Returns the active fiscal year ID.
+     *
+     * @return the fiscal year ID, or null if not set
+     */
+    public static String getFiscalYearId() {
+        return getHolder().getFiscalYearId();
+    }
+
+    /**
      * Sets the client IP address.
      *
      * @param clientIp the client IP
@@ -171,9 +215,27 @@ public final class RequestContext {
         private String correlationId;
         private String userId;
         private String tenantId;
+        private String companyId;
+        private String fiscalYearId;
         private String clientIp;
         private String userAgent;
         private final java.util.Map<String, Object> attributes = new java.util.concurrent.ConcurrentHashMap<>();
+
+        public String getCompanyId() {
+            return companyId;
+        }
+
+        public void setCompanyId(String companyId) {
+            this.companyId = companyId;
+        }
+
+        public String getFiscalYearId() {
+            return fiscalYearId;
+        }
+
+        public void setFiscalYearId(String fiscalYearId) {
+            this.fiscalYearId = fiscalYearId;
+        }
 
         public String getRequestId() {
             return requestId;

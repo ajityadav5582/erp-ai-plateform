@@ -6,12 +6,6 @@ plugins {
 group = 'com.erp.platform'
 version = '1.0.0-SNAPSHOT'
 
-repositories {
-    mavenCentral()
-    maven { url "https://repo.spring.io/milestone" }
-    maven { url "https://repo.spring.io/snapshot" }
-}
-
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
@@ -32,6 +26,15 @@ dependencies {
     // Spring Core (version managed by Spring Boot BOM)
     api 'org.springframework:spring-context'
     api 'org.springframework:spring-core'
+
+    // Spring Web for HttpStatus on API exceptions (shared REST error contract)
+    api 'org.springframework:spring-web'
+
+    // Servlet API is needed ONLY to compile AbstractGlobalExceptionHandler.
+    // It is compileOnly on purpose: the reactive Gateway consumes this library and
+    // must not be forced onto a servlet stack. Concrete REST services already
+    // provide their own servlet dependency.
+    compileOnly 'jakarta.servlet:jakarta.servlet-api'
 
     // Spring Data Commons for auditing annotations
     api 'org.springframework.data:spring-data-commons'

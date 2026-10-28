@@ -24,7 +24,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/districts")
+@RequestMapping("/api/v1/identity/districts")
 @RequiredArgsConstructor
 public class DistrictController {
 
@@ -43,7 +43,7 @@ public class DistrictController {
             UriComponentsBuilder uriBuilder) {
         DistrictResponse response = districtService.createDistrict(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/districts/{id}").buildAndExpand(response.id()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/districts/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 

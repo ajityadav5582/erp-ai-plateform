@@ -20,13 +20,47 @@ import {
   type PermissionStatus,
 } from "@/services/permission.service";
 import { PermissionStatusBadge } from "@/components/permissions/permission-status-badge";
-import { CreatePermissionDialog } from "@/components/permissions/create-permission-dialog";
-import { EditPermissionDialog } from "@/components/permissions/edit-permission-dialog";
-import { PermissionDetailsSheet } from "@/components/permissions/permission-details-sheet";
-import { DeletePermissionDialog } from "@/components/permissions/delete-permission-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import dynamic from "next/dynamic";
+import { PermissionGate } from "@/components/auth/permission-gate";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreatePermissionDialog = dynamic(
+  () =>
+    import("@/components/permissions/create-permission-dialog").then((mod) => ({
+      default: mod.CreatePermissionDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditPermissionDialog = dynamic(
+  () =>
+    import("@/components/permissions/edit-permission-dialog").then((mod) => ({
+      default: mod.EditPermissionDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const PermissionDetailsSheet = dynamic(
+  () =>
+    import("@/components/permissions/permission-details-sheet").then((mod) => ({
+      default: mod.PermissionDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeletePermissionDialog = dynamic(
+  () =>
+    import("@/components/permissions/delete-permission-dialog").then((mod) => ({
+      default: mod.DeletePermissionDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 import {
   Table,
   TableBody,
@@ -92,10 +126,12 @@ export default function PermissionsPage() {
           >
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="mr-2 size-4" />
-            Add Permission
-          </Button>
+          <PermissionGate permission="PERMISSION_CREATE" fallback={null}>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              Add Permission
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -186,26 +222,32 @@ export default function PermissionsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="z-[9999]">
-                        <DropdownMenuItem
-                          onClick={() => setSelectedPermissionIdForDetails(permission.id)}
-                        >
-                          <Eye className="mr-2 size-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setSelectedPermissionIdForEdit(permission.id)}
-                        >
-                          <Pencil className="mr-2 size-4" />
-                          Edit
-                        </DropdownMenuItem>
+                        <PermissionGate permission="PERMISSION_VIEW" fallback={null}>
+                          <DropdownMenuItem
+                            onClick={() => setSelectedPermissionIdForDetails(permission.id)}
+                          >
+                            <Eye className="mr-2 size-4" />
+                            View Details
+                          </DropdownMenuItem>
+                        </PermissionGate>
+                        <PermissionGate permission="PERMISSION_UPDATE" fallback={null}>
+                          <DropdownMenuItem
+                            onClick={() => setSelectedPermissionIdForEdit(permission.id)}
+                          >
+                            <Pencil className="mr-2 size-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        </PermissionGate>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setPermissionToDelete(permission)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 size-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        <PermissionGate permission="PERMISSION_DELETE" fallback={null}>
+                          <DropdownMenuItem
+                            onClick={() => setPermissionToDelete(permission)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </PermissionGate>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

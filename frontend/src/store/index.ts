@@ -11,6 +11,20 @@ import authReducer from "@/store/slices/auth.slice";
  * - Includes thunk middleware by default
  * - Enables Redux Toolkit Query (RTK Query) for data fetching
  */
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * RTK Query keeps a mutable, non-serializable bookkeeping subtree under
+ * `api`. Excluding it keeps the development-time invariant checks meaningful
+ * (they still guard our own slices) without drowning them in false positives.
+ */
+const RTK_QUERY_IGNORED_PATHS = [
+  "api.queries",
+  "api.mutations",
+  "api.subscriptions",
+  "api.config",
+];
+
 export const makeStore = () => {
   return configureStore({
     reducer: {
@@ -19,18 +33,34 @@ export const makeStore = () => {
       // Feature slices
       auth: authReducer,
     },
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
-        // Enable serializable check for production safety
-        serializableCheck: {
-          ignoredActions: ["api/executeQuery/pending"],
-        },
-        // Enable immutable check for production safety
-        immutableCheck: {
-          ignoredPaths: ["api.queries"],
-        },
-      }).concat(api.middleware),
-    devTools: process.env.NODE_ENV !== "production",
+    middleware: (getDefaultMiddleware) => {
+      // These checks deep-walk the whole state tree on *every* dispatch. With
+      // RTK Query that tree holds every cached response, so the walk cost grows
+      // with the cache and becomes the dominant cost of a navigation. They are
+      // development-only diagnostics, so they are removed in production.
+      const defaultMiddleware = getDefaultMiddleware(
+        isProduction
+          ? {
+              serializableCheck: false,
+              immutableCheck: false,
+            }
+          : {
+              serializableCheck: {
+                ignoredActionPaths: [
+                  "meta.arg",
+                  "meta.baseQueryMeta",
+                  "payload.headers",
+                ],
+                ignoredPaths: RTK_QUERY_IGNORED_PATHS,
+              },
+              immutableCheck: {
+                ignoredPaths: RTK_QUERY_IGNORED_PATHS,
+              },
+            }
+      );
+      return defaultMiddleware.concat(api.middleware);
+    },
+    devTools: !isProduction,
   });
 };
 

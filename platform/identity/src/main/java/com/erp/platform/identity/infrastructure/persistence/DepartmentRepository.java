@@ -165,6 +165,18 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     long countByBranchIdAndStatus(Long branchId, DepartmentStatus status);
 
     /**
+     * Checks whether a branch still owns any departments within a tenant.
+     *
+     * <p>Guards branch deletion, since {@code departments.branch_id} is declared
+     * {@code ON DELETE RESTRICT}.
+     *
+     * @param tenantId the tenant ID
+     * @param branchId the branch ID
+     * @return true if at least one department exists for the branch
+     */
+    boolean existsByTenantIdAndBranchId(Long tenantId, Long branchId);
+
+    /**
      * Finds departments by tenant and status.
      *
      * @param tenantId the tenant ID

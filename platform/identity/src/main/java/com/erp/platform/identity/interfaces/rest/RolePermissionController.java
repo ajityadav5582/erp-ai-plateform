@@ -18,7 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * <p>Exposes a standard REST API for managing the many-to-many relationship
  * between roles and permissions, following the platform API standards:
  * <ul>
- *   <li>Versioned base path {@code /api/v1/role-permissions}</li>
+ *   <li>Versioned base path {@code /api/v1/identity/role-permissions}</li>
  *   <li>Proper HTTP methods (POST, DELETE, GET)</li>
  *   <li>Appropriate status codes (201 + Location on create, 204 on delete)</li>
  *   <li>Pagination on collection endpoints</li>
@@ -28,7 +28,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/role-permissions")
+@RequestMapping("/api/v1/identity/role-permissions")
 @RequiredArgsConstructor
 public class RolePermissionController {
 
@@ -47,7 +47,7 @@ public class RolePermissionController {
             UriComponentsBuilder uriBuilder) {
         RolePermissionResponse response = rolePermissionService.assignPermission(request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/role-permissions/{id}")
+                .created(uriBuilder.path("/api/v1/identity/role-permissions/{id}")
                         .buildAndExpand(response.id()).toUri())
                 .body(response);
     }

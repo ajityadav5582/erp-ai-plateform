@@ -122,7 +122,7 @@ class AuthServiceTest {
         when(roleRepository.findByTenantId(eq(1L), any())).thenReturn(new org.springframework.data.domain.PageImpl<>(Collections.emptyList()));
         when(userRoleRepository.findActiveByUserIdAndTenantId(any(), eq(1L), any())).thenReturn(Collections.emptyList());
 
-        when(jwtService.generateAccessToken(any(), any(), any(), any(), any(), any())).thenReturn("access_token");
+        when(jwtService.generateAccessToken(any(), any(), any(), any(), any(), any(), any())).thenReturn("access_token");
         when(jwtService.generateRawRefreshToken()).thenReturn("raw_refresh_token");
         when(jwtService.generateRefreshTokenId()).thenReturn(UUID.randomUUID().toString());
         when(jwtProperties.getAccessTokenExpiryMs()).thenReturn(3600000L);
@@ -175,7 +175,7 @@ class AuthServiceTest {
         when(userRepository.findByTenantIdAndUsername(1L, "testuser")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123!", "hashed_password")).thenReturn(true);
         when(userRoleRepository.findActiveByUserIdAndTenantId(any(), eq(1L), any())).thenReturn(Collections.emptyList());
-        when(jwtService.generateAccessToken(any(), any(), any(), any(), any(), any())).thenReturn("access_token");
+        when(jwtService.generateAccessToken(any(), any(), any(), any(), any(), any(), any())).thenReturn("access_token");
         when(jwtService.generateRawRefreshToken()).thenReturn("raw_refresh_token");
         when(jwtService.generateRefreshTokenId()).thenReturn(UUID.randomUUID().toString());
         when(jwtProperties.getAccessTokenExpiryMs()).thenReturn(3600000L);

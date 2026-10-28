@@ -32,7 +32,7 @@ import com.erp.platform.identity.application.dto.RegisterRequest;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v1/identity/auth")
 @RequiredArgsConstructor
 public class AuthController {
 

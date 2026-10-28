@@ -3,6 +3,7 @@ package com.erp.platform.identity.application.dto;
 import com.erp.platform.identity.domain.UserStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for user data.
@@ -31,6 +32,7 @@ public record UserResponse(
     LocalDateTime updatedAt,
     String createdBy,
     String updatedBy,
-    Integer version
+    Integer version,
+    List<UserRoleResponse> roles
 ) {
 }

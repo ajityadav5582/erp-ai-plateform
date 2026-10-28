@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.*;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/user-branches")
+@RequestMapping("/api/v1/identity/user-branches")
 public class UserBranchController {
 
     private final UserBranchService userBranchService;

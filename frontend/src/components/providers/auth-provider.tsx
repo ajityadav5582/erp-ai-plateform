@@ -25,6 +25,8 @@ import {
   clearTokenSnapshot,
   registerRefreshHandler,
   registerUnauthenticatedHandler,
+  resetUnauthenticatedNotification,
+  executeTokenRefresh,
   getTenantId,
 } from "@/services/token-store";
 import {
@@ -34,12 +36,101 @@ import {
   setAuthCookies,
   clearAuthCookies,
 } from "@/lib/auth";
-import { isAccessTokenExpired } from "@/lib/jwt";
+import { isAccessTokenExpired, decodeJwtPayload } from "@/lib/jwt";
 import { getApiErrorMessage, isApiErrorCode } from "@/services/error-handler";
+import { api } from "@/services/api";
 
 const ACCESS_TOKEN_MAX_AGE = 900; // 15 minutes
 const REFRESH_TOKEN_MAX_AGE = 604800; // 7 days
 const REMEMBER_ME_REFRESH_MAX_AGE = 2592000; // 30 days
+
+/**
+ * Renew the access token slightly before it expires.
+ *
+ * Without this, the first request issued after the access token lapses pays
+ * for a 401 + `/auth/refresh` + replay round-trip, which is a large part of
+ * the perceived slowness when navigating between pages.
+ */
+const PROACTIVE_REFRESH_LEEWAY_SECONDS = 120;
+
+/** Handle for the scheduled proactive refresh. */
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Cancels any pending proactive refresh (logout / unmount). */
+function cancelProactiveRefresh(): void {
+  if (proactiveRefreshTimer !== null) {
+    clearTimeout(proactiveRefreshTimer);
+    proactiveRefreshTimer = null;
+  }
+}
+
+/**
+ * Schedules a background refresh for the moment the given access token is
+ * about to expire. Safe to call repeatedly; each call replaces the previous
+ * schedule.
+ */
+function scheduleProactiveRefresh(accessToken: string | null): void {
+  cancelProactiveRefresh();
+  if (!accessToken || typeof window === "undefined") return;
+
+  const payload = decodeJwtPayload(accessToken);
+  const exp = typeof payload?.exp === "number" ? payload.exp : null;
+  if (exp === null) return;
+
+  const delayMs =
+    (exp - PROACTIVE_REFRESH_LEEWAY_SECONDS - Date.now() / 1000) * 1000;
+
+  // Never schedule in the past, and never spin faster than every 10s.
+  const wait = Math.max(delayMs, 10_000);
+
+  proactiveRefreshTimer = setTimeout(() => {
+    proactiveRefreshTimer = null;
+    void executeTokenRefresh();
+  }, wait);
+}
+
+/**
+ * localStorage key holding the last known user profile.
+ *
+ * Used only to paint the first frame after a hard refresh; the authoritative
+ * profile always comes from `/auth/me`.
+ */
+const CACHED_USER_STORAGE_KEY = "erpai.cachedUser";
+
+/** Reads the cached user profile, if one was persisted. */
+function readCachedUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CACHED_USER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthUser;
+    return parsed && typeof parsed === "object" && parsed.id != null
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persists the user profile for the next hard refresh. */
+function writeCachedUser(user: AuthUser): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CACHED_USER_STORAGE_KEY, JSON.stringify(user));
+  } catch {
+    // Storage may be unavailable (private mode / quota); caching is optional.
+  }
+}
+
+/** Removes the cached user profile. */
+function clearCachedUser(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(CACHED_USER_STORAGE_KEY);
+  } catch {
+    // Ignore.
+  }
+}
 
 export interface LoginOptions {
   /** Extend the refresh-token lifetime (30 days instead of 7). */
@@ -70,7 +161,9 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
  * - Wires the Axios interceptors to the Redux-backed token store (refresh +
  *   unauthenticated handlers).
  * - Restores a session from cookies on first mount and validates it against
- *   the backend (`/auth/me`), refreshing once if the access token expired.
+ *   the backend (`/identity/auth/me`), refreshing once if the access token
+ *   expired. Validation happens in the background so the shell paints
+ *   immediately instead of blocking on a "Verifying your session…" spinner.
  * - Exposes `login`, `logout`, and `refresh` actions via context.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -101,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data.refreshToken,
           getTenantId() ?? ""
         );
+        scheduleProactiveRefresh(data.accessToken);
         return data.accessToken;
       } catch {
         return null;
@@ -111,10 +205,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       dispatch(logoutAction());
       clearTokenSnapshot();
       clearAuthCookies();
+      clearCachedUser();
+      cancelProactiveRefresh();
       if (typeof window !== "undefined") {
-        window.location.assign("/login");
+        // Soft navigation instead of `window.location.assign`, which forced a
+        // full document reload (re-download + re-parse of the whole bundle) and
+        // was the slowest part of the expired-session redirect.
+        if (!window.location.pathname.startsWith("/login")) {
+          router.replace("/login");
+        }
       }
     });
+    // `router` is stable for the lifetime of the app shell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   // Restore and validate any existing session on first mount.
@@ -140,27 +243,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession({ accessToken: access, refreshToken: refresh, tenantId: tenant })
       );
 
+      // Optimistically hydrate from the cached profile so the protected shell
+      // renders on the first paint. Validation against `/auth/me` continues in
+      // the background instead of blocking the whole app behind a spinner.
+      const cachedUser = readCachedUser();
+      if (cachedUser) {
+        dispatch(setUser(cachedUser));
+      }
+      dispatch(finishInitialization());
+
+      let currentAccess = access;
+
       // Proactively refresh if the access token is expired or about to expire
       // (within 60 seconds). This avoids a failing /auth/me request and reduces
       // the session restoration from up to 2 sequential calls to 1.
-      if (isAccessTokenExpired(access, 60)) {
+      if (isAccessTokenExpired(currentAccess, 60)) {
         try {
           const data = await dispatch(refreshTokenThunk(refresh)).unwrap();
           if (!active) return;
+          currentAccess = data.accessToken;
           setTokenSnapshot({
-            accessToken: data.accessToken,
+            accessToken: currentAccess,
             refreshToken: data.refreshToken,
           });
-          setAuthCookies(
-            data.accessToken,
-            data.refreshToken,
-            tenant ?? ""
-          );
+          setAuthCookies(currentAccess, data.refreshToken, tenant ?? "");
         } catch {
           if (active) {
             dispatch(logoutAction());
             clearTokenSnapshot();
             clearAuthCookies();
+            clearCachedUser();
+            cancelProactiveRefresh();
             dispatch(finishInitialization());
             return;
           }
@@ -170,7 +283,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const currentUser = await dispatch(fetchCurrentUserThunk()).unwrap();
-        if (active) dispatch(setUser(currentUser));
+        if (!active) return;
+        dispatch(setUser(currentUser));
+        writeCachedUser(currentUser);
+        scheduleProactiveRefresh(currentAccess);
       } catch {
         // Access token invalid/expired — attempt a single refresh.
         try {
@@ -186,16 +302,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             tenant ?? ""
           );
           const currentUser = await dispatch(fetchCurrentUserThunk()).unwrap();
+          if (!active) return;
           dispatch(setUser(currentUser));
+          writeCachedUser(currentUser);
+          scheduleProactiveRefresh(data.accessToken);
         } catch {
           if (active) {
             dispatch(logoutAction());
             clearTokenSnapshot();
             clearAuthCookies();
+            clearCachedUser();
+            cancelProactiveRefresh();
           }
         }
-      } finally {
-        if (active) dispatch(finishInitialization());
       }
     };
 
@@ -221,6 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: result.username,
           fullName: result.fullName,
           roles: result.roles,
+          permissions: result.permissions ?? [],
           tenantId: String(result.tenantId),
         };
 
@@ -250,6 +370,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             refreshTokenMaxAge: refreshMaxAge,
           }
         );
+        writeCachedUser(authUser);
+        scheduleProactiveRefresh(result.accessToken);
+        resetUnauthenticatedNotification();
 
         toast.success(`Welcome back, ${result.fullName || result.username}!`, {
           description: "You have successfully signed in.",
@@ -278,22 +401,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = React.useCallback(async (): Promise<void> => {
-    try {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        await logoutMutation({ refreshToken }).unwrap();
-      }
-    } catch {
-      // Ignore server-side errors; always clear the local session.
-    } finally {
-      dispatch(logoutAction());
-      clearTokenSnapshot();
-      clearAuthCookies();
-      toast.success("You have been signed out.", {
-        description: "See you next time!",
-      });
-      router.push("/login");
-      router.refresh();
+    cancelProactiveRefresh();
+    const refreshToken = getRefreshToken();
+
+    // Clear the local session first so the sign-out toast and the
+    // redirect to /login render immediately. The previous flow awaited
+    // the server round-trip before touching the UI, so a slow (or
+    // hung) backend left the app stuck on "Signing out…" — with no
+    // popup and no redirect — for up to the 30s Axios timeout.
+    dispatch(logoutAction());
+    // Wipe the RTK Query cache along with the session. The cache
+    // lives in the Redux store and survives client-side navigation,
+    // so without this the next login (possibly a different user on a
+    // shared device) would briefly see the previous user's cached
+    // responses now that `refetchOnMountOrArgChange` is off.
+    dispatch(api.util.resetApiState());
+    clearTokenSnapshot();
+    clearAuthCookies();
+    clearCachedUser();
+
+    toast.success("You have been signed out.", {
+      description: "See you next time!",
+    });
+
+    // `router.replace` keeps the SPA alive; a full reload would
+    // re-download and re-parse the whole bundle.
+    router.replace("/login");
+
+    // Revoke the refresh token server-side in the background. The
+    // endpoint is public (`permitAll`) and authenticates via the
+    // refresh token in the request body, so it works without the
+    // cleared credentials. Never block the redirect on this call.
+    if (refreshToken) {
+      void logoutMutation({ refreshToken })
+        .unwrap()
+        .catch(() => {
+          // Local session is already cleared; nothing left to do.
+        });
     }
   }, [dispatch, logoutMutation, router]);
 
@@ -311,6 +455,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data.refreshToken,
         getTenantId() ?? ""
       );
+      scheduleProactiveRefresh(data.accessToken);
       return true;
     } catch {
       return false;

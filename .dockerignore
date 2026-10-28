@@ -4,14 +4,25 @@
 # =============================================================================
 
 # -------------------- Build Artifacts --------------------
-# Gradle build outputs
-build/
+# Gradle build outputs - exclude everything EXCEPT the libs directories
+**/build/classes/
+**/build/resources/
+**/build/tmp/
+**/build/test-results/
+**/build/reports/
+**/build/*.html
+**/build/*.xml
+**/build/*.log
 out/
 target/
-*.jar
 *.war
 *.ear
 *.class
+*.egg-info/
+
+# Keep pre-built JARs for fast Docker builds (Dockerfile.runtime)
+!**/build/libs/
+!**/build/libs/*
 
 # -------------------- Gradle --------------------
 .gradle/
@@ -81,7 +92,6 @@ node_modules/
 dist/
 .next/
 .nuxt/
-build/
 coverage/
 
 # -------------------- AI Models --------------------

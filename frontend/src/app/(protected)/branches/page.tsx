@@ -25,14 +25,10 @@ import {
   type BranchStatus,
 } from "@/services/branch.service";
 import { BranchStatusBadge } from "@/components/branches/branch-status-badge";
-import { CreateBranchDialog } from "@/components/branches/create-branch-dialog";
-import { EditBranchDialog } from "@/components/branches/edit-branch-dialog";
-import { BranchDetailsSheet } from "@/components/branches/branch-details-sheet";
-import { DeleteBranchDialog } from "@/components/branches/delete-branch-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeletonRows } from "@/components/common/table-state";
 import {
   Table,
   TableBody,
@@ -50,6 +46,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateBranchDialog = dynamic(
+  () =>
+    import("@/components/branches/create-branch-dialog").then((mod) => ({
+      default: mod.CreateBranchDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditBranchDialog = dynamic(
+  () =>
+    import("@/components/branches/edit-branch-dialog").then((mod) => ({
+      default: mod.EditBranchDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const BranchDetailsSheet = dynamic(
+  () =>
+    import("@/components/branches/branch-details-sheet").then((mod) => ({
+      default: mod.BranchDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteBranchDialog = dynamic(
+  () =>
+    import("@/components/branches/delete-branch-dialog").then((mod) => ({
+      default: mod.DeleteBranchDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function BranchesPage() {
   const [page, setPage] = useState(0);
@@ -189,28 +222,10 @@ export default function BranchesPage() {
 
           <TableBody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-9 rounded-lg" />
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="size-8 rounded-md ml-auto" /></TableCell>
-                </TableRow>
-              ))
+              <TableSkeletonRows columns={7} />
             ) : branches.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-64 text-center">
+                <TableCell colSpan={7} className="h-64 text-center">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <div className="flex size-12 items-center justify-center rounded-full bg-muted">
                       <Building2 className="size-6 text-muted-foreground" />

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PageResponse } from "@/types/api";
 
 export type UserStatus =
   | "ACTIVE"
@@ -6,6 +7,19 @@ export type UserStatus =
   | "LOCKED"
   | "PENDING_ACTIVATION"
   | "ARCHIVED";
+
+export interface UserRoleResponse {
+  id: number;
+  userId: number;
+  roleId: number;
+  roleName: string;
+  roleCode: string;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  expiresAt?: string | null;
+  isPrimaryRole: boolean;
+  active: boolean;
+}
 
 export interface UserListResponse {
   id: number;
@@ -21,6 +35,7 @@ export interface UserListResponse {
   departmentId?: number | null;
   lastLoginAt?: string | null;
   createdAt?: string | null;
+  roles?: UserRoleResponse[];
 }
 
 export interface User {
@@ -46,6 +61,7 @@ export interface User {
   createdBy?: string | null;
   updatedBy?: string | null;
   version?: number;
+  roles?: UserRoleResponse[];
 }
 
 export interface CreateUserRequest {
@@ -55,7 +71,7 @@ export interface CreateUserRequest {
   lastName: string;
   password?: string;
   phoneNumber?: string;
-  roleId?: number;
+  roleIds?: number[];
   profileImageUrl?: string;
   branchId?: number;
   departmentId?: number;
@@ -66,21 +82,10 @@ export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
-  roleId?: number;
+  roleIds?: number[];
   profileImageUrl?: string;
   branchId?: number;
   departmentId?: number;
-}
-
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
 }
 
 export interface GetUsersParams {
@@ -100,7 +105,7 @@ export const userApi = api.injectEndpoints({
   endpoints: (build) => ({
     getUsers: build.query<PageResponse<UserListResponse>, GetUsersParams | void>({
       query: (params) => ({
-        url: "/users",
+        url: "/identity/users",
         method: "GET",
         params: params ?? {},
       }),
@@ -109,7 +114,7 @@ export const userApi = api.injectEndpoints({
 
     getUser: build.query<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, userId) => [{ type: "User", id: userId }],
@@ -117,7 +122,7 @@ export const userApi = api.injectEndpoints({
 
     createUser: build.mutation<User, CreateUserRequest>({
       query: (body) => ({
-        url: "/users",
+        url: "/identity/users",
         method: "POST",
         data: body,
       }),
@@ -126,7 +131,7 @@ export const userApi = api.injectEndpoints({
 
     updateUser: build.mutation<User, { userId: number; data: UpdateUserRequest }>({
       query: ({ userId, data }) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "PUT",
         data,
       }),
@@ -138,7 +143,7 @@ export const userApi = api.injectEndpoints({
 
     activateUser: build.mutation<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}/activate`,
+        url: `/identity/users/${userId}/activate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, userId) => [
@@ -149,7 +154,7 @@ export const userApi = api.injectEndpoints({
 
     deactivateUser: build.mutation<User, number>({
       query: (userId) => ({
-        url: `/users/${userId}/deactivate`,
+        url: `/identity/users/${userId}/deactivate`,
         method: "POST",
       }),
       invalidatesTags: (_result, _error, userId) => [
@@ -160,7 +165,7 @@ export const userApi = api.injectEndpoints({
 
     deleteUser: build.mutation<void, number>({
       query: (userId) => ({
-        url: `/users/${userId}`,
+        url: `/identity/users/${userId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["User"],

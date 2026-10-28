@@ -54,6 +54,18 @@ public enum Action {
     /** Cancel an active or pending order, transaction, or document. */
     CANCEL("CANCEL", "Cancel", "Cancel an active order or transaction", ActionCategory.WORKFLOW, 65),
 
+    /**
+     * Record goods physically received against an order.
+     *
+     * <p>Distinct from {@link #UPDATE} because receipt moves stock: it is the point
+     * at which a purchase order stops being a promise and starts being inventory, so
+     * it belongs to whoever takes the delivery rather than to the buyer who placed
+     * it. It also lands between {@code CANCEL} and {@code CLOSE} in the lifecycle -
+     * an order can still be cancelled while it is part-received, and cannot be
+     * closed until everything is received.
+     */
+    RECEIVE("RECEIVE", "Receive", "Record goods received against an order", ActionCategory.WORKFLOW, 66),
+
     /** Formally close a completed order, project, or period. */
     CLOSE("CLOSE", "Close", "Formally close a completed record or period", ActionCategory.WORKFLOW, 67),
 

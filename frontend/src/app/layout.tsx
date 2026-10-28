@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers/providers";
 import { AppLayout } from "@/components/layout/app-layout";
+import { NavigationProgress } from "@/components/common/navigation-progress";
 import { baseMetadata, siteConfig } from "@/config/site";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "@/styles/globals.css";
@@ -35,6 +36,8 @@ export default function RootLayout({
             <AppLayout>
               {children}
             </AppLayout>
+            {/* Above every route, including the ones `AppLayout` renders without its shell. */}
+            <NavigationProgress />
           </TooltipProvider>
         </Providers>
       </body>

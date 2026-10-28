@@ -26,10 +26,6 @@ import {
 } from "@/services/department.service";
 import { BranchSelect } from "@/components/common/branch-select";
 import { DepartmentStatusBadge } from "@/components/departments/department-status-badge";
-import { CreateDepartmentDialog } from "@/components/departments/create-department-dialog";
-import { EditDepartmentDialog } from "@/components/departments/edit-department-dialog";
-import { DepartmentDetailsSheet } from "@/components/departments/department-details-sheet";
-import { DeleteDepartmentDialog } from "@/components/departments/delete-department-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +47,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";
+import dynamic from "next/dynamic";
+
+/**
+ * Code-split modals. These components stay closed for the whole time this
+ * list is on screen, so keeping them out of the initial payload lets the page
+ * become interactive without parsing them. `loading: () => null` matches the
+ * closed state, so opening one causes no layout shift.
+ */
+const CreateDepartmentDialog = dynamic(
+  () =>
+    import("@/components/departments/create-department-dialog").then((mod) => ({
+      default: mod.CreateDepartmentDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const EditDepartmentDialog = dynamic(
+  () =>
+    import("@/components/departments/edit-department-dialog").then((mod) => ({
+      default: mod.EditDepartmentDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DepartmentDetailsSheet = dynamic(
+  () =>
+    import("@/components/departments/department-details-sheet").then((mod) => ({
+      default: mod.DepartmentDetailsSheet,
+    })),
+  { ssr: false, loading: () => null }
+);
+const DeleteDepartmentDialog = dynamic(
+  () =>
+    import("@/components/departments/delete-department-dialog").then((mod) => ({
+      default: mod.DeleteDepartmentDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 
 export default function DepartmentsPage() {
   const [page, setPage] = useState(0);

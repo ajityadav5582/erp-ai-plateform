@@ -153,7 +153,7 @@ To reset the database (caution: drops all data):
 
 ```bash
 # Create a tenant (if tenant service is running)
-curl -X POST http://localhost:8080/api/v1/tenants \
+curl -X POST http://localhost:8080/api/v1/tenant/tenants \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Tenant",
@@ -416,7 +416,7 @@ erp-ai-plateform/
 curl http://localhost:8080/actuator/health
 
 # Login
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://localhost:8080/api/v1/identity/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "tenantId": 1,
@@ -425,18 +425,18 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
   }'
 
 # Refresh token
-curl -X POST http://localhost:8080/api/v1/auth/refresh \
+curl -X POST http://localhost:8080/api/v1/identity/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{
     "refreshToken": "<your-refresh-token>"
   }'
 
 # Get current user
-curl http://localhost:8080/api/v1/auth/me \
+curl http://localhost:8080/api/v1/identity/auth/me \
   -H "Authorization: Bearer <your-access-token>"
 
 # Forgot password
-curl -X POST http://localhost:8080/api/v1/auth/forgot-password \
+curl -X POST http://localhost:8080/api/v1/identity/auth/forgot-password \
   -H "Content-Type: application/json" \
   -d '{
     "tenantId": 1,

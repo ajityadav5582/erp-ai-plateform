@@ -36,6 +36,7 @@ public class JwtService {
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String CLAIM_TENANT_ID = "tenantId";
     private static final String CLAIM_ROLES = "roles";
+    private static final String CLAIM_PERMISSIONS = "permissions";
     private static final String CLAIM_FULL_NAME = "fullName";
     private static final String CLAIM_TOKEN_TYPE = "tokenType";
 
@@ -51,10 +52,24 @@ public class JwtService {
     /**
      * Issues a signed access token (JWT) for the given principal.
      *
+     * <p>The token carries the user's roles <em>and</em> the resolved permission codes.
+     * Embedding permissions lets downstream business services authorize a request purely
+     * from the validated token, with no cross-service call and no per-request database
+     * hit. The trade-off is that a permission change only takes effect when the next
+     * token is issued, which is why the access-token TTL should stay short (15 minutes).
+     *
+     * @param userId      the user's id (token subject)
+     * @param tenantId    the tenant the user belongs to
+     * @param username    the user's username
+     * @param email       the user's email
+     * @param fullName    the user's full name
+     * @param roles       the user's active role codes
+     * @param permissions the permission codes granted by those roles
      * @return the compact JWT string
      */
     public String generateAccessToken(String userId, Long tenantId, String username,
-                                      String email, String fullName, Collection<String> roles) {
+                                      String email, String fullName, Collection<String> roles,
+                                      Collection<String> permissions) {
         Instant now = Instant.now();
         Instant expiry = now.plusMillis(properties.getAccessTokenExpiryMs());
         return Jwts.builder()
@@ -69,6 +84,7 @@ public class JwtService {
                 .claim("email", email)
                 .claim(CLAIM_FULL_NAME, fullName)
                 .claim(CLAIM_ROLES, roles == null ? List.of() : List.copyOf(roles))
+                .claim(CLAIM_PERMISSIONS, permissions == null ? List.of() : List.copyOf(permissions))
                 .signWith(key)
                 .compact();
     }
@@ -96,6 +112,8 @@ public class JwtService {
         Long tenantId = claims.get(CLAIM_TENANT_ID, Long.class);
         @SuppressWarnings("unchecked")
         List<String> roles = (List<String>) (List<?>) claims.get(CLAIM_ROLES, List.class);
+        @SuppressWarnings("unchecked")
+        List<String> permissions = (List<String>) (List<?>) claims.get(CLAIM_PERMISSIONS, List.class);
         return new AccessTokenClaims(
                 claims.getSubject(),
                 tenantId,
@@ -103,6 +121,7 @@ public class JwtService {
                 claims.get("email", String.class),
                 claims.get(CLAIM_FULL_NAME, String.class),
                 roles == null ? List.of() : roles,
+                permissions == null ? List.of() : permissions,
                 claims.getId(),
                 claims.getIssuedAt().toInstant(),
                 claims.getExpiration().toInstant());

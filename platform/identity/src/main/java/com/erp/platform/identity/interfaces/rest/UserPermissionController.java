@@ -18,15 +18,15 @@ import java.util.List;
  *
  * <p>Provides reusable endpoints for:
  * <ul>
- *   <li>Fetching the authenticated user's active tenant permissions (`/api/v1/permissions/me`)</li>
- *   <li>Batch evaluating permissions for UI component visibility (`/api/v1/permissions/check-batch`)</li>
- *   <li>Evaluating single permission check requests (`/api/v1/permissions/check-permission`)</li>
+ *   <li>Fetching the authenticated user's active tenant permissions (`/api/v1/identity/permissions/me`)</li>
+ *   <li>Batch evaluating permissions for UI component visibility (`/api/v1/identity/permissions/check-batch`)</li>
+ *   <li>Evaluating single permission check requests (`/api/v1/identity/permissions/check-permission`)</li>
  * </ul>
  *
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/user-permissions")
+@RequestMapping("/api/v1/identity/user-permissions")
 @RequiredArgsConstructor
 public class UserPermissionController {
 

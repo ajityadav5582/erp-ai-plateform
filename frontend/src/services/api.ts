@@ -80,6 +80,29 @@ const axiosBaseQuery =
 export const api = createApi({
   reducerPath: "api",
   baseQuery: axiosBaseQuery(),
+  // Retain query results after the last subscriber unmounts, so navigating
+  // back to a page renders cached data instantly instead of re-fetching.
+  // 5 minutes comfortably covers back/forward navigation within a session.
+  keepUnusedDataFor: 300,
+  // Do NOT re-fetch cached queries on every mount / arg change.
+  //
+  // The previous value (30) re-fetched any query whose cache was older
+  // than 30 seconds whenever a component mounted. The app shell
+  // (AppLayout + sidebar) subscribes to the companies, fiscal-years and
+  // procurement-menu queries on every protected page, so each navigation
+  // fired 3 background re-fetches before the page's own queries even
+  // started — the dominant cause of sluggish navigation.
+  //
+  // With `false`, navigation reuses the cached data instantly. Freshness
+  // is still guaranteed by:
+  // - tag invalidation (mutations re-fetch the lists they affect),
+  // - `refetchOnReconnect` (wired via `setupListeners` in Providers),
+  // - `api.util.resetApiState()` on logout (clears the cache so the
+  //   next login fetches fresh data instead of showing the previous
+  //   user's cached responses),
+  // - manual `refetch()` on error states ("Try again" buttons).
+  refetchOnMountOrArgChange: false,
+  refetchOnReconnect: true,
   tagTypes: [
     "Auth",
     "User",
@@ -92,6 +115,34 @@ export const api = createApi({
     "Tenant",
     "Finance",
     "Inventory",
+    "Category",
+    "Supplier",
+    "Unit",
+    "Item",
+    "Warehouse",
+    "PurchaseRequisition",
+    "PurchaseOrder",
+    "GoodsReceipt",
+    "PurchaseInvoice",
+    "SupplierPayment",
+    "Customer",
+    "SalesQuotation",
+    "SalesOrder",
+    "SalesDelivery",
+    "SalesInvoice",
+    "CustomerReceipt",
+    "SalesReturn",
+    "SalesRegister",
+    "SalesMenu",
+    "ProcurementMenu",
+    "PosMenu",
+    "PosRegister",
+    "PosSession",
+    "PosTransaction",
+    "PosQuickItem",
+    "PosTable",
+    "PosKitchenTicket",
+    "WorkflowConfiguration",
     "HR",
     "Manufacturing",
     "AI",

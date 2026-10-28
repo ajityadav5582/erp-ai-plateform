@@ -34,7 +34,7 @@ export function PermissionDetailsSheet({ open, onOpenChange, permission }: Permi
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
+        <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background">
           <div className="flex items-center gap-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Key className="size-5" />

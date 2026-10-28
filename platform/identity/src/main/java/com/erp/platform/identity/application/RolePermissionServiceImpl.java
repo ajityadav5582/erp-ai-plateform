@@ -5,6 +5,7 @@ import com.erp.platform.identity.application.dto.RemovePermissionRequest;
 import com.erp.platform.identity.application.dto.RolePermissionListResponse;
 import com.erp.platform.identity.application.dto.RolePermissionResponse;
 import com.erp.platform.identity.application.mapper.RolePermissionMapper;
+import com.erp.platform.identity.domain.DataScope;
 import com.erp.platform.identity.domain.Permission;
 import com.erp.platform.identity.domain.RolePermission;
 import com.erp.platform.identity.domain.exception.PermissionNotFoundException;
@@ -87,7 +88,8 @@ public class RolePermissionServiceImpl implements RolePermissionService {
                 request.roleId(),
                 request.permissionId(),
                 request.assignedBy(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                DataScope.ALL.name()
         );
 
         if (inserted == 0) {

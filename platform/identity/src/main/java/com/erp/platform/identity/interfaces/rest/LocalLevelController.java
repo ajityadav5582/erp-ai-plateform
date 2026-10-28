@@ -26,7 +26,7 @@ import java.util.List;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/local-levels")
+@RequestMapping("/api/v1/identity/local-levels")
 @RequiredArgsConstructor
 public class LocalLevelController {
 

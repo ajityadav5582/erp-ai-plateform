@@ -83,7 +83,7 @@ export function UserDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background">
           <SheetTitle>User Details</SheetTitle>
           <SheetDescription>
             Comprehensive profile and account metadata

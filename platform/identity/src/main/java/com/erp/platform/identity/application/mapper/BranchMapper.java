@@ -13,9 +13,7 @@ import java.time.ZoneId;
 /**
  * Mapper for converting between Branch entity and DTOs.
  *
- * <p>A branch's location is derived from a local level (province -> district ->
- * local level) referenced via {@code localLevelId}. An optional {@code wardNo}
- * can further qualify the branch address.
+ * <p>A branch carries a free-text address and an optional ward number.
  *
  * @since 1.0.0
  */
@@ -25,19 +23,20 @@ public class BranchMapper {
     /**
      * Convert CreateBranchRequest to Branch entity.
      *
+     * <p>Uses {@link Branch#updateDetails} rather than {@code toBuilder()} so the
+     * company id is never lost and the entity keeps its invariants.
+     *
      * @param request the create request
      * @param tenantId the tenant ID
+     * @param companyId the active company ID
      * @return the Branch entity
      */
-    public Branch toEntity(CreateBranchRequest request, Long tenantId) {
-        Branch branch = Branch.create(tenantId, request.branchCode(), request.branchName());
-        return branch.toBuilder()
-                .email(request.email())
-                .phone(request.phone())
-                .address(request.address())
-                .localLevelId(request.localLevelId())
-                .wardNo(request.wardNo())
-                .build();
+    public Branch toEntity(CreateBranchRequest request, Long tenantId, Long companyId) {
+        Branch branch = Branch.create(tenantId, companyId, request.branchCode(), request.branchName());
+        branch.updateDetails(
+                null, null,
+                request.address(), request.wardNo());
+        return branch;
     }
 
     /**
@@ -50,12 +49,10 @@ public class BranchMapper {
         return new BranchResponse(
                 branch.getId(),
                 branch.getTenantId(),
+                branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
-                branch.getEmail(),
-                branch.getPhone(),
                 branch.getAddress(),
-                branch.getLocalLevelId(),
                 branch.getWardNo(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt()),
@@ -75,9 +72,9 @@ public class BranchMapper {
     public BranchListResponse toListResponse(Branch branch) {
         return new BranchListResponse(
                 branch.getId(),
+                branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
-                branch.getLocalLevelId(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt())
         );

@@ -1,6 +1,7 @@
 package com.erp.platform.identity.interfaces.rest;
 
 import com.erp.platform.identity.application.BranchService;
+import com.erp.platform.identity.application.CurrentCompanyProvider;
 import com.erp.platform.identity.application.CurrentTenantProvider;
 import com.erp.platform.identity.application.dto.BranchListResponse;
 import com.erp.platform.identity.application.dto.BranchResponse;
@@ -25,7 +26,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * <p>Exposes a standard REST API for branch CRUD operations and lifecycle state
  * transitions, following the platform API standards:
  * <ul>
- *   <li>Versioned base path {@code /api/v1/branches}</li>
+ *   <li>Versioned base path {@code /api/v1/identity/branches}</li>
  *   <li>Proper HTTP methods (GET, POST, PUT, PATCH, DELETE)</li>
  *   <li>Appropriate status codes (201 + Location on create, 204 on delete)</li>
  *   <li>Pagination and filtering on collection endpoints</li>
@@ -35,12 +36,13 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/v1/branches")
+@RequestMapping("/api/v1/identity/branches")
 @RequiredArgsConstructor
 public class BranchController {
 
     private final BranchService branchService;
     private final CurrentTenantProvider currentTenantProvider;
+    private final CurrentCompanyProvider currentCompanyProvider;
 
     /**
      * Creates a new branch.
@@ -54,9 +56,10 @@ public class BranchController {
             @Valid @RequestBody CreateBranchRequest request,
             UriComponentsBuilder uriBuilder) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.createBranch(tenantId, request);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.createBranch(tenantId, companyId, request);
         return ResponseEntity
-                .created(uriBuilder.path("/api/v1/branches/{id}").buildAndExpand(response.id()).toUri())
+                .created(uriBuilder.path("/api/v1/identity/branches/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
     }
 
@@ -70,7 +73,8 @@ public class BranchController {
     @RequirePermission("BRANCH_READ")
     public ResponseEntity<Page<BranchListResponse>> listBranches(Pageable pageable) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        Page<BranchListResponse> page = branchService.listBranches(tenantId, pageable);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        Page<BranchListResponse> page = branchService.listBranches(tenantId, companyId, pageable);
         return ResponseEntity.ok(page);
     }
 
@@ -84,7 +88,8 @@ public class BranchController {
     @RequirePermission("BRANCH_READ")
     public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long branchId) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.getBranchById(tenantId, branchId);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.getBranchById(tenantId, companyId, branchId);
         return ResponseEntity.ok(response);
     }
 
@@ -98,7 +103,8 @@ public class BranchController {
     @RequirePermission("BRANCH_READ")
     public ResponseEntity<BranchResponse> getBranchByCode(@RequestParam String code) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.getBranchByCode(tenantId, code);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.getBranchByCode(tenantId, companyId, code);
         return ResponseEntity.ok(response);
     }
 
@@ -115,7 +121,8 @@ public class BranchController {
             @PathVariable Long branchId,
             @Valid @RequestBody UpdateBranchRequest request) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.updateBranch(tenantId, branchId, request);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.updateBranch(tenantId, companyId, branchId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -132,7 +139,8 @@ public class BranchController {
             @PathVariable Long branchId,
             @RequestBody UpdateBranchRequest request) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.updateBranch(tenantId, branchId, request);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.updateBranch(tenantId, companyId, branchId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -146,7 +154,8 @@ public class BranchController {
     @RequirePermission("BRANCH_DELETE")
     public ResponseEntity<Void> deleteBranch(@PathVariable Long branchId) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        branchService.deleteBranch(tenantId, branchId);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        branchService.deleteBranch(tenantId, companyId, branchId);
         return ResponseEntity.noContent().build();
     }
 
@@ -160,7 +169,8 @@ public class BranchController {
     @RequirePermission("BRANCH_UPDATE")
     public ResponseEntity<BranchResponse> activateBranch(@PathVariable Long branchId) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.activateBranch(tenantId, branchId);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.activateBranch(tenantId, companyId, branchId);
         return ResponseEntity.ok(response);
     }
 
@@ -174,7 +184,8 @@ public class BranchController {
     @RequirePermission("BRANCH_UPDATE")
     public ResponseEntity<BranchResponse> deactivateBranch(@PathVariable Long branchId) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        BranchResponse response = branchService.deactivateBranch(tenantId, branchId);
+        Long companyId = currentCompanyProvider.getCurrentCompanyId();
+        BranchResponse response = branchService.deactivateBranch(tenantId, companyId, branchId);
         return ResponseEntity.ok(response);
     }
 

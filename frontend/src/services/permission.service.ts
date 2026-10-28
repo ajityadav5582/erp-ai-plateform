@@ -43,7 +43,13 @@ export type Resource =
   // Procurement & SCM
   | "PURCHASE"
   | "VENDOR"
-  | "PURCHASE_REQUISITION"
+  // Purchase requisitions. Resource `PR` rather than the entity's full name:
+  // it is the resource the Role screen groups by, and a shorter one keeps
+  // `PR_CONVERT_TO_PO` readable in a checkbox label. Actions are per operation
+  // (VIEW/CREATE/EDIT/SUBMIT/APPROVE/REJECT/CANCEL/CONVERT_TO_PO), so a role
+  // can be given "may refuse spend" without also being given "may authorise
+  // spend".
+  | "PR"
   | "PURCHASE_ORDER"
   | "GOODS_RECEIPT"
   // Inventory & Logistics
@@ -81,6 +87,7 @@ export type Action =
   | "CREATE"
   | "VIEW"
   | "UPDATE"
+  | "EDIT"
   | "DELETE"
   | "LIST"
   // Workflow
@@ -88,6 +95,7 @@ export type Action =
   | "APPROVE"
   | "REJECT"
   | "CANCEL"
+  | "CONVERT_TO_PO"
   | "CLOSE"
   | "REOPEN"
   | "VOID"
@@ -101,6 +109,7 @@ export type Action =
   | "REPORT"
   // Admin
   | "MANAGE"
+  | "ADMIN"
   | "ASSIGN"
   | "LOCK"
   | "UNLOCK"
@@ -164,7 +173,7 @@ export const permissionApi = api.injectEndpoints({
   endpoints: (build) => ({
     getPermissions: build.query<PermissionListResponse, GetPermissionsParams | void>({
       query: (params) => ({
-        url: "/permissions",
+        url: "/identity/permissions",
         method: "GET",
         params: params ?? {},
       }),
@@ -173,7 +182,7 @@ export const permissionApi = api.injectEndpoints({
 
     getPermission: build.query<PermissionResponse, number>({
       query: (permissionId) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "GET",
       }),
       providesTags: (_result, _error, permissionId) => [{ type: "Permission", id: permissionId }],
@@ -181,7 +190,7 @@ export const permissionApi = api.injectEndpoints({
 
     createPermission: build.mutation<PermissionResponse, CreatePermissionRequest>({
       query: (body) => ({
-        url: "/permissions",
+        url: "/identity/permissions",
         method: "POST",
         data: body,
       }),
@@ -190,7 +199,7 @@ export const permissionApi = api.injectEndpoints({
 
     updatePermission: build.mutation<PermissionResponse, { permissionId: number; data: UpdatePermissionRequest }>({
       query: ({ permissionId, data }) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "PUT",
         data,
       }),
@@ -202,7 +211,7 @@ export const permissionApi = api.injectEndpoints({
 
     deletePermission: build.mutation<void, number>({
       query: (permissionId) => ({
-        url: `/permissions/${permissionId}`,
+        url: `/identity/permissions/${permissionId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Permission"],

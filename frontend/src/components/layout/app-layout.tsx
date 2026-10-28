@@ -29,14 +29,24 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { siteConfig } from "@/config/site";
-import { ACTIVE_FISCAL_SELECTION_STORAGE_KEY } from "@/config/company-context";
+import {
+  CompanyProvider,
+  ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
+} from "@/config/company-context";
 import { useGetCompaniesQuery, useGetCompanyFiscalYearsQuery } from "@/services/company.service";
+import type { BusinessType } from "@/services/company.service";
+import { useGetProcurementMenuQuery, getProcurementIcon } from "@/services/procurement-menu.service";
+import { useGetSalesMenuQuery, getSalesIcon } from "@/services/sales-menu.service";
+import { useGetPosMenuQuery, getPosIcon } from "@/services/pos-menu.service";
 import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/store/hooks";
 
 interface NavSubItem {
   title: string;
   href: string;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Permission code required to see this nav item. */
+  requiredPermission?: string;
 }
 
 interface NavItem {
@@ -45,6 +55,8 @@ interface NavItem {
   icon?: React.ComponentType<{ className?: string }>;
   isActive?: boolean;
   children?: NavSubItem[];
+  /** Permission code required to see this nav item. */
+  requiredPermission?: string;
 }
 
 interface ActiveFiscalSelection {
@@ -52,12 +64,14 @@ interface ActiveFiscalSelection {
   fiscalYearId: number;
   companyName: string;
   fiscalYearName: string;
+  businessType: BusinessType | null;
 }
 
 const navigation: NavItem[] = [
   {
     title: "Dashboard",
     href: "/",
+    requiredPermission: undefined, // Always visible
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" />
@@ -69,6 +83,7 @@ const navigation: NavItem[] = [
   },
   {
     title: "Administrations",
+    requiredPermission: undefined, // Parent visibility controlled by children
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -79,6 +94,7 @@ const navigation: NavItem[] = [
       {
         title: "Users",
         href: "/users",
+        requiredPermission: "USER_VIEW",
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -91,6 +107,7 @@ const navigation: NavItem[] = [
       {
         title: "Branches",
         href: "/branches",
+        requiredPermission: "BRANCH_VIEW",
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
@@ -100,6 +117,7 @@ const navigation: NavItem[] = [
       {
         title: "Roles",
         href: "/roles",
+        requiredPermission: "ROLE_VIEW",
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -109,6 +127,7 @@ const navigation: NavItem[] = [
       {
         title: "Departments",
         href: "/departments",
+        requiredPermission: "DEPARTMENT_VIEW",
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -118,6 +137,7 @@ const navigation: NavItem[] = [
       {
         title: "Permissions",
         href: "/permissions",
+        requiredPermission: "PERMISSION_VIEW",
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -130,6 +150,7 @@ const navigation: NavItem[] = [
   {
     title: "Finance",
     href: "/finance",
+    requiredPermission: "ACCOUNTING_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -138,8 +159,85 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    title: "Master Data",
+    requiredPermission: "INVENTORY_VIEW",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+    ),
+    children: [
+      {
+        title: "Categories",
+        href: "/categories",
+        requiredPermission: "PRODUCT_CATEGORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2l10-2l10 2z" />
+            <path d="M6 10h.01" />
+            <path d="M10 10h.01" />
+            <path d="M14 10h.01" />
+            <path d="M18 10h.01" />
+          </svg>
+        ),
+      },
+      {
+        title: "Warehouses",
+        href: "/warehouses",
+        requiredPermission: "WAREHOUSE_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+            <path d="M6 10h4" />
+            <path d="M14 10h4" />
+            <path d="M6 14h4" />
+            <path d="M14 14h4" />
+          </svg>
+        ),
+      },
+      {
+        title: "Suppliers",
+        href: "/suppliers",
+        requiredPermission: "VENDOR_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 3h15v13H1z" />
+            <path d="M16 8h4l3 3v5h-7V8z" />
+            <circle cx="5.5" cy="18.5" r="2.5" />
+            <circle cx="18.5" cy="18.5" r="2.5" />
+          </svg>
+        ),
+      },
+      {
+        title: "Units",
+        href: "/units",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 3.5 L20.5 20.5 L20.5 9 L9 20.5 Z" />
+            <path d="M15 4 L20 9" />
+            <path d="M4 15 L9 20" />
+          </svg>
+        ),
+      },
+      {
+        title: "Items",
+        href: "/items",
+        requiredPermission: "PRODUCT_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     title: "Inventory",
-    href: "/inventory",
+    requiredPermission: "INVENTORY_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -147,10 +245,98 @@ const navigation: NavItem[] = [
         <line x1="12" y1="22.08" x2="12" y2="12" />
       </svg>
     ),
+    children: [
+      {
+        title: "Stock on Hand",
+        href: "/stock",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 8h14l-1 12H6L5 8z" />
+            <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Ledger",
+        href: "/stock/ledger",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 6h13" />
+            <path d="M8 12h13" />
+            <path d="M8 18h13" />
+            <path d="M3 6h.01" />
+            <path d="M3 12h.01" />
+            <path d="M3 18h.01" />
+          </svg>
+        ),
+      },
+      {
+        title: "Movement Summary",
+        href: "/stock/summary",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+        ),
+      },
+      {
+        title: "Low Stock",
+        href: "/stock/low-stock",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Valuation",
+        href: "/stock/valuation",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v10" />
+            <path d="M9.5 9.5h5" />
+            <path d="M9.5 14.5h5" />
+          </svg>
+        ),
+      },
+      {
+        title: "Negative Stock",
+        href: "/stock/negative",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+            <polyline points="17 18 23 18 23 12" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Aging",
+        href: "/stock/aging",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12 7 12 12 15.5 14" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
     title: "HR",
     href: "/hr",
+    requiredPermission: "HR_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -163,6 +349,7 @@ const navigation: NavItem[] = [
   {
     title: "Manufacturing",
     href: "/manufacturing",
+    requiredPermission: "MANUFACTURING_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
@@ -170,8 +357,19 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    title: "Sales",
+    requiredPermission: "CUSTOMER_VIEW",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    children: [], // Will be populated dynamically from backend
+  },
+  {
     title: "Procurement",
-    href: "/procurement",
+    requiredPermission: "PR_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="8" cy="21" r="1" />
@@ -179,10 +377,65 @@ const navigation: NavItem[] = [
         <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
       </svg>
     ),
+    children: [
+      {
+        title: "Purchase Requisitions",
+        href: "/purchase-requisitions",
+        requiredPermission: "PR_VIEW",
+        icon: getProcurementIcon("file-text"),
+      },
+      {
+        title: "Purchase Orders",
+        href: "/purchase-orders",
+        requiredPermission: "PURCHASE_ORDER_VIEW",
+        icon: getProcurementIcon("shopping-cart"),
+      },
+      {
+        title: "Goods Receipts",
+        href: "/goods-receipts",
+        requiredPermission: "GOODS_RECEIPT_VIEW",
+        icon: getProcurementIcon("truck"),
+      },
+      {
+        title: "Purchase Invoices",
+        href: "/purchase-invoices",
+        requiredPermission: "PURCHASE_INVOICE_VIEW",
+        icon: getProcurementIcon("file-invoice"),
+      },
+      {
+        title: "Supplier Payments",
+        href: "/supplier-payments",
+        requiredPermission: "SUPPLIER_PAYMENT_VIEW",
+        icon: getProcurementIcon("credit-card"),
+      },
+      {
+        title: "Workflow Configuration",
+        href: "/workflow-configuration",
+        requiredPermission: "PR_ADMIN",
+        icon: getProcurementIcon("settings"),
+      },
+    ],
+  },
+  {
+    title: "POS",
+    requiredPermission: "POS_SCAN",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+        <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+        <path d="M7 8h10" />
+        <path d="M7 12h10" />
+        <path d="M7 16h6" />
+      </svg>
+    ),
+    children: [], // Will be populated dynamically from backend
   },
   {
     title: "Reports",
     href: "/reports",
+    requiredPermission: "REPORTING_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -195,7 +448,7 @@ const navigation: NavItem[] = [
   },
 ];
 
-function CollapsibleNavItem({
+const CollapsibleNavItem = React.memo(function CollapsibleNavItem({
   item,
   pathname,
 }: {
@@ -254,10 +507,88 @@ function CollapsibleNavItem({
       )}
     </SidebarMenuItem>
   );
-}
+});
 
-function AppSidebar({ selection }: { selection: ActiveFiscalSelection }) {
+const AppSidebar = React.memo(function AppSidebar({
+  selection,
+}: {
+  selection: ActiveFiscalSelection;
+}) {
   const pathname = usePathname();
+  const { data: procurementMenu } = useGetProcurementMenuQuery(undefined, { skip: !selection });
+  const { data: salesMenu } = useGetSalesMenuQuery(undefined, { skip: !selection });
+  const { data: posMenu } = useGetPosMenuQuery(undefined, { skip: !selection });
+  const userPermissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
+  const userRoles = useAppSelector((state) => state.auth.user?.roles ?? []);
+
+  // Backend treats any administrative role as holding every permission, so
+  // mirror that here to keep module visibility in sync for tenant admins.
+  const ADMIN_ROLES = new Set(["SUPER_ADMIN", "TENANT_ADMIN", "OWNER", "ADMIN"]);
+  const isAdmin = userRoles.some((role) => ADMIN_ROLES.has(role));
+
+  // Check if user has a specific permission
+  const hasPermission = React.useCallback(
+    (permission: string | undefined) => {
+      if (isAdmin) return true;
+      if (!permission) return true;
+      return userPermissions.includes(permission);
+    },
+    [userPermissions, isAdmin]
+  );
+
+  // Filter navigation items based on user permissions
+  const filteredNavigation = React.useMemo(() => {
+    return navigation.filter((item) => {
+      // If no permission required, always show
+      if (!item.requiredPermission) return true;
+      // For parent items with children, show if any child is accessible
+      if (item.children && item.children.length > 0) {
+        return item.children.some((child) => hasPermission(child.requiredPermission));
+      }
+      // For leaf items, check the required permission
+      return hasPermission(item.requiredPermission);
+    });
+  }, [hasPermission]);
+
+  // Build dynamic navigation with procurement menu from backend
+  const dynamicNavigation = React.useMemo(() => {
+    return filteredNavigation.map((item) => {
+      if (item.title === "Procurement" && procurementMenu?.items) {
+        return {
+          ...item,
+          children: procurementMenu.items.map((menuItem) => ({
+            title: menuItem.title,
+            href: menuItem.href,
+            icon: getProcurementIcon(menuItem.icon),
+            requiredPermission: menuItem.permission,
+          })),
+        };
+      }
+      if (item.title === "Sales" && salesMenu?.items) {
+        return {
+          ...item,
+          children: salesMenu.items.map((menuItem) => ({
+            title: menuItem.title,
+            href: menuItem.href,
+            icon: getSalesIcon(menuItem.icon),
+            requiredPermission: menuItem.permission,
+          })),
+        };
+      }
+      if (item.title === "POS" && posMenu?.items) {
+        return {
+          ...item,
+          children: posMenu.items.map((menuItem) => ({
+            title: menuItem.title,
+            href: menuItem.href,
+            icon: getPosIcon(menuItem.icon),
+            requiredPermission: menuItem.permission,
+          })),
+        };
+      }
+      return item;
+    });
+  }, [filteredNavigation, procurementMenu, salesMenu, posMenu]);
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -285,12 +616,25 @@ function AppSidebar({ selection }: { selection: ActiveFiscalSelection }) {
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => {
+              {dynamicNavigation.map((item) => {
+                // Filter children by permission
+                const visibleChildren = item.children?.filter((child) => {
+                  if (!child.requiredPermission) return true;
+                  // For procurement children, permission is already filtered by backend
+                  if (item.title === "Procurement") return true;
+                  return true; // Will be filtered by PermissionGate in the link
+                });
+
+                // Skip parent items that have no visible children and no direct permission
+                if (item.children && (!visibleChildren || visibleChildren.length === 0)) {
+                  return null;
+                }
+
                 if (item.children) {
                   return (
                     <CollapsibleNavItem
                       key={item.title}
-                      item={item}
+                      item={{ ...item, children: visibleChildren }}
                       pathname={pathname}
                     />
                   );
@@ -321,7 +665,7 @@ function AppSidebar({ selection }: { selection: ActiveFiscalSelection }) {
       <SidebarRail />
     </Sidebar>
   );
-}
+});
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -367,13 +711,30 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
             fiscalYearId: candidate.fiscalYearId,
             companyName: candidate.companyName || "Selected company",
             fiscalYearName: candidate.fiscalYearName || "Active fiscal year",
+            businessType: (candidate as { businessType?: BusinessType | null }).businessType ?? null,
           };
         }
       }
     } catch {
       window.localStorage.removeItem(ACTIVE_FISCAL_SELECTION_STORAGE_KEY);
     }
-    setActiveFiscalSelection(selection);
+
+    // This effect re-runs on every `pathname` change so it can pick up a
+    // selection written by the fiscal-year page. Committing a fresh object
+    // every time re-rendered the entire app shell (sidebar included) on each
+    // navigation. Returning the previous reference when nothing changed makes
+    // React bail out of the re-render instead.
+    setActiveFiscalSelection((previous) =>
+      previous &&
+      selection &&
+      previous.companyId === selection.companyId &&
+      previous.fiscalYearId === selection.fiscalYearId &&
+      previous.companyName === selection.companyName &&
+      previous.fiscalYearName === selection.fiscalYearName &&
+      previous.businessType === selection.businessType
+        ? previous
+        : selection
+    );
     setFiscalSelectionReady(true);
     if (!selection && !isCompanySetupPage) {
       router.replace("/companies");
@@ -391,6 +752,7 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
       ...activeFiscalSelection,
       companyName: company.companyName,
       fiscalYearName: fiscalYear.name,
+      businessType: company.businessType ?? activeFiscalSelection.businessType,
     };
     setActiveFiscalSelection(resolvedSelection);
     window.localStorage.setItem(ACTIVE_FISCAL_SELECTION_STORAGE_KEY, JSON.stringify(resolvedSelection));
@@ -454,7 +816,35 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
           </div>
           <Separator />
           <div className="flex flex-1 flex-col">
-            {children}
+             <CompanyProvider
+               company={{
+                 id: activeFiscalSelection.companyId,
+                 name: activeFiscalSelection.companyName,
+                 businessType: activeFiscalSelection.businessType,
+               }}
+            >
+              {/*
+                Keyed on the path so this wrapper is remounted together with the
+                page it holds, which is what replays the entrance animation on
+                every navigation. Without the key the element is reused and the
+                animation only ever runs once, on first load.
+
+                Only the page subtree is inside the key - the sidebar, the header
+                and the fiscal-year context above it are deliberately outside, so
+                a navigation never disturbs them. RTK Query survives the remount
+                on its cache (`refetchOnMountOrArgChange: false`), so this costs
+                no extra requests.
+
+                `motion-safe:` skips the animation entirely for anyone who has
+                asked their OS for reduced motion.
+              */}
+              <div
+                key={pathname}
+                className="flex flex-1 flex-col motion-safe:animate-nav-fade-in"
+              >
+                {children}
+              </div>
+            </CompanyProvider>
           </div>
         </div>
         <SiteFooter />

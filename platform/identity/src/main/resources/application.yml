@@ -28,13 +28,13 @@ spring:
         spring.json.trusted.packages: "com.erp.platform.*"
 
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${SERVER_PORT:8081}
 
 auth:
   jwt:
     # HMAC-SHA secret used to sign/verify JWTs. MUST be at least 32 bytes (256 bits).
     # In production this must be injected from a secrets manager, never committed.
-    secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
+    secret: ${JWT_SECRET}
     issuer: erp-ai-platform-identity
     # Access token lifetime (milliseconds). Default 15 minutes.
     access-token-expiry-ms: 900000
@@ -50,6 +50,13 @@ auth:
     # When true the raw reset token is returned in the forgot-password response (dev only).
     # In production this MUST be false and the token delivered out-of-band (email).
     return-token-in-response: true
+
+# Identity is the token issuer and installs its own JwtAuthenticationFilter,
+# so the shared read-only token validator must stay off here.
+erp:
+  security:
+    jwt:
+      enabled: false
 
 management:
   endpoints:

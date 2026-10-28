@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/master-fiscal-years")
+@RequestMapping("/api/v1/identity/master-fiscal-years")
 @RequiredArgsConstructor
 public class MasterFiscalYearController {
     private final MasterFiscalYearRepository repository;

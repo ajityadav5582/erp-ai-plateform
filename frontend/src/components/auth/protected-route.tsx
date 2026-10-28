@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "@/components/providers/auth-provider";
-import { LoadingSpinner } from "@/components/common/loading-spinner";
+import { CenteredLoader } from "@/components/common/page-loading";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -30,6 +30,7 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const router = useRouter();
   const { isAuthenticated, isInitialized, isLoading } = useAuthContext();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     if (isInitialized && !isAuthenticated) {
@@ -37,16 +38,18 @@ export function ProtectedRoute({
     }
   }, [isInitialized, isAuthenticated, redirectTo, router]);
 
+  // Already on the destination page — do not bounce between routes.
+  if (pathname === redirectTo) {
+    return null;
+  }
+
   if (!isInitialized || isLoading) {
+    // Rendered inline (not `min-h-screen`) so the surrounding app shell stays
+    // mounted instead of collapsing to a full-page spinner on every navigation.
+    // `CenteredLoader` already reserves `min-h-[50vh]`, so the wrapper is dropped
+    // here rather than nested inside it.
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        {fallback ?? (
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <LoadingSpinner size="lg" />
-            <p className="text-sm">Verifying your session…</p>
-          </div>
-        )}
-      </div>
+      fallback ?? <CenteredLoader label="Verifying your session…" />
     );
   }
 

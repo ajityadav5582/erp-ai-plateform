@@ -16,6 +16,10 @@ ARG VCS_REF=unknown
 # -------------------- Build Stage --------------------
 FROM eclipse-temurin:21-jdk-jammy AS builder
 
+# Re-declare build args so they are available inside this build stage
+# (global ARGs declared before FROM are not automatically in scope per stage).
+ARG SERVICE_MODULE
+
 LABEL maintainer="ERP AI Platform Team" \
       org.opencontainers.image.title="${SERVICE_NAME}" \
       org.opencontainers.image.description="ERP AI Platform ${SERVICE_NAME}" \
@@ -31,11 +35,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Gradle wrapper and build files first for optimal layer caching
+# NOTE: gradle.properties is intentionally NOT copied: it defines
+# org.gradle.java.home pointing at a host-specific macOS JDK that does not
+# exist inside this Linux container. Version properties required by build
+# scripts (e.g. springCloudVersion) are passed via -P below.
 COPY gradle/ gradle/
 COPY gradlew build.gradle settings.gradle ./
 
 # Download and cache dependencies
-RUN ./gradlew dependencies --no-daemon --stacktrace
+RUN ./gradlew dependencies --no-daemon --stacktrace -PspringCloudVersion=2024.0.1
 
 # Copy source code for this service and shared libraries
 COPY platform/ platform/
@@ -45,7 +53,17 @@ COPY integration/ integration/
 COPY libraries/ libraries/
 
 # Build the application JAR (skip tests for Docker build)
-RUN ./gradlew :${SERVICE_MODULE}:bootJar --no-daemon -x test --stacktrace
+# SERVICE_MODULE supports colon-separated paths like:
+#   platform:gateway, platform:identity, platform:tenant, business:inventory:application
+RUN ./gradlew :${SERVICE_MODULE}:bootJar --no-daemon -x test --stacktrace -PspringCloudVersion=2024.0.1
+
+# Copy the built fat JAR to a fixed location for the runtime stage.
+# SERVICE_MODULE is colon-separated (e.g. business:procurement:application);
+# convert it to a filesystem path and pick the non-"plain" fat JAR produced by
+# bootJar so the runtime stage does not depend on the module path or version.
+RUN JAR_DIR=`echo ${SERVICE_MODULE} | tr ':' '/'` && \
+    JAR=`ls /app/$JAR_DIR/build/libs/*.jar | grep -v -- '-plain' | head -1` && \
+    cp "$JAR" /app/app.jar
 
 # -------------------- Runtime Stage --------------------
 FROM eclipse-temurin:21-jre-jammy AS runtime
@@ -69,7 +87,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy JAR from builder with proper ownership
-COPY --from=builder --chown=appuser:appgroup /app/build/libs/*.jar app.jar
+# The JAR location depends on the SERVICE_MODULE path:
+#   platform:gateway -> platform/gateway/build/libs/
+#   platform:identity -> platform/identity/build/libs/
+#   platform:tenant -> platform/tenant/build/libs/
+#   business:inventory:application -> business/inventory/application/build/libs/
+# The JAR is copied to /app/app.jar by the builder stage above.
+COPY --from=builder --chown=appuser:appgroup /app/app.jar app.jar
 
 # Copy health check and entrypoint scripts
 COPY --chown=appuser:appgroup infrastructure/docker/healthcheck.sh /app/healthcheck.sh
@@ -102,3 +126,14 @@ ENV JAVA_OPTS="" \
 
 # Entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
+
+# -------------------- Service Target Aliases --------------------
+# These stages allow docker-compose to reference services by name:
+#   target: gateway   -> builds platform:gateway
+#   target: identity  -> builds platform:identity
+#   target: tenant    -> builds platform:tenant
+#   target: inventory -> builds business:inventory:application
+FROM runtime AS gateway
+FROM runtime AS identity
+FROM runtime AS tenant
+FROM runtime AS inventory

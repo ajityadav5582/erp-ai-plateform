@@ -27,6 +27,7 @@ dependencyManagement {
 dependencies {
     // Common libraries
     implementation project(':libraries:common-core')
+    implementation project(':libraries:common-nepali-date')
     implementation project(':libraries:common-data')
     implementation project(':libraries:common-events')
     implementation project(':libraries:common-security')
@@ -87,7 +88,8 @@ bootRun {
         'POSTGRES_PASSWORD': 'erpai_dev_password',
         'DB_USERNAME': 'erpai',
         'DB_PASSWORD': 'erpai_dev_password',
-        'SPRING_PROFILES_ACTIVE': 'local'
+        'SPRING_PROFILES_ACTIVE': 'local',
+        'JWT_SECRET': 'jwt-secret-key-change-me-in-production-32b'
     ]
 }
 

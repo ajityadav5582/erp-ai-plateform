@@ -53,7 +53,8 @@ public class RolePermission {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
-    @Transient
+    @Column(name = "data_scope", nullable = false, length = 30)
+    @Enumerated(EnumType.STRING)
     @Builder.Default
     private DataScope dataScope = DataScope.ALL;
 

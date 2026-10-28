@@ -1,11 +1,11 @@
 package com.erp.platform.identity.domain.exception;
 
+import org.springframework.http.HttpStatus;
+
 /**
- * Thrown when authentication fails because the supplied credentials are invalid
- * (unknown user, wrong password, or inactive account).
+ * Exception thrown when supplied credentials are invalid.
  *
- * <p>For security, the same message is used for "user not found" and "wrong password"
- * so as not to disclose which usernames exist.
+ * <p>Reports {@code 401 INVALID_CREDENTIALS}.
  *
  * @since 1.0.0
  */
@@ -14,6 +14,6 @@ public class InvalidCredentialsException extends AuthenticationException {
     private static final long serialVersionUID = 1L;
 
     public InvalidCredentialsException(String message) {
-        super(message);
+        super(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", message);
     }
 }

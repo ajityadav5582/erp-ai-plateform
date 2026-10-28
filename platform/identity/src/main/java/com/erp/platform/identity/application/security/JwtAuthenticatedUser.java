@@ -113,6 +113,6 @@ public class JwtAuthenticatedUser implements AuthenticatedUser {
                 claims.fullName(),
                 claims.tenantId(),
                 claims.roles(),
-                List.of());
+                claims.permissions());
     }
 }

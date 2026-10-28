@@ -2,6 +2,7 @@ package com.erp.platform.identity.application.dto;
 
 import com.erp.platform.identity.domain.Company;
 import com.erp.platform.identity.domain.CompanyStatus;
+import com.erp.platform.identity.domain.BusinessType;
 import com.erp.platform.identity.domain.CompanyType;
 import com.erp.platform.identity.domain.FiscalYearType;
 
@@ -13,8 +14,9 @@ public record CompanyResponse(
         String city,
         String phone,
         String email,
-        CompanyType companyType,
-        FiscalYearType fiscalYearType,
+         CompanyType companyType,
+         BusinessType businessType,
+         FiscalYearType fiscalYearType,
         Boolean vatRegistered,
         CompanyStatus status
 ) {
@@ -27,8 +29,9 @@ public record CompanyResponse(
                 company.getCity(),
                 company.getPhone(),
                 company.getEmail(),
-                company.getCompanyType(),
-                company.getFiscalYearType(),
+                 company.getCompanyType(),
+                 company.getBusinessType(),
+                 company.getFiscalYearType(),
                 company.getVatRegistered(),
                 company.getStatus()
         );
