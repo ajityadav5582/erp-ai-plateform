@@ -1,6 +1,10 @@
 package com.erp.business.sales.salesorder;
 
 import com.erp.business.inventory.interfaces.item.ItemService;
+import com.erp.business.inventory.interfaces.stock.StockMovementLineRequest;
+import com.erp.business.inventory.interfaces.stock.StockMovementService;
+import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
+import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
 import com.erp.business.sales.customer.domain.Customer;
 import com.erp.business.sales.customer.infrastructure.persistence.CustomerRepository;
 import com.erp.business.sales.salesorder.domain.SalesOrder;
@@ -14,7 +18,7 @@ import com.erp.business.sales.salesorder.dto.UpdateSalesOrderRequest;
 import com.erp.business.sales.salesorder.exception.SalesOrderNotFoundException;
 import com.erp.business.sales.salesorder.infrastructure.persistence.SalesOrderRepository;
 import com.erp.business.sales.salesorder.mapper.SalesOrderMapper;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.SalesOrderPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;
@@ -49,19 +53,25 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final SalesOrderMapper orderMapper;
     private final DocumentNumberService documentNumberService;
     private final BusinessContextAccessor context;
+    private final StockMovementService stockMovementService;
+    private final WarehouseService warehouseService;
 
     public SalesOrderServiceImpl(SalesOrderRepository orderRepository,
                                  CustomerRepository customerRepository,
                                  ItemService itemService,
                                  SalesOrderMapper orderMapper,
                                  DocumentNumberService documentNumberService,
-                                 BusinessContextAccessor context) {
+                                 BusinessContextAccessor context,
+                                 StockMovementService stockMovementService,
+                                 WarehouseService warehouseService) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.itemService = itemService;
         this.orderMapper = orderMapper;
         this.documentNumberService = documentNumberService;
         this.context = context;
+        this.stockMovementService = stockMovementService;
+        this.warehouseService = warehouseService;
     }
 
     @Override
@@ -90,6 +100,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             }
         }
 
+        boolean hasStockable = hasStockableItems(request.lines());
+        Long resolvedWarehouseId = resolveWarehouseId(request.branchId(), request.warehouseId(), hasStockable);
+
         String periodKey = resolvePeriodKey(request.orderDate());
         String soNumber = documentNumberService.nextNumber(
                 tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
@@ -97,7 +110,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         SalesOrder order = SalesOrder.draft(
                 soNumber, request.orderDate(), customer.getId(), customer.getCode(),
                 customer.getName(), customer.getPanNumber(), customer.getCurrency(),
-                context.findFiscalYearId(), request.branchId(), request.warehouseId(),
+                context.findFiscalYearId(), request.branchId(), resolvedWarehouseId,
                 null, null, request.paymentTermsDays(), request.reference(), request.notes());
         // The draft factory sets the business fields but not the tenant/company
         // scope; addLine propagates getTenantId()/getCompanyId() onto each line,
@@ -146,9 +159,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             }
         }
 
+        boolean hasStockable = hasStockableItems(request.lines());
+        Long resolvedWarehouseId = resolveWarehouseId(request.branchId(), request.warehouseId(), hasStockable);
+
         order.updateDraft(
                 request.orderDate(), request.expectedDeliveryDate(),
-                request.branchId(), request.warehouseId(), null, null,
+                request.branchId(), resolvedWarehouseId, null, null,
                 request.paymentTermsDays(), request.reference(), request.notes());
 
         order.updateCustomer(
@@ -249,9 +265,32 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new IllegalStateException("Cannot confirm Sales Order " + order.getSoNumber()
                     + ": The order contains no line items.");
         }
+        boolean hasStockable = hasStockableItems(order);
+
+        if (hasStockable) {
+            if (order.getWarehouseId() == null) {
+                Long resolved = resolveWarehouseId(order.getBranchId(), null, true);
+                if (resolved == null) {
+                    throw new IllegalStateException("Cannot confirm Sales Order " + order.getSoNumber()
+                            + ": A warehouse is required to reserve stock. Please edit the order and select a warehouse.");
+                }
+                order.updateDraft(order.getOrderDate(), order.getExpectedDeliveryDate(),
+                        order.getBranchId(), resolved, null, null,
+                        order.getPaymentTermsDays(), order.getReference(), order.getNotes());
+            }
+            validateWarehouse(order.getWarehouseId(), order.getBranchId());
+        }
 
         order.confirm(currentUser());
-        return orderMapper.toResponse(orderRepository.save(order));
+        SalesOrder saved = orderRepository.save(order);
+        // Soft-allocate stock for the confirmed order so a second order cannot
+        // confirm against the same units. Idempotent by (SALES_ORDER, id, RESERVE);
+        // a 422 here (insufficient stock) rolls the confirmation back.
+        // Service-only orders have no stockable lines, so no reservation is made.
+        if (hasStockable) {
+            stockMovementService.reserve(stockRequest(saved, "Reserve for SO " + saved.getSoNumber()));
+        }
+        return orderMapper.toResponse(saved);
     }
 
     @Override
@@ -276,7 +315,16 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
 
         order.cancel(currentUser(), request.reason());
-        return orderMapper.toResponse(orderRepository.save(order));
+        SalesOrder saved = orderRepository.save(order);
+        // Free the reservation. Cancel is refused once goods are delivered, so the
+        // full reservation is intact and releasing the full quantity is exact.
+        // Idempotent by (SALES_ORDER, id, RELEASE). Skip when no warehouse was
+        // recorded (e.g. a draft that never reserved stock) so we don't fail
+        // the cancellation on a missing warehouse id.
+        if (hasStockableItems(saved) && saved.getWarehouseId() != null) {
+            stockMovementService.release(stockRequest(saved, "Release for cancelled SO " + saved.getSoNumber()));
+        }
+        return orderMapper.toResponse(saved);
     }
 
     @Override
@@ -308,6 +356,78 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * Builds the reserve/release batch for an order: one line per order line, all
+     * drawn from the order's warehouse. The movement direction is decided by the
+     * endpoint (reserve vs release), not the body, so the same request serves both
+     * and stays idempotent by (SALES_ORDER, id, direction).
+     */
+    private StockReceiptRequest stockRequest(SalesOrder order, String notes) {
+        List<StockMovementLineRequest> lines = order.getLines().stream()
+                .map(l -> new StockMovementLineRequest(
+                        order.getWarehouseId(), l.getItemId(), l.getUomCode(), l.getQuantity()))
+                .toList();
+        return new StockReceiptRequest(
+                "SALES_ORDER", order.getId(), order.getSoNumber(),
+                null, context.getUserId(), notes, lines);
+    }
+
+    /**
+     * Whether the order contains at least one stockable (inventory-tracked) line.
+     * Service-only orders have none and therefore need no warehouse or stock
+     * reservation.
+     */
+    private boolean hasStockableItems(SalesOrder order) {
+        if (order.getLines() == null) return false;
+        for (SalesOrderLine line : order.getLines()) {
+            ItemService.ItemResponse item = itemService.findById(line.getItemId()).orElse(null);
+            if (item != null && Boolean.TRUE.equals(item.getIsStockable())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasStockableItems(List<SalesOrderLineRequest> lines) {
+        if (lines == null) return false;
+        for (SalesOrderLineRequest line : lines) {
+            ItemService.ItemResponse item = itemService.findById(line.itemId()).orElse(null);
+            if (item != null && Boolean.TRUE.equals(item.getIsStockable())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Resolves a warehouse id for an order: validates an explicitly provided one,
+     * or auto-selects the branch's (or company's) default warehouse when none is
+     * given and stockable lines exist.
+     */
+    private Long resolveWarehouseId(Long branchId, Long requestedWarehouseId, boolean hasStockable) {
+        if (requestedWarehouseId != null) {
+            validateWarehouse(requestedWarehouseId, branchId);
+            return requestedWarehouseId;
+        }
+        if (!hasStockable) {
+            return null;
+        }
+        return warehouseService.findAllActive().stream()
+                .filter(w -> Boolean.TRUE.equals(w.getIsActive()))
+                .filter(w -> Boolean.TRUE.equals(w.getIsDefault()))
+                .map(WarehouseService.WarehouseResponse::getId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void validateWarehouse(Long warehouseId, Long branchId) {
+        WarehouseService.WarehouseResponse w = warehouseService.findById(warehouseId)
+                .orElseThrow(() -> new IllegalArgumentException("Warehouse not found with ID: " + warehouseId));
+        if (!Boolean.TRUE.equals(w.getIsActive())) {
+            throw new IllegalStateException("Warehouse " + w.getCode() + " is inactive.");
+        }
+    }
 
     private SalesOrder loadOrder(Long tenantId, Long companyId, Long id) {
         return orderRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, id)

@@ -6,7 +6,7 @@ import com.erp.business.inventory.items.dto.CreateItemRequest;
 import com.erp.business.inventory.items.dto.ItemListResponse;
 import com.erp.business.inventory.items.dto.ItemResponse;
 import com.erp.business.inventory.items.dto.UpdateItemRequest;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -69,6 +69,34 @@ public class ItemController {
         Long tenantId = context.getTenantId();
         Long companyId = context.getCompanyId();
         Page<ItemListResponse> page = itemService.listActiveItems(tenantId, companyId, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * Returns active items that may appear on a Purchase Order or Requisition.
+     *
+     * <p>Procurement module calls this endpoint to populate its item-picker so that
+     * users are never offered a FINISHED_GOODS or SERVICE item to purchase.
+     */
+    @GetMapping("/purchasable")
+    public ResponseEntity<Page<ItemListResponse>> listPurchasableItems(Pageable pageable) {
+        Long tenantId = context.getTenantId();
+        Long companyId = context.getCompanyId();
+        Page<ItemListResponse> page = itemService.listPurchasableItems(tenantId, companyId, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * Returns active items that may appear on a Sales Invoice, Sales Order, or POS transaction.
+     *
+     * <p>Sales and POS modules call this endpoint to populate their item-pickers so that
+     * users are never offered a RAW_MATERIAL or CONSUMABLE item to sell.
+     */
+    @GetMapping("/sellable")
+    public ResponseEntity<Page<ItemListResponse>> listSellableItems(Pageable pageable) {
+        Long tenantId = context.getTenantId();
+        Long companyId = context.getCompanyId();
+        Page<ItemListResponse> page = itemService.listSellableItems(tenantId, companyId, pageable);
         return ResponseEntity.ok(page);
     }
 

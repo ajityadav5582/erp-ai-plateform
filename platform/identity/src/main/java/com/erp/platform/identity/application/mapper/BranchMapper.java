@@ -13,9 +13,7 @@ import java.time.ZoneId;
 /**
  * Mapper for converting between Branch entity and DTOs.
  *
- * <p>A branch's location is derived from a local level (province -> district ->
- * local level) referenced via {@code localLevelId}. An optional {@code wardNo}
- * can further qualify the branch address.
+ * <p>A branch carries a free-text address and an optional ward number.
  *
  * @since 1.0.0
  */
@@ -37,8 +35,7 @@ public class BranchMapper {
         Branch branch = Branch.create(tenantId, companyId, request.branchCode(), request.branchName());
         branch.updateDetails(
                 null, null,
-                request.email(), request.phone(), request.address(),
-                request.localLevelId(), request.wardNo());
+                request.address(), request.wardNo());
         return branch;
     }
 
@@ -55,10 +52,7 @@ public class BranchMapper {
                 branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
-                branch.getEmail(),
-                branch.getPhone(),
                 branch.getAddress(),
-                branch.getLocalLevelId(),
                 branch.getWardNo(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt()),
@@ -81,7 +75,6 @@ public class BranchMapper {
                 branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
-                branch.getLocalLevelId(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt())
         );

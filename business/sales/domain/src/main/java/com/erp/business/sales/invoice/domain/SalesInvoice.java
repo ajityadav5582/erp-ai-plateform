@@ -59,6 +59,10 @@ import java.util.Objects;
                 @UniqueConstraint(
                         name = "uk_sales_invoices_tenant_company_number",
                         columnNames = {"tenant_id", "company_id", "invoice_number"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_sales_invoices_pos_transaction",
+                        columnNames = {"pos_transaction_id"}
                 )
         },
         indexes = {
@@ -99,8 +103,15 @@ public class SalesInvoice extends TenantScopedEntity<Long> {
     private Long branchId;
 
     @NotNull(message = "Sales order is required")
-    @Column(name = "sales_order_id", nullable = false)
+    @Column(name = "sales_order_id")
     private Long salesOrderId;
+
+    @Column(name = "pos_transaction_id")
+    private Long posTransactionId;
+
+    public void setPosTransactionId(Long posTransactionId) {
+        this.posTransactionId = posTransactionId;
+    }
 
     @NotBlank(message = "Sales order number is required")
     @Column(name = "so_number", nullable = false, length = 40)
@@ -255,7 +266,6 @@ public class SalesInvoice extends TenantScopedEntity<Long> {
                                      boolean isTaxInvoice, String currency, Long fiscalYearId,
                                      Long branchId, String notes) {
         Objects.requireNonNull(invoiceDate, "Invoice date is required");
-        Objects.requireNonNull(salesOrderId, "Sales order is required");
 
         SalesInvoice invoice = SalesInvoice.builder()
                 .invoiceNumber(invoiceNumber)

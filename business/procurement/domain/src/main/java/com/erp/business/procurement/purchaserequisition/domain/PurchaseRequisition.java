@@ -313,11 +313,11 @@ public class PurchaseRequisition extends TenantScopedEntity<Long> {
 
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
-@Column(name = "converted_at")
-private Instant convertedAt;
+    @Column(name = "converted_at")
+    private Instant convertedAt;
 
-@Column(name = "converted_by", length = 100)
-private String convertedBy;
+    @Column(name = "converted_by", length = 100)
+    private String convertedBy;
 
 
     @Column(name = "cancelled_at")

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { usePreviewPosPricesMutation, type PricePreview } from "@/services/pos-scan.service";
 import type { PosVatType } from "@/services/pos-scan.service";
+import { clampDiscount, mergeCartLine, normalizeQuantity, sanitizeCartLines } from "@/lib/pos-cart-rules";
 
 /** One line in the terminal's working cart. */
 export interface CartLine {
@@ -57,29 +58,22 @@ export function usePosCart() {
   }, [lines, previewPrices]);
 
   const addLine = React.useCallback((line: CartLine) => {
-    setLines((current) => {
-      const existing = current.find((l) => l.itemId === line.itemId);
-      if (existing) {
-        // Same item scanned twice: bump the quantity rather than duplicating.
-        return current.map((l) =>
-          l.itemId === line.itemId ? { ...l, quantity: l.quantity + line.quantity } : l
-        );
-      }
-      return [...current, line];
-    });
+    setLines((current) => mergeCartLine(current, line));
   }, []);
 
   const setQuantity = React.useCallback((itemId: number, quantity: number) => {
+    const normalized = normalizeQuantity(quantity);
     setLines((current) =>
-      quantity <= 0
+      normalized <= 0
         ? current.filter((l) => l.itemId !== itemId)
-        : current.map((l) => (l.itemId === itemId ? { ...l, quantity } : l))
+        : current.map((l) => (l.itemId === itemId ? { ...l, quantity: normalized } : l))
     );
   }, []);
 
   const setDiscount = React.useCallback((itemId: number, discountPercentage: number) => {
+    const clamped = clampDiscount(discountPercentage);
     setLines((current) =>
-      current.map((l) => (l.itemId === itemId ? { ...l, discountPercentage } : l))
+      current.map((l) => (l.itemId === itemId ? { ...l, discountPercentage: clamped } : l))
     );
   }, []);
 
@@ -94,7 +88,7 @@ export function usePosCart() {
 
   /** Replaces the cart with a parked transaction's lines (resume). */
   const loadLines = React.useCallback((next: CartLine[]) => {
-    setLines(next);
+    setLines(sanitizeCartLines(next));
   }, []);
 
   return {

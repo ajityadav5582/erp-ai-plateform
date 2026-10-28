@@ -5,7 +5,7 @@ import com.erp.business.inventory.categories.dto.CategoryListResponse;
 import com.erp.business.inventory.categories.dto.CategoryResponse;
 import com.erp.business.inventory.categories.dto.CreateCategoryRequest;
 import com.erp.business.inventory.categories.dto.UpdateCategoryRequest;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

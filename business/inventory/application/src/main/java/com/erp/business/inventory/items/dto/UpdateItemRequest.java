@@ -50,6 +50,18 @@ public record UpdateItemRequest(
         Boolean isExpiryTracked,
         BigDecimal minStockLevel,
         BigDecimal reorderLevel,
-        BigDecimal reorderQuantity
+        BigDecimal reorderQuantity,
+
+        /** Whether this item may appear on a Purchase Order / Requisition. */
+        Boolean isPurchasable,
+
+        /** Whether this item may appear on a Sales Invoice, Sales Order, or POS transaction. */
+        Boolean isSellable,
+
+        /** Whether this item may be used as a Recipe component (Bill of Materials). */
+        Boolean isComponent,
+
+        /** Whether this item is the finished-product output of a Recipe (Bill of Materials). */
+        Boolean isManufactured
 ) {
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { BusinessType } from "@/services/company.service";
 
 /**
  * localStorage key under which the active company + fiscal year selection is
@@ -17,7 +18,7 @@ export const ACTIVE_FISCAL_SELECTION_STORAGE_KEY = "erpai.activeFiscalSelection"
  */
 export interface CompanyContextValue {
   /** The currently selected company id, or null while loading/none selected. */
-  company: { id: number; name: string } | null;
+  company: { id: number; name: string; businessType: BusinessType | null } | null;
 }
 
 const CompanyContext = React.createContext<CompanyContextValue | null>(null);

@@ -1,6 +1,6 @@
 package com.erp.business.procurement.workflow;
 
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.procurement.workflow.dto.WorkflowConfigurationResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -9,7 +9,7 @@ import com.erp.business.procurement.purchaserequisition.dto.RequisitionActionabi
 import com.erp.business.procurement.purchaserequisition.dto.RequisitionDetailResponse;
 import com.erp.business.procurement.purchaserequisition.dto.RequisitionListResponse;
 import com.erp.business.procurement.purchaserequisition.dto.UpdateRequisitionRequest;
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -152,6 +152,20 @@ public class Warehouse extends TenantScopedEntity<Long> {
     @Column(name = "default_marker")
     private Integer defaultMarker;
 
+    /**
+     * When true, outbound movements may drive on-hand negative (a backorder /
+     * negative-stock policy). Default false: an issue that would take on-hand
+     * below zero is rejected with {@code InsufficientStockException}, which is
+     * the safe default for most warehouses.
+     */
+    // Nullable so ddl-auto=update can add it to a warehouses table that already
+    // has rows (a NOT NULL add would be rejected for containing nulls). Existing
+    // rows read back null, which the stock guard treats as false; new warehouses
+    // default to false via @Builder.Default.
+    @Column(name = "allow_negative_stock")
+    @Builder.Default
+    private Boolean allowNegativeStock = false;
+
     // ==================== Domain methods ====================
 
     /**

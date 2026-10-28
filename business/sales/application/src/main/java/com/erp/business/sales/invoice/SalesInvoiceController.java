@@ -2,10 +2,11 @@ package com.erp.business.sales.invoice;
 
 import com.erp.business.sales.invoice.domain.SalesInvoiceStatus;
 import com.erp.business.sales.invoice.dto.CreateInvoiceRequest;
+import com.erp.business.sales.invoice.dto.CreatePosInvoiceRequest;
 import com.erp.business.sales.invoice.dto.InvoiceDecisionRequest;
 import com.erp.business.sales.invoice.dto.SalesInvoiceResponse;
 import com.erp.business.sales.invoice.dto.TaxInvoiceView;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -48,6 +49,19 @@ public class SalesInvoiceController {
             UriComponentsBuilder uriBuilder) {
 
         SalesInvoiceResponse response = salesInvoiceService.createInvoice(
+                context.getTenantId(), context.getCompanyId(), request);
+
+        return ResponseEntity
+                .created(uriBuilder.path(BASE_PATH + "/{id}").buildAndExpand(response.id()).toUri())
+                .body(response);
+    }
+
+    @PostMapping("/pos")
+    public ResponseEntity<SalesInvoiceResponse> createPosInvoice(
+            @Valid @RequestBody CreatePosInvoiceRequest request,
+            UriComponentsBuilder uriBuilder) {
+
+        SalesInvoiceResponse response = salesInvoiceService.createPosInvoice(
                 context.getTenantId(), context.getCompanyId(), request);
 
         return ResponseEntity

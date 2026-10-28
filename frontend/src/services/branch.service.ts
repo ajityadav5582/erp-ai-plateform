@@ -8,7 +8,6 @@ export interface BranchListResponse {
   companyId: number;
   branchCode: string;
   branchName: string;
-  localLevelId: string | null;
   status: BranchStatus;
   createdAt: string;
 }
@@ -19,10 +18,7 @@ export interface Branch {
   companyId: number;
   branchCode: string;
   branchName: string;
-  email: string;
-  phone: string;
   address: string;
-  localLevelId: string | null;
   wardNo: string | null;
   status: BranchStatus;
   createdAt: string;
@@ -35,20 +31,14 @@ export interface Branch {
 export interface CreateBranchRequest {
   branchCode: string;
   branchName: string;
-  email?: string;
-  phone?: string;
   address?: string;
-  localLevelId?: string;
   wardNo?: string;
 }
 
 export interface UpdateBranchRequest {
   branchCode?: string;
   branchName?: string;
-  email?: string;
-  phone?: string;
   address?: string;
-  localLevelId?: string;
   wardNo?: string;
 }
 

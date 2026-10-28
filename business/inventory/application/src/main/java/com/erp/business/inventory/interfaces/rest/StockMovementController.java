@@ -3,18 +3,22 @@ package com.erp.business.inventory.interfaces.rest;
 import com.erp.business.inventory.domain.StockMovement;
 import com.erp.business.inventory.interfaces.stock.StockMovementBatchResponse;
 import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
+import com.erp.business.inventory.stock.InsufficientStockException;
 import com.erp.business.inventory.stock.StockMovementBatchResult;
 import com.erp.business.inventory.stock.StockMovementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Inbound HTTP adapter for posting stock movements.
@@ -73,6 +77,53 @@ public class StockMovementController {
             @Valid @RequestBody StockReceiptRequest request) {
 
         StockMovementBatchResult result = stockMovementService.reverseIssueBatch(
+                context.getTenantId(), context.getCompanyId(), request);
+        return ResponseEntity.ok(toResponse(request, result));
+    }
+
+    /**
+     * An outbound issue that would take a warehouse's on-hand below zero is
+     * refused here as a 422, so the caller (POS, sales delivery) surfaces a clear
+     * "insufficient stock" message instead of a generic 500. The posting
+     * transaction has already rolled back by the time this runs.
+     */
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<Map<String, String>> handleInsufficientStock(InsufficientStockException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * A signed stock adjustment (count variance, damage, write-off). Line
+     * quantities are signed: positive adds, negative removes. Idempotent by
+     * reference; a negative line that would take on-hand below zero is refused as
+     * a 422 unless the warehouse allows negative stock.
+     */
+    @PostMapping("/adjustments")
+    public ResponseEntity<StockMovementBatchResponse> postAdjustment(
+            @Valid @RequestBody StockReceiptRequest request) {
+
+        StockMovementBatchResult result = stockMovementService.postAdjustmentBatch(
+                context.getTenantId(), context.getCompanyId(), request);
+        return ResponseEntity.ok(toResponse(request, result));
+    }
+
+    /** Soft-allocates stock against a demand (e.g. a confirmed sales order). */
+    @PostMapping("/reservations")
+    public ResponseEntity<StockMovementBatchResponse> reserve(
+            @Valid @RequestBody StockReceiptRequest request) {
+
+        StockMovementBatchResult result = stockMovementService.reserveBatch(
+                context.getTenantId(), context.getCompanyId(), request);
+        return ResponseEntity.ok(toResponse(request, result));
+    }
+
+    /** Frees a prior reservation, returning quantity to available. */
+    @PostMapping("/releases")
+    public ResponseEntity<StockMovementBatchResponse> release(
+            @Valid @RequestBody StockReceiptRequest request) {
+
+        StockMovementBatchResult result = stockMovementService.releaseBatch(
                 context.getTenantId(), context.getCompanyId(), request);
         return ResponseEntity.ok(toResponse(request, result));
     }

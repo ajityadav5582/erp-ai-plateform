@@ -10,7 +10,6 @@ import {
   CheckCircle,
   XCircle,
   ArrowRightCircle,
-  FileText,
 } from "lucide-react";
 import {
   useGetQuotationsQuery,

@@ -92,6 +92,9 @@ export default function PosQuickItemsPage() {
   const [editing, setEditing] = React.useState<PosQuickItem | null>(null);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [form, setForm] = React.useState<QuickItemForm>(EMPTY_FORM);
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [showCustomize, setShowCustomize] = React.useState(false);
+  const [itemSearch, setItemSearch] = React.useState("");
 
   const { data, isLoading, isFetching, refetch } = useGetPosQuickItemsQuery({ page, size: 20 });
   const [createItem, { isLoading: isCreating }] = useCreatePosQuickItemMutation();
@@ -120,6 +123,16 @@ export default function PosQuickItemsPage() {
     }
     return list;
   }, [itemsPage, editing]);
+
+  const filteredItemOptions = React.useMemo(() => {
+    const term = itemSearch.trim().toLowerCase();
+    if (!term) return itemOptions;
+    return itemOptions.filter(
+      (it) =>
+        it.nameEn?.toLowerCase().includes(term) ||
+        it.sku?.toLowerCase().includes(term)
+    );
+  }, [itemOptions, itemSearch]);
 
   const registerLabel = React.useCallback(
     (id: number | null) => {
@@ -153,6 +166,17 @@ export default function PosQuickItemsPage() {
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    // Prevent duplicate products within the same scope.
+    const duplicate = items.some(
+      (it) =>
+        it.itemId === Number(form.itemId) &&
+        it.registerId === (form.registerId ? Number(form.registerId) : null) &&
+        (!editing || it.id !== editing.id)
+    );
+    if (duplicate) {
+      toast.error("This product is already a quick item in this scope.");
+      return;
+    }
     const payload = {
       itemId: Number(form.itemId),
       defaultPrice: form.defaultPrice.trim() ? Number(form.defaultPrice) : null,
@@ -262,7 +286,7 @@ export default function PosQuickItemsPage() {
           </Button>
           <Button onClick={openCreate}>
             <Plus className="mr-1 h-4 w-4" />
-            New tile
+            Add quick item
           </Button>
         </div>
       </header>
@@ -375,11 +399,17 @@ export default function PosQuickItemsPage() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit quick item" : "New quick item"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit quick item" : "Add quick item"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-3">
             <div className="space-y-1">
               <Label htmlFor="item-id">Item</Label>
+              <Input
+                placeholder="Search by name or SKU…"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                className="mb-2"
+              />
               <Select
                 value={form.itemId}
                 onValueChange={(value) => setForm({ ...form, itemId: value })}
@@ -392,10 +422,10 @@ export default function PosQuickItemsPage() {
                     <div className="flex items-center gap-2 px-2 py-1.5 text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" /> Loading…
                     </div>
-                  ) : itemOptions.length === 0 ? (
-                    <div className="px-2 py-1.5 text-muted-foreground">No items yet</div>
+                  ) : filteredItemOptions.length === 0 ? (
+                    <div className="px-2 py-1.5 text-muted-foreground">No matching items</div>
                   ) : (
-                    itemOptions.map((it) => (
+                    filteredItemOptions.map((it) => (
                       <SelectItem key={it.id} value={String(it.id)}>
                         {it.sku} — {it.nameEn}
                       </SelectItem>
@@ -426,11 +456,14 @@ export default function PosQuickItemsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {editing !== null && (
-                <p className="text-xs text-muted-foreground">
-                  Scope is fixed at creation — delete and recreate to move a tile.
-                </p>
-              )}
+               <p className="text-xs text-muted-foreground">
+                 Company-shared tiles appear on every register; register-specific tiles only on the chosen terminal.
+               </p>
+               {editing !== null && (
+                 <p className="text-xs text-muted-foreground">
+                   Scope is fixed at creation — delete and recreate to move a tile.
+                 </p>
+               )}
             </div>
 
             <div className="space-y-1">
@@ -445,38 +478,56 @@ export default function PosQuickItemsPage() {
                 placeholder="Leave blank to use the catalogue price"
               />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="grid-row">Row</Label>
-                <Input
-                  id="grid-row"
-                  type="number"
-                  min={0}
-                  value={form.gridRow}
-                  onChange={(e) => setForm({ ...form, gridRow: e.target.value })}
-                />
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              {showAdvanced ? "Hide advanced settings" : "Show advanced settings (row, column, sort)"}
+            </button>
+            {showAdvanced && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="grid-row">Row</Label>
+                  <Input
+                    id="grid-row"
+                    type="number"
+                    min={0}
+                    value={form.gridRow}
+                    onChange={(e) => setForm({ ...form, gridRow: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="grid-col">Column</Label>
+                  <Input
+                    id="grid-col"
+                    type="number"
+                    min={0}
+                    value={form.gridCol}
+                    onChange={(e) => setForm({ ...form, gridCol: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="sort-order">Sort</Label>
+                  <Input
+                    id="sort-order"
+                    type="number"
+                    min={0}
+                    value={form.sortOrder}
+                    onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="grid-col">Column</Label>
-                <Input
-                  id="grid-col"
-                  type="number"
-                  min={0}
-                  value={form.gridCol}
-                  onChange={(e) => setForm({ ...form, gridCol: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="sort-order">Sort</Label>
-                <Input
-                  id="sort-order"
-                  type="number"
-                  min={0}
-                  value={form.sortOrder}
-                  onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
-                />
-              </div>
-            </div>
+            )}
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => setShowCustomize((v) => !v)}
+            >
+              {showCustomize ? "Hide appearance options" : "Customize appearance (colour, icon)"}
+            </button>
+            {showCustomize && (
+              <>
             <div className="space-y-1">
               <Label htmlFor="display-color">Tile colour</Label>
               <div className="flex items-center gap-2">
@@ -533,6 +584,31 @@ export default function PosQuickItemsPage() {
                 </SelectContent>
               </Select>
             </div>
+              </>
+            )}
+            {form.itemId && (
+              <div className="flex items-center gap-3 rounded-lg border p-3">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-md text-white"
+                  style={{ backgroundColor: form.displayColor || "#3b82f6" }}
+                >
+                  {form.displayIcon && TILE_ICONS[form.displayIcon]
+                    ? React.createElement(TILE_ICONS[form.displayIcon] as React.ComponentType<{ className?: string }>, {
+                        className: "h-6 w-6",
+                      })
+                    : null}
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium">
+                    {itemOptions.find((it) => String(it.id) === form.itemId)?.nameEn ?? "Select an item"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {itemOptions.find((it) => String(it.id) === form.itemId)?.sku ?? ""}
+                    {form.defaultPrice ? ` · Price override: ${form.defaultPrice}` : " · Catalogue price"}
+                  </p>
+                </div>
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={isCreating || isUpdating || !form.itemId}>
               {editing ? "Save changes" : "Create tile"}
             </Button>

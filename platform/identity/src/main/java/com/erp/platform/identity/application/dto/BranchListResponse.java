@@ -14,7 +14,6 @@ public record BranchListResponse(
     Long companyId,
     String branchCode,
     String branchName,
-    String localLevelId,
     BranchStatus status,
     LocalDateTime createdAt
 ) {

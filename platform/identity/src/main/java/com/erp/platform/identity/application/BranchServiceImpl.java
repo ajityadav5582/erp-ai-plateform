@@ -120,8 +120,7 @@ public class BranchServiceImpl implements BranchService {
         // version inherited from OptimisticLock, so save() called persist() and
         // every update inserted a second branch row instead of updating one.
         branch.updateDetails(
-            request.branchCode(), request.branchName(), request.email(),
-            request.phone(), request.address(), request.localLevelId(), request.wardNo());
+            request.branchCode(), request.branchName(), request.address(), request.wardNo());
 
         Branch savedBranch = branchRepository.save(branch);
         return branchMapper.toResponse(savedBranch);

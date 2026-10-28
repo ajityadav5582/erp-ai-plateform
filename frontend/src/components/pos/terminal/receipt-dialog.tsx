@@ -30,6 +30,18 @@ interface ReceiptDialogProps {
  * on a desktop terminal; on a phone the same view is the customer's copy.
  */
 export function ReceiptDialog({ open, onOpenChange, receipt }: ReceiptDialogProps) {
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "p" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        window.print();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
   if (!receipt) return null;
   const { transaction, sessionNumber, registerCode, registerName } = receipt;
 
@@ -110,7 +122,7 @@ export function ReceiptDialog({ open, onOpenChange, receipt }: ReceiptDialogProp
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
-          <Button className="flex-1" onClick={() => onOpenChange(false)}>
+          <Button className="flex-1" autoFocus onClick={() => onOpenChange(false)}>
             New sale
           </Button>
         </div>

@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.erp.platform.data.audit.AuditingConfig;
 import com.erp.platform.security.aspect.PermissionAspect;
@@ -41,8 +42,10 @@ import com.erp.platform.security.context.DefaultSecurityContext;
  * @since 1.0.0
  */
 @SpringBootApplication
+@EnableScheduling
 @ComponentScan(basePackages = {
         "com.erp.business.procurement",
+        "com.erp.platform.shared",
         "com.erp.business.procurement.interfaces.rest"
 })
 

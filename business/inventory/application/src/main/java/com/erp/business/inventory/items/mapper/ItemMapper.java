@@ -52,6 +52,10 @@ public class ItemMapper {
                 item.getMinStockLevel(),
                 item.getReorderLevel(),
                 item.getReorderQuantity(),
+                item.getIsPurchasable(),
+                item.getIsSellable(),
+                item.getIsComponent(),
+                item.getIsManufactured(),
                 item.getIsActive(),
                 item.getCreatedAt(),
                 item.getUpdatedAt(),
@@ -89,6 +93,10 @@ public class ItemMapper {
                 item.getSellingPrice(),
                 item.getPurchasePrice(),
                 item.getMrp(),
+                item.getIsPurchasable(),
+                item.getIsSellable(),
+                item.getIsComponent(),
+                item.getIsManufactured(),
                 item.getIsActive()
         );
     }

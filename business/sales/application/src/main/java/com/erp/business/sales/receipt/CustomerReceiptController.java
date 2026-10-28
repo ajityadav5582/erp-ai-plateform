@@ -4,7 +4,7 @@ import com.erp.business.sales.receipt.domain.ReceiptStatus;
 import com.erp.business.sales.receipt.dto.CreateReceiptRequest;
 import com.erp.business.sales.receipt.dto.CustomerReceiptResponse;
 import com.erp.business.sales.receipt.dto.ReceiptDecisionRequest;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

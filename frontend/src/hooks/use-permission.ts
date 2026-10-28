@@ -7,11 +7,21 @@ import { useAppSelector } from "@/store/hooks";
  * @param permission - The permission code to check (e.g. "PR_VIEW", "PURCHASE_ORDER_CREATE")
  * @returns true if the user has the permission, false otherwise
  */
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "TENANT_ADMIN", "OWNER", "ADMIN"]);
+
 export function useHasPermission(permission: string): boolean {
   const permissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
+  const roles = useAppSelector((state) => state.auth.user?.roles ?? []);
   return useMemo(
-    () => permissions.includes(permission),
-    [permissions, permission]
+    () => {
+      // Backend treats any administrative role as holding every permission,
+      // so mirror that here to keep the UI in sync (e.g. tenant admins see
+      // every module even when a specific code is absent from their token).
+      if (roles.some((role) => ADMIN_ROLES.has(role))) return true;
+      if (!permission) return true;
+      return permissions.includes(permission);
+    },
+    [permissions, roles, permission]
   );
 }
 
@@ -23,10 +33,12 @@ export function useHasPermission(permission: string): boolean {
  */
 export function useHasAnyPermission(permissions: string[]): boolean {
   const userPermissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
-  return useMemo(
-    () => permissions.some((p) => userPermissions.includes(p)),
-    [userPermissions, permissions]
-  );
+  const roles = useAppSelector((state) => state.auth.user?.roles ?? []);
+  return useMemo(() => {
+    if (roles.some((role) => ADMIN_ROLES.has(role))) return true;
+    if (permissions.length === 0) return true;
+    return permissions.some((p) => userPermissions.includes(p));
+  }, [userPermissions, roles, permissions]);
 }
 
 /**
@@ -37,8 +49,10 @@ export function useHasAnyPermission(permissions: string[]): boolean {
  */
 export function useHasAllPermissions(permissions: string[]): boolean {
   const userPermissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
-  return useMemo(
-    () => permissions.every((p) => userPermissions.includes(p)),
-    [userPermissions, permissions]
-  );
+  const roles = useAppSelector((state) => state.auth.user?.roles ?? []);
+  return useMemo(() => {
+    if (roles.some((role) => ADMIN_ROLES.has(role))) return true;
+    if (permissions.length === 0) return true;
+    return permissions.every((p) => userPermissions.includes(p));
+  }, [userPermissions, roles, permissions]);
 }

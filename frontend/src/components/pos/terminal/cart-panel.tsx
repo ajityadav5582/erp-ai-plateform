@@ -51,9 +51,16 @@ export function CartPanel({
 
   if (lines.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-        <ShoppingCart className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Cart is empty. Scan an item to begin.</p>
+      <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <ShoppingCart className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-semibold text-foreground">Cart is empty</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Scan a barcode or tap a quick item to start a sale.
+          </p>
+        </div>
       </div>
     );
   }

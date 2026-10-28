@@ -52,6 +52,8 @@ public record GoodsReceiptResponse(
         Instant postedAt,
         String postedBy,
         String cancellationReason,
+        /** Supplier invoice number if this receipt has already been invoiced, else null. */
+        String invoiceNumber,
         Instant createdAt,
         List<Line> lines
 ) {

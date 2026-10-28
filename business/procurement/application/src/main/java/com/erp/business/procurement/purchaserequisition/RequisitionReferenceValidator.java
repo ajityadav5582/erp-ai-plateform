@@ -186,10 +186,15 @@ public class RequisitionReferenceValidator {
                         "Unit of measure '" + line.uomCode() + "' is inactive and cannot be used");
             }
 
-            // Validate item exists and is active
-            if (!itemService.validateItem(line.itemId())) {
+            // Validate item exists, is active, and is flagged as purchasable.
+            // RAW_MATERIAL and GOODS pass; FINISHED_GOODS, SERVICE, SEMI_FINISHED fail
+            // so a buyer cannot accidentally raise a requisition for a product they
+            // are supposed to be producing or delivering, not purchasing.
+            if (!itemService.validatePurchasableItem(line.itemId())) {
                 throw new ValidationException(
-                        "Item " + line.itemId() + " not found, inactive, or not accessible");
+                        "Item " + line.itemId()
+                                + " is not purchasable, inactive, or not accessible. "
+                                + "Only items flagged as purchasable may appear on a requisition.");
             }
         });
     }

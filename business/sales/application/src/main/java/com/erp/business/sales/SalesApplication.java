@@ -47,7 +47,8 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @EnableScheduling
 @ComponentScan(basePackages = {
         "com.erp.business.sales",
-        "com.erp.business.sales.interfaces.rest"
+        "com.erp.business.sales.interfaces.rest",
+        "com.erp.platform.shared"
 })
 
 @EntityScan(basePackages = {

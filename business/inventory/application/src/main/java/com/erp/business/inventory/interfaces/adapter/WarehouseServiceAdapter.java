@@ -2,7 +2,7 @@ package com.erp.business.inventory.interfaces.adapter;
 
 import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
 import com.erp.business.inventory.warehouse.dto.WarehouseResponse;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.dto.PageRequest;
 import com.erp.platform.common.dto.PageResponse;
 import org.springframework.data.domain.Page;

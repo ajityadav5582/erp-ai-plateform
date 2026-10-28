@@ -4,7 +4,7 @@ import com.erp.business.sales.quotation.domain.SalesQuotationStatus;
 import com.erp.business.sales.quotation.dto.CreateSalesQuotationRequest;
 import com.erp.business.sales.quotation.dto.SalesQuotationResponse;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

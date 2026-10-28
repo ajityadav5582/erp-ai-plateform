@@ -19,9 +19,11 @@ import {
 } from "@/services/sales-order.service";
 import { useGetActiveCustomersQuery } from "@/services/customer.service";
 import { useGetActiveItemsQuery } from "@/services/item.service";
+import { useGetActiveWarehousesQuery } from "@/services/warehouse.service";
 
-interface DraftLine extends SalesOrderLineRequest {
+interface DraftLine extends Omit<SalesOrderLineRequest, "quantity"> {
   key: number;
+  quantity: string;
 }
 
 const money = (n: number) =>
@@ -41,9 +43,12 @@ export function EditSalesOrderDialog({
     useGetActiveCustomersQuery(undefined, { skip: !open });
   const { data: itemsPage, isLoading: itemsLoading } =
     useGetActiveItemsQuery({ size: 100 }, { skip: !open });
+  const { data: warehouses, isLoading: warehousesLoading } =
+    useGetActiveWarehousesQuery(undefined, { skip: !open });
   const items = itemsPage?.content ?? [];
 
   const [customerId, setCustomerId] = React.useState("");
+  const [warehouseId, setWarehouseId] = React.useState("");
   const [orderDate, setOrderDate] = React.useState("");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = React.useState("");
   const [reference, setReference] = React.useState("");
@@ -55,6 +60,7 @@ export function EditSalesOrderDialog({
   React.useEffect(() => {
     if (order && open) {
       setCustomerId(String(order.customerId));
+      setWarehouseId(order.warehouseId ? String(order.warehouseId) : "");
       setOrderDate(order.orderDate ? order.orderDate.slice(0, 10) : "");
       setExpectedDeliveryDate(order.expectedDeliveryDate ? order.expectedDeliveryDate.slice(0, 10) : "");
       setReference(order.reference ?? "");
@@ -64,7 +70,7 @@ export function EditSalesOrderDialog({
         key: idx + 1,
         itemId: l.itemId,
         uomCode: l.uomCode,
-        quantity: l.quantity,
+        quantity: String(l.quantity),
         unitPrice: l.unitPrice,
         discountPercentage: l.discountPercentage ?? 0,
         taxRate: l.taxRate ?? 0,
@@ -75,7 +81,7 @@ export function EditSalesOrderDialog({
         key: 1,
         itemId: 0,
         uomCode: "PCS",
-        quantity: 1,
+        quantity: "1",
         unitPrice: 0,
       }]);
       nextKey.current = mappedLines.length + 2;
@@ -95,8 +101,8 @@ export function EditSalesOrderDialog({
     });
   };
 
-  const validLines = lines.filter((l) => l.itemId > 0 && l.quantity > 0);
-  const subtotal = validLines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
+  const validLines = lines.filter((l) => l.itemId > 0 && Number(l.quantity) > 0);
+  const subtotal = validLines.reduce((sum, l) => sum + Number(l.quantity) * l.unitPrice, 0);
   const canSubmit = !!customerId && validLines.length > 0 && !isLoading && !!order;
 
   const submit = async () => {
@@ -108,10 +114,11 @@ export function EditSalesOrderDialog({
     const body: UpdateSalesOrderRequest = {
       customerId: Number(customerId),
       orderDate,
+      warehouseId: warehouseId ? Number(warehouseId) : undefined,
       expectedDeliveryDate: expectedDeliveryDate || undefined,
       reference: reference || undefined,
       notes: notes || undefined,
-      lines: validLines.map(({ key, ...l }) => l),
+      lines: validLines.map(({ key: _, ...l }) => ({ ...l, quantity: Number(l.quantity) })),
     };
 
     try {
@@ -179,19 +186,41 @@ export function EditSalesOrderDialog({
                 onChange={(e) => setReference(e.target.value)}
               />
             </div>
-          </div>
+           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Lines</Label>
-              <Button
+           <div className="grid gap-1">
+             <Label>Warehouse</Label>
+             <Select value={warehouseId} onValueChange={setWarehouseId}>
+               <SelectTrigger>
+                 <SelectValue placeholder={warehousesLoading ? "Loading…" : "Select warehouse"} />
+               </SelectTrigger>
+               <SelectContent>
+                 {warehousesLoading ? (
+                   <div className="flex items-center gap-2 px-2 py-1.5 text-muted-foreground">
+                     <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                   </div>
+                 ) : (warehouses ?? []).length === 0 ? (
+                   <div className="px-2 py-1.5 text-muted-foreground">No warehouses</div>
+                 ) : (
+                   (warehouses ?? []).map((w) => (
+                     <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>
+                   ))
+                 )}
+               </SelectContent>
+             </Select>
+           </div>
+
+           <div className="space-y-2">
+             <div className="flex items-center justify-between">
+               <Label>Lines</Label>
+<Button
                 size="sm"
                 variant="outline"
                 onClick={() => setLines((ls) => [...ls, {
                   key: nextKey.current++,
                   itemId: 0,
                   uomCode: "PCS",
-                  quantity: 1,
+                  quantity: "1",
                   unitPrice: 0,
                 }])}
               >
@@ -245,7 +274,8 @@ export function EditSalesOrderDialog({
                   type="number"
                   min="0"
                   value={l.quantity}
-                  onChange={(e) => updateLine(l.key, { quantity: Number(e.target.value) })}
+                  inputMode="decimal"
+                  onChange={(e) => updateLine(l.key, { quantity: e.target.value })}
                 />
                 <Input
                   className="col-span-2 text-right"

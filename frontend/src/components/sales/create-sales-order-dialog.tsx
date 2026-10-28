@@ -21,15 +21,16 @@ import { useGetActiveItemsQuery } from "@/services/item.service";
 import { useGetActiveWarehousesQuery } from "@/services/warehouse.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 
-interface DraftLine extends SalesOrderLineRequest {
+interface DraftLine extends Omit<SalesOrderLineRequest, "quantity"> {
   key: number;
+  quantity: string;
 }
 
 const emptyLine = (key: number): DraftLine => ({
   key,
   itemId: 0,
   uomCode: "PCS",
-  quantity: 1,
+  quantity: "1",
   unitPrice: 0,
   discountPercentage: 0,
   taxRate: 13,
@@ -93,7 +94,7 @@ export function CreateSalesOrderDialog({
     });
   };
 
-  const validLines = lines.filter((l) => l.itemId > 0 && l.quantity > 0);
+  const validLines = lines.filter((l) => l.itemId > 0 && Number(l.quantity) > 0);
 
   const { subtotal, totalDiscount, taxableSubtotal, totalTax, grandTotal } = React.useMemo(() => {
     let sub = 0;
@@ -101,7 +102,7 @@ export function CreateSalesOrderDialog({
     let tax = 0;
 
     for (const l of validLines) {
-      const gross = l.quantity * l.unitPrice;
+      const gross = Number(l.quantity) * l.unitPrice;
       const lineDisc = (gross * (l.discountPercentage ?? 0)) / 100;
       const net = gross - lineDisc;
       const lineTax = (net * (l.taxRate ?? 0)) / 100;
@@ -134,8 +135,9 @@ export function CreateSalesOrderDialog({
       expectedDeliveryDate: expectedDeliveryDate || undefined,
       reference: reference.trim() || undefined,
       notes: notes.trim() || undefined,
-      lines: validLines.map(({ key, ...l }) => ({
+      lines: validLines.map(({ key: _, ...l }) => ({
         ...l,
+        quantity: Number(l.quantity),
         discountPercentage: l.discountPercentage ?? 0,
         taxRate: l.taxRate ?? 13,
       })),
@@ -295,8 +297,9 @@ export function CreateSalesOrderDialog({
                     type="number"
                     min="0"
                     step="any"
+                    inputMode="decimal"
                     value={l.quantity}
-                    onChange={(e) => updateLine(l.key, { quantity: Number(e.target.value) })}
+                    onChange={(e) => updateLine(l.key, { quantity: e.target.value })}
                   />
                   <Input
                     className="col-span-2 text-right"

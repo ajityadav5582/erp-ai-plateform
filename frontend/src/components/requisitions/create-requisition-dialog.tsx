@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, Copy, FileText } from "lucide-react";
@@ -161,6 +161,16 @@ export function CreateRequisitionDialog({
     { skip: !open }
   );
   const items = useMemo(() => itemData?.content ?? [], [itemData]);
+  const [itemSearch, setItemSearch] = useState("");
+  const filteredItems = useMemo(() => {
+    const term = itemSearch.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter(
+      (item) =>
+        item.nameEn?.toLowerCase().includes(term) ||
+        item.sku?.toLowerCase().includes(term)
+    );
+  }, [items, itemSearch]);
 
   /**
    * The backend stores item code, name and UOM as a frozen snapshot rather than
@@ -363,7 +373,7 @@ export function CreateRequisitionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+      <DialogContent className="max-h-[90vh] w-full overflow-y-auto p-4 sm:max-w-5xl sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -484,10 +494,6 @@ export function CreateRequisitionDialog({
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                    <p className="text-xs text-muted-foreground">
-                      Optional cost centre. Scoped to the branch above, so the
-                      list changes when the branch changes.
-                    </p>
                   </FormItem>
                 )}
               />
@@ -736,6 +742,7 @@ export function CreateRequisitionDialog({
                       <TableHead className="w-28">Quantity</TableHead>
                       <TableHead className="w-32">Est. Unit Price</TableHead>
                       <TableHead className="w-20">Tax %</TableHead>
+                      <TableHead className="w-40">Remarks</TableHead>
                       <TableHead className="w-32 text-right">Line Total</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
@@ -798,16 +805,22 @@ export function CreateRequisitionDialog({
                                     }}
                                     disabled={isLoading}
                                   >
+                                    <Input
+                                      placeholder="Search items…"
+                                      value={itemSearch}
+                                      onChange={(e) => setItemSearch(e.target.value)}
+                                      className="mb-2"
+                                    />
                                     <SelectTrigger>
                                       <SelectValue placeholder="Select an item" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {items.length === 0 ? (
-                                        <SelectItem value="none" disabled>
-                                          No active items
-                                        </SelectItem>
-                                      ) : (
-                                        items.map((item) => (
+                                       {filteredItems.length === 0 ? (
+                                         <SelectItem value="none" disabled>
+                                           No matching items
+                                         </SelectItem>
+                                       ) : (
+                                         filteredItems.map((item) => (
                                           <SelectItem
                                             key={item.id}
                                             value={String(item.id)}
@@ -899,6 +912,25 @@ export function CreateRequisitionDialog({
                                     value={taxField.value}
                                     onChange={taxField.onChange}
                                     disabled={isLoading}
+                                  />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`lines.${index}.remarks`}
+                              render={({ field: remarksField }) => (
+                                <FormItem>
+                                  <Input
+                                    placeholder="Optional note…"
+                                    value={remarksField.value ?? ""}
+                                    onChange={remarksField.onChange}
+                                    disabled={isLoading}
+                                    className="min-w-[140px]"
                                   />
                                   <FormMessage />
                                 </FormItem>

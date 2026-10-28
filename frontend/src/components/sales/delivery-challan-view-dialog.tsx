@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Truck, FileText, CheckCircle2 } from "lucide-react";
+import { Printer, Truck, FileText } from "lucide-react";
 import type { SalesDelivery } from "@/services/sales-delivery.service";
 import { formatDate, formatQty } from "@/lib/sales-format";
 

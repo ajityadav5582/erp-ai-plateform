@@ -2,6 +2,7 @@ package com.erp.business.sales.invoice;
 
 import com.erp.business.sales.invoice.domain.SalesInvoiceStatus;
 import com.erp.business.sales.invoice.dto.CreateInvoiceRequest;
+import com.erp.business.sales.invoice.dto.CreatePosInvoiceRequest;
 import com.erp.business.sales.invoice.dto.InvoiceDecisionRequest;
 import com.erp.business.sales.invoice.dto.SalesInvoiceResponse;
 import com.erp.business.sales.invoice.dto.TaxInvoiceView;
@@ -22,6 +23,12 @@ import java.util.List;
 public interface SalesInvoiceService {
 
     SalesInvoiceResponse createInvoice(Long tenantId, Long companyId, CreateInvoiceRequest request);
+
+    /**
+     * Creates and issues a Sales Invoice for a POS transaction. Idempotent by
+     * posTransactionId: a retry returns the existing invoice.
+     */
+    SalesInvoiceResponse createPosInvoice(Long tenantId, Long companyId, CreatePosInvoiceRequest request);
 
     SalesInvoiceResponse getInvoiceById(Long tenantId, Long companyId, Long id);
 

@@ -1,7 +1,7 @@
 package com.erp.business.inventory.interfaces.adapter;
 
 import com.erp.business.inventory.interfaces.unit.UnitService;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.inventory.unit.dto.UnitResponse;
 import com.erp.platform.common.dto.PageRequest;
 import com.erp.platform.common.dto.PageResponse;

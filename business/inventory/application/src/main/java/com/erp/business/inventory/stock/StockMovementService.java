@@ -73,12 +73,33 @@ public interface StockMovementService {
     StockMovementBatchResult postIssueBatch(Long tenantId, Long companyId, StockReceiptRequest request);
 
     /**
-     * Posts an outbound batch that reverses a prior issue (a voided delivery),
-     * idempotently, keyed on OUT movements for the same reference.
+     * Posts an inbound batch (IN) that reverses a prior issue (a voided delivery),
+     * idempotently, keyed on IN movements for the same reference.
      *
-     * @return the reversal movements for the reference and whether they already existed
+     * @return the restock movements for the reference and whether they already existed
      */
     StockMovementBatchResult reverseIssueBatch(Long tenantId, Long companyId, StockReceiptRequest request);
+
+    /**
+     * Posts a signed adjustment batch (count variance, damage, write-off),
+     * idempotently, keyed on ADJUST movements for the reference. Line quantities
+     * are signed: positive adds, negative removes.
+     *
+     * @return the adjustment movements for the reference and whether they already existed
+     */
+    StockMovementBatchResult postAdjustmentBatch(Long tenantId, Long companyId, StockReceiptRequest request);
+
+    /**
+     * Posts a RESERVE batch (soft allocation), idempotently, keyed on RESERVE
+     * movements for the reference.
+     */
+    StockMovementBatchResult reserveBatch(Long tenantId, Long companyId, StockReceiptRequest request);
+
+    /**
+     * Posts a RELEASE batch (frees a reservation), idempotently, keyed on RELEASE
+     * movements for the reference.
+     */
+    StockMovementBatchResult releaseBatch(Long tenantId, Long companyId, StockReceiptRequest request);
 
     /**
      * Reverses a previously posted receipt.

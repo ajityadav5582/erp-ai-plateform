@@ -331,11 +331,21 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token"));
 
+        // Reuse detection: a revoked refresh token being presented again indicates
+        // the token was stolen and replayed. Revoke the entire token family for
+        // this user/tenant to force re-authentication.
+        if (refreshToken.isRevoked()) {
+            refreshTokenRepository.revokeAllActiveByUserIdAndTenantId(
+                    refreshToken.getUserId(),
+                    refreshToken.getTenantId(),
+                    Instant.now(),
+                    "reuse-detection",
+                    Instant.now());
+            throw new InvalidRefreshTokenException("Refresh token reuse detected; all sessions revoked");
+        }
+
         // Check if token is usable
         if (!refreshToken.isUsable(Instant.now())) {
-            if (refreshToken.isRevoked()) {
-                throw new InvalidRefreshTokenException("Refresh token has been revoked");
-            }
             throw new InvalidRefreshTokenException("Refresh token has expired");
         }
 

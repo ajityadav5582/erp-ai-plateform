@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Undo, Loader2, AlertCircle } from "lucide-react";
+import { Undo, Loader2 } from "lucide-react";
 import {
   useCreateReturnMutation,
   usePostReturnMutation,
@@ -50,7 +50,7 @@ interface SelectedReturnLine {
   itemName: string;
   uomCode: string;
   billedQuantity: number;
-  returnQuantity: number;
+  returnQuantity: string;
   unitPrice: number;
   vatType: "TAXABLE" | "EXEMPT" | "ZERO_RATED" | "EXPORT";
   vatRate: number;
@@ -128,7 +128,7 @@ export function CreateReturnDialog({
       itemName: l.itemName,
       uomCode: l.uomCode,
       billedQuantity: l.quantity,
-      returnQuantity: l.quantity,
+      returnQuantity: String(l.quantity),
       unitPrice: l.unitPrice,
       vatType: l.vatType,
       vatRate: l.vatRate ?? 13,
@@ -143,13 +143,13 @@ export function CreateReturnDialog({
     );
   };
 
-  const handleQuantityChange = (itemId: number, val: number) => {
+  const handleQuantityChange = (itemId: number, val: string) => {
     setLines((prev) =>
       prev.map((l) => (l.itemId === itemId ? { ...l, returnQuantity: val } : l))
     );
   };
 
-  const selectedLinesToReturn = lines.filter((l) => l.checked && l.returnQuantity > 0);
+  const selectedLinesToReturn = lines.filter((l) => l.checked && Number(l.returnQuantity) > 0);
   const currency = activeInvoice?.currency ?? "NPR";
   const isLoading = isCreating || isPosting;
 
@@ -157,7 +157,7 @@ export function CreateReturnDialog({
     let sub = 0;
     let vat = 0;
     for (const l of selectedLinesToReturn) {
-      const lineSub = l.returnQuantity * l.unitPrice;
+      const lineSub = Number(l.returnQuantity) * l.unitPrice;
       sub += lineSub;
       if (l.vatType === "TAXABLE") {
         vat += (lineSub * (l.vatRate || 13)) / 100;
@@ -185,7 +185,7 @@ export function CreateReturnDialog({
     if (!reason.trim()) return setError("Please state a reason for this credit note / return.");
 
     for (const l of selectedLinesToReturn) {
-      if (l.returnQuantity > l.billedQuantity) {
+      if (Number(l.returnQuantity) > l.billedQuantity) {
         return setError(
           `Return quantity (${l.returnQuantity}) for item "${l.itemCode} — ${l.itemName}" exceeds original invoiced quantity (${l.billedQuantity}).`
         );
@@ -195,7 +195,7 @@ export function CreateReturnDialog({
     const payloadLines: ReturnLineRequest[] = selectedLinesToReturn.map((l) => ({
       itemId: l.itemId,
       uomCode: l.uomCode,
-      quantity: l.returnQuantity,
+      quantity: Number(l.returnQuantity),
       unitPrice: l.unitPrice,
       vatType: l.vatType,
       vatRate: l.vatType === "TAXABLE" ? (l.vatRate || 13) : 0,
@@ -369,8 +369,9 @@ export function CreateReturnDialog({
                         max={l.billedQuantity}
                         step="any"
                         disabled={!l.checked}
+                        inputMode="decimal"
                         value={l.returnQuantity}
-                        onChange={(e) => handleQuantityChange(l.itemId, Number(e.target.value))}
+                        onChange={(e) => handleQuantityChange(l.itemId, e.target.value)}
                         className="w-24 text-right h-8"
                       />
                       <span className="text-xs text-muted-foreground w-10">{l.uomCode}</span>

@@ -63,6 +63,10 @@ export interface GoodsReceipt {
   supplierName: string;
   currency: string;
   status: GoodsReceiptStatus;
+  /** Whether this receipt's stock movement has been landed in Inventory. */
+  stockPostStatus?: "PENDING" | "POSTED" | "FAILED";
+  /** Why the last stock post failed, shown to the operator retrying it. */
+  stockPostError?: string | null;
   /** Net value of the goods received on this note. */
   receivedAmount: number;
   /**
@@ -77,6 +81,8 @@ export interface GoodsReceipt {
   postedAt: string | null;
   postedBy: string | null;
   cancellationReason: string | null;
+  /** Supplier invoice number if this receipt has already been invoiced, else null. */
+  invoiceNumber: string | null;
   createdAt: string;
   lines: GoodsReceiptLine[];
 }
@@ -223,6 +229,28 @@ export const goodsReceiptApi = api.injectEndpoints({
       }),
       invalidatesTags: ["GoodsReceipt", "PurchaseOrder"],
     }),
+
+    /**
+     * Re-attempts landing a receipt's stock movement in Inventory.
+     *
+     * For a receipt whose stock post failed (Inventory was unreachable when
+     * the receipt was recorded). The call is idempotent on the Inventory side,
+     * so retrying a receipt that in fact posted is a safe no-op.
+     */
+    retryGoodsReceiptStockPost: build.mutation<
+      GoodsReceipt,
+      number
+    >({
+      query: (goodsReceiptId) => ({
+        url: `${BASE_URL}/${goodsReceiptId}/post-stock`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, goodsReceiptId) => [
+        { type: "GoodsReceipt", id: goodsReceiptId },
+        "GoodsReceipt",
+        "Inventory",
+      ],
+    }),
   }),
 });
 
@@ -232,4 +260,5 @@ export const {
   useGetGoodsReceiptsByOrderQuery,
   useRecordGoodsReceiptMutation,
   useCancelGoodsReceiptMutation,
+  useRetryGoodsReceiptStockPostMutation,
 } = goodsReceiptApi;

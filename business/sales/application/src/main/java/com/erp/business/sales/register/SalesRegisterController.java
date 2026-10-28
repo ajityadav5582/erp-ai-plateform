@@ -1,7 +1,7 @@
 package com.erp.business.sales.register;
 
 import com.erp.business.sales.register.dto.SalesRegisterResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;

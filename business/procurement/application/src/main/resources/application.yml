@@ -29,7 +29,7 @@ erp:
   security:
     jwt:
       enabled: true
-      secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
+      secret: ${JWT_SECRET}
       issuer: ${JWT_ISSUER:erp-ai-platform-identity}
 
 management:

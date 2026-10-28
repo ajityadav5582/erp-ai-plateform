@@ -56,6 +56,10 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   // getApiErrorMessage falls through to that message when no generic entry
   // exists. Adding generic entries here would replace it with vaguer text.
 
+  // Unit errors
+  UNIT_CODE_DUPLICATE: "A unit with this code already exists in this company.",
+  UNIT_NAME_DUPLICATE: "A unit with this name already exists in this company.",
+
   // Server errors
   INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
 };
@@ -95,6 +99,7 @@ export function getApiErrorMessage(error: unknown): string {
       data?: { code?: string; message?: string };
       status?: number;
       message?: string;
+      error?: string;
     };
 
     // 1. Always prioritize specific backend error message when present
@@ -112,6 +117,20 @@ export function getApiErrorMessage(error: unknown): string {
     const status = err.status;
     if (status && STATUS_CODE_MESSAGES[status]) {
       return STATUS_CODE_MESSAGES[status];
+    }
+
+    // RTK Query / Axios base query errors carry the underlying message under
+    // `error` (e.g. "Network Error") rather than `message`. Surface it so a
+    // failed request does not collapse into the generic "unexpected error"
+    // fallback, which hides the real cause (most often a connectivity issue).
+    if (typeof err.error === "string" && err.error.trim().length > 0) {
+      if (err.error === "Network Error") {
+        return "Unable to connect to the server. Please check your internet connection and try again.";
+      }
+      if (err.error.includes("timeout")) {
+        return "The request timed out. Please check your connection and try again.";
+      }
+      return err.error;
     }
 
     // Try generic error message

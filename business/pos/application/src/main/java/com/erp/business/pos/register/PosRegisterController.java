@@ -4,7 +4,7 @@ import com.erp.business.pos.domain.PosRegisterStatus;
 import com.erp.business.pos.register.dto.CreatePosRegisterRequest;
 import com.erp.business.pos.register.dto.PosRegisterResponse;
 import com.erp.business.pos.register.dto.UpdatePosRegisterRequest;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

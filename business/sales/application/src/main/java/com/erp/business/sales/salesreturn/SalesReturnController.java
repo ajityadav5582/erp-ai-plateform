@@ -4,7 +4,7 @@ import com.erp.business.sales.salesreturn.domain.ReturnStatus;
 import com.erp.business.sales.salesreturn.dto.CreateReturnRequest;
 import com.erp.business.sales.salesreturn.dto.ReturnDecisionRequest;
 import com.erp.business.sales.salesreturn.dto.SalesReturnResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

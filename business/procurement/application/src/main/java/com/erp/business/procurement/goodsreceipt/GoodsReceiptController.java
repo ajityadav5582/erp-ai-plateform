@@ -3,7 +3,7 @@ package com.erp.business.procurement.goodsreceipt;
 import com.erp.business.procurement.goodsreceipt.dto.CreateGoodsReceiptRequest;
 import com.erp.business.procurement.goodsreceipt.dto.GoodsReceiptResponse;
 import com.erp.business.procurement.purchaseorder.dto.PurchaseOrderDecisionRequest;
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

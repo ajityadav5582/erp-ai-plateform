@@ -15,7 +15,7 @@ import com.erp.business.sales.salesorder.SalesOrderService;
 import com.erp.business.sales.salesorder.dto.CreateSalesOrderRequest;
 import com.erp.business.sales.salesorder.dto.SalesOrderLineRequest;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.SalesOrderPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;

@@ -84,9 +84,11 @@ public class PlatformJwtAuthenticationFilter extends OncePerRequestFilter {
                     }
 
                     // Company / fiscal year are request-scoped selections, not token claims,
-                    // so the user can switch them without re-authenticating.
-                    RequestContext.setCompanyId(request.getHeader(HEADER_COMPANY_ID));
-                    RequestContext.setFiscalYearId(request.getHeader(HEADER_FISCAL_YEAR_ID));
+                    // so the user can switch them without re-authenticating. Only accept
+                    // well-formed positive numeric ids; ignore anything else to prevent
+                    // header injection / downstream parsing errors.
+                    RequestContext.setCompanyId(sanitizeNumericHeader(request.getHeader(HEADER_COMPANY_ID)));
+                    RequestContext.setFiscalYearId(sanitizeNumericHeader(request.getHeader(HEADER_FISCAL_YEAR_ID)));
 
                     AuthenticatedUser user = TokenAuthenticatedUser.from(claims);
                     UsernamePasswordAuthenticationToken authentication =
@@ -108,6 +110,28 @@ public class PlatformJwtAuthenticationFilter extends OncePerRequestFilter {
             RequestContext.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    /**
+     * Accepts only positive numeric header values to prevent injection of
+     * malformed content into the request context.
+     */
+    private static String sanitizeNumericHeader(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (!trimmed.matches("\\d+")) {
+            return null;
+        }
+        try {
+            if (Long.parseLong(trimmed) <= 0) {
+                return null;
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return trimmed;
     }
 
     private List<SimpleGrantedAuthority> toAuthorities(PlatformTokenClaims claims) {

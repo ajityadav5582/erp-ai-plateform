@@ -129,7 +129,8 @@ Examples:
     $(basename "$0") start --build                   # Build and start
     $(basename "$0") start --wait                    # Start and wait for healthy
     $(basename "$0") stop                           # Stop services
-    $(basename "$0") restart                        # Restart services
+    $(basename "$0") restart                        # Restart (fast, no rebuild)
+    $(basename "$0") restart --build                # Restart + rebuild JARs & images
     $(basename "$0") restart --wait                  # Restart and wait for healthy
     $(basename "$0") health-check                   # Check health
     $(basename "$0") reset --no-confirm             # Full reset no prompt
@@ -298,22 +299,22 @@ cmd_restart() {
     log_info "Restarting local dev services..."
     echo ""
 
-    # Rebuild the application JARs first, exactly like cmd_start does.
-    #
-    # This used to be skipped entirely, which made `restart` silently useless
-    # after a code change: Dockerfile.runtime COPYs the boot JAR into the image,
-    # so a container recreated from the cached image kept running the JAR baked
-    # into it. The symptom was a fix that appeared to have no effect - the
-    # service restarted cleanly and returned the exact same old error.
-    local SKIP_BUILD=false
+    # Rebuild only when explicitly asked with --build. A plain `restart`
+    # recreates the containers from the images already on disk, which is fast.
+    # Rebuilding all six boot JARs and images on every restart is what made it
+    # slow. After a code change, use `restart --build` so the fresh JAR is baked
+    # into the image (Dockerfile.runtime COPYs the boot JAR, so a container
+    # recreated from a cached image would otherwise keep running the old JAR).
+    local DO_BUILD=false
     for arg in "$@"; do
-        if [[ "$arg" == "--no-build" ]]; then
-            SKIP_BUILD=true
+        if [[ "$arg" == "--build" ]]; then
+            DO_BUILD=true
             break
         fi
     done
 
-    if [ "$SKIP_BUILD" = false ]; then
+    local RESTART_BUILD=""
+    if [ "$DO_BUILD" = true ]; then
         log_info "Building application JARs..."
         echo ""
         if ! ./gradlew :platform:gateway:bootJar :platform:identity:bootJar :business:inventory:application:bootJar :business:procurement:application:bootJar :business:sales:application:bootJar :business:pos:application:bootJar --no-daemon -x test; then
@@ -322,13 +323,11 @@ cmd_restart() {
         fi
         log_success "JARs built successfully"
         echo ""
-    fi
-
-    # Always pass --build so the image picks up the freshly built JAR instead of
-    # being recreated from the cached layer. --no-build opts out.
-    local RESTART_BUILD="--build"
-    if [ "$SKIP_BUILD" = true ]; then
-        RESTART_BUILD=""
+        RESTART_BUILD="--build"
+    else
+        log_warning "Skipping build - recreating containers from existing images (fast path)."
+        log_warning "If you changed code, run: $(basename "$0") restart --build"
+        echo ""
     fi
 
     # `if ! A && B` is a trap: it evaluates as "if (not A) then B", so a SUCCESSFUL

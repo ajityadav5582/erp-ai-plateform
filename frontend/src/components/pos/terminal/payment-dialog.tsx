@@ -124,7 +124,14 @@ export function PaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (isSubmitting || isShort) return;
+            submit();
+          }}
+        >
           <div className="space-y-2">
             <Label>Customer</Label>
             <Select
@@ -232,13 +239,13 @@ export function PaymentDialog({
               />
             </div>
           )}
-        </div>
+        </form>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={isSubmitting || isShort}>
+          <Button type="submit" onClick={submit} disabled={isSubmitting || isShort}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Complete sale
           </Button>

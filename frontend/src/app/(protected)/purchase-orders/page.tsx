@@ -90,7 +90,7 @@ const RecordGoodsReceiptDialog = dynamic(
  * "record receipt" on a closed or cancelled order would only produce a rejection
  * from the server after the operator has already typed the delivery out.
  */
-const RECEIPT_BLOCKED_STATUSES: PurchaseOrderStatus[] = ["REJECTED", "CANCELLED", "CLOSED"];
+const RECEIPT_BLOCKED_STATUSES: PurchaseOrderStatus[] = ["DRAFT", "SUBMITTED", "REJECTED", "CANCELLED", "CLOSED", "RECEIVED"];
 
 type OrderScope = "orders" | "awaiting";
 

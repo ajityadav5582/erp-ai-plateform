@@ -242,20 +242,20 @@ WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE tenant_code = 'GLOB-TRAD-002');
 -- =============================================================================
 -- 7. COMPANIES
 -- =============================================================================
-INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 1, 'TECH-KTM', 'Tech Solutions Kathmandu', '123456789', 'Kathmandu', '+9779812345678', 'ktm@techsolutions.com', 'PRIVATE_LIMITED', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Kathmandu, Nepal'
+INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
+SELECT UUID_GENERATE_V4(), 1, 'TECH-KTM', 'Tech Solutions Kathmandu', '123456789', 'Kathmandu', '+9779812345678', 'ktm@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Kathmandu, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 1 AND company_code = 'TECH-KTM');
 
-INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 1, 'TECH-PKH', 'Tech Solutions Pokhara', '987654321', 'Pokhara', '+9779812345670', 'pkh@techsolutions.com', 'PRIVATE_LIMITED', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Pokhara, Nepal'
+INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
+SELECT UUID_GENERATE_V4(), 1, 'TECH-PKH', 'Tech Solutions Pokhara', '987654321', 'Pokhara', '+9779812345670', 'pkh@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Pokhara, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 1 AND company_code = 'TECH-PKH');
 
-INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 2, 'GLOB-KTM', 'Global Trading Kathmandu', '456789123', 'Kathmandu', '+9779812345680', 'ktm@globaltrading.com', 'PRIVATE_LIMITED', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Kathmandu, Nepal'
+INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
+SELECT UUID_GENERATE_V4(), 2, 'GLOB-KTM', 'Global Trading Kathmandu', '456789123', 'Kathmandu', '+9779812345680', 'ktm@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Kathmandu, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 2 AND company_code = 'GLOB-KTM');
 
-INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 2, 'GLOB-BIR', 'Global Trading Biratnagar', '789123456', 'Biratnagar', '+9779812345681', 'bir@globaltrading.com', 'PRIVATE_LIMITED', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Biratnagar, Nepal'
+INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
+SELECT UUID_GENERATE_V4(), 2, 'GLOB-BIR', 'Global Trading Biratnagar', '789123456', 'Biratnagar', '+9779812345681', 'bir@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Biratnagar, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 2 AND company_code = 'GLOB-BIR');
 
 -- =============================================================================

@@ -1,7 +1,7 @@
 package com.erp.business.pos.transaction;
 
 import com.erp.business.pos.domain.PosTransactionStatus;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.transaction.dto.CheckoutLineRequest;
 import com.erp.business.pos.transaction.dto.CheckoutRequest;
 import com.erp.business.pos.transaction.dto.ParkTransactionRequest;
@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,11 +56,12 @@ public class PosTransactionController {
 
     @PostMapping
     public ResponseEntity<PosTransactionResponse> checkout(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CheckoutRequest request,
             UriComponentsBuilder uriBuilder) {
 
         PosTransactionResponse response = transactionService.checkout(
-                context.getTenantId(), context.getCompanyId(), request);
+                context.getTenantId(), context.getCompanyId(), idempotencyKey, request);
 
         return ResponseEntity
                 .created(uriBuilder.path(BASE_PATH + "/{id}").buildAndExpand(response.id()).toUri())

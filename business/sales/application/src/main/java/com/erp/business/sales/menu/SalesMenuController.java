@@ -1,6 +1,6 @@
 package com.erp.business.sales.menu;
 
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.security.CustomerPermissions;
 import com.erp.business.sales.shared.security.CustomerReceiptPermissions;
 import com.erp.business.sales.shared.security.SalesDeliveryPermissions;

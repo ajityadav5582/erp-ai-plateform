@@ -58,7 +58,7 @@ services:
       - "-c"
       - "default_statistics_target=100"
       - "-c"
-      - "log_statement=all"
+      - "log_statement=none"
       - "-c"
       - "log_duration=on"
       - "-c"
@@ -141,21 +141,21 @@ services:
       - ./tmp:/app/tmp
     depends_on:
       identity-service:
-        condition: service_healthy
+        condition: service_started
       inventory-service:
-        condition: service_healthy
+        condition: service_started
       # procurement-service is routed to, so the gateway must not come up healthy
       # while the service behind its route is still starting. Its absence here was
       # the same omission as the missing route: procurement was added to the
       # platform and the gateway was never told.
       procurement-service:
-        condition: service_healthy
+        condition: service_started
       # sales-service is routed to for the same reason as procurement above.
       sales-service:
-        condition: service_healthy
+        condition: service_started
       # pos-service is routed to for the same reason as procurement above.
       pos-service:
-        condition: service_healthy
+        condition: service_started
     networks:
       - erpai-data-network
     healthcheck:
@@ -422,6 +422,8 @@ services:
       - ./tmp:/app/tmp
     depends_on:
       postgres:
+        condition: service_healthy
+      inventory-service:
         condition: service_healthy
     networks:
       - erpai-data-network

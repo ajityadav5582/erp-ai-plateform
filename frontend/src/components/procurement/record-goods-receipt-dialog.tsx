@@ -111,10 +111,19 @@ export function RecordGoodsReceiptDialog({
     { page: 0, size: 100, sort: "name,asc" },
     { skip: !open }
   );
-  const warehouses = useMemo(
-    () => (warehouseData?.content ?? []).filter((w) => w.isActive),
-    [warehouseData]
-  );
+  const warehouses = useMemo(() => {
+    const active = (warehouseData?.content ?? []).filter((w) => w.isActive);
+    // Ensure the order's nominated warehouse is always selectable, even if it
+    // happens to be inactive, so the default selection is never dropped.
+    const nominatedId = order?.warehouseId;
+    if (nominatedId != null && !active.some((w) => w.id === nominatedId)) {
+      const nominated = (warehouseData?.content ?? []).find(
+        (w) => w.id === nominatedId
+      );
+      if (nominated) active.unshift(nominated);
+    }
+    return active;
+  }, [warehouseData, order?.warehouseId]);
 
   // Outstanding lines are the only ones that can be received. Deriving from the line
   // status rather than comparing quantity to `receivedQuantity` avoids a float
@@ -159,7 +168,7 @@ export function RecordGoodsReceiptDialog({
           ])
         )
       );
-      setReceiptDate("");
+      setReceiptDate(new Date().toISOString().slice(0, 10));
       setDeliveryChallanNo("");
       setNotes("");
       // Seeded from the order, so a lorry that follows the order to its nominated

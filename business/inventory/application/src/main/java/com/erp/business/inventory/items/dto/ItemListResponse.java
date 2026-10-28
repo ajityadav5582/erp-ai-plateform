@@ -22,6 +22,14 @@ public record ItemListResponse(
         BigDecimal sellingPrice,
         BigDecimal purchasePrice,
         BigDecimal mrp,
+        /** Whether this item may appear on a Purchase Order or Requisition. */
+        Boolean isPurchasable,
+        /** Whether this item may appear on a Sales Invoice, Sales Order, or POS transaction. */
+        Boolean isSellable,
+        /** Whether this item may be used as a Recipe / BOM component. */
+        Boolean isComponent,
+        /** Whether this item is the finished-product output of a Recipe / BOM. */
+        Boolean isManufactured,
         Boolean isActive
 ) {
 }

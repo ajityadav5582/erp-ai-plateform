@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/services/error-handler";
-import { useCreateCompanyMutation, useGetCompaniesQuery, type CompanyType, type FiscalYearType } from "@/services/company.service";
+import { useCreateCompanyMutation, useGetCompaniesQuery, useUpdateCompanyMutation, type BusinessType, type Company, type CompanyType, type FiscalYearType } from "@/services/company.service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function CompaniesPage() {
   const router = useRouter();
@@ -21,9 +22,23 @@ export default function CompaniesPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [companyType, setCompanyType] = useState<CompanyType | "">("");
+  const [businessType, setBusinessType] = useState<BusinessType | "">("");
   const [fiscalYearType, setFiscalYearType] = useState<FiscalYearType | "">("");
   const [vatRegistered, setVatRegistered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Company | null>(null);
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editCompanyType, setEditCompanyType] = useState<CompanyType | "">("");
+  const [editBusinessType, setEditBusinessType] = useState<BusinessType | "">("");
+  const [updateCompany, { isLoading: isUpdating }] = useUpdateCompanyMutation();
+
+  useEffect(() => {
+    if (editing) {
+      setEditCompanyName(editing.companyName);
+      setEditCompanyType(editing.companyType ?? "");
+      setEditBusinessType(editing.businessType ?? "");
+    }
+  }, [editing]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,6 +51,7 @@ export default function CompaniesPage() {
         phone: phone.trim(),
         email: email.trim(),
         companyType: companyType as CompanyType,
+        businessType: businessType as BusinessType,
         fiscalYearType: fiscalYearType as FiscalYearType,
         vatRegistered,
       }).unwrap();
@@ -45,6 +61,7 @@ export default function CompaniesPage() {
       setPhone("");
       setEmail("");
       setCompanyType("");
+      setBusinessType("");
       setFiscalYearType("");
       setVatRegistered(false);
       setIsCreateOpen(false);
@@ -117,6 +134,24 @@ export default function CompaniesPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="businessType">Business type</Label>
+                  <select id="businessType" className="h-11 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:h-9" value={businessType} onChange={(event) => setBusinessType(event.target.value as BusinessType | "")} required>
+                    <option value="" disabled>Select business type</option>
+                    <option value="RESTAURANT">Restaurant</option>
+                    <option value="CAFE">Cafe</option>
+                    <option value="HOTEL">Hotel</option>
+                    <option value="SWEETS_RETAIL">Sweets retail</option>
+                    <option value="GENERAL_RETAIL">General retail</option>
+                    <option value="GROCERY">Grocery</option>
+                    <option value="HARDWARE">Hardware</option>
+                    <option value="SANITARY">Sanitary</option>
+                    <option value="PHARMACY">Pharmacy</option>
+                    <option value="CLOTHING">Clothing</option>
+                    <option value="SERVICES">Services</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="fiscalYearType">Fiscal year</Label>
                   <select id="fiscalYearType" className="h-11 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:h-9" value={fiscalYearType} onChange={(event) => setFiscalYearType(event.target.value as FiscalYearType | "")} required>
                     <option value="" disabled>Select fiscal year</option>
@@ -163,10 +198,13 @@ export default function CompaniesPage() {
                   <div className="min-w-0">
                     <h3 className="truncate font-semibold">{company.companyName}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">PAN {company.panNumber || "not set"} · {company.city || "City not set"}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{company.companyType?.replaceAll("_", " ") || "Company type not set"} · {company.fiscalYearType === "NEPALI_BS" ? "Nepali BS" : company.fiscalYearType === "ENGLISH_AD" ? "English AD" : "Fiscal year not set"}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{company.companyType?.replaceAll("_", " ") || "Company type not set"} · {company.businessType?.replaceAll("_", " ") || "Business type not set"} · {company.fiscalYearType === "NEPALI_BS" ? "Nepali BS" : company.fiscalYearType === "ENGLISH_AD" ? "English AD" : "Fiscal year not set"}</p>
                     <p className="mt-1 text-xs text-muted-foreground">VAT {company.vatRegistered ? "registered" : "not registered"}</p>
                     <span className="mt-3 inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">{company.status}</span>
-                    <Button className="mt-4 w-full" variant="outline" onClick={() => router.push(`/companies/${company.id}/fiscal-years`)}>Select company</Button>
+                    <div className="mt-4 flex gap-2">
+                      <Button className="flex-1" variant="outline" onClick={() => router.push(`/companies/${company.id}/fiscal-years`)}>Select company</Button>
+                      <Button variant="secondary" onClick={() => setEditing(company)}>Edit</Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -174,6 +212,72 @@ export default function CompaniesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit company</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="editCompanyName">Company name</Label>
+              <Input id="editCompanyName" value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editCompanyType">Company type</Label>
+              <select id="editCompanyType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editCompanyType} onChange={(e) => setEditCompanyType(e.target.value as CompanyType | "")}>
+                <option value="">Select</option>
+                <option value="PRIVATE_LIMITED">Private limited</option>
+                <option value="PUBLIC_LIMITED">Public limited</option>
+                <option value="SOLE_PROPRIETORSHIP">Sole proprietorship</option>
+                <option value="NGO_INGO">NGO / INGO</option>
+                <option value="TRUST">Trust</option>
+                <option value="COOPERATIVE">Cooperative</option>
+                <option value="GOVERNMENT_ENTITY">Government entity</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editBusinessType">Business type</Label>
+              <select id="editBusinessType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editBusinessType} onChange={(e) => setEditBusinessType(e.target.value as BusinessType | "")}>
+                <option value="">Select</option>
+                <option value="RESTAURANT">Restaurant</option>
+                <option value="CAFE">Cafe</option>
+                <option value="HOTEL">Hotel</option>
+                <option value="SWEETS_RETAIL">Sweets retail</option>
+                <option value="GENERAL_RETAIL">General retail</option>
+                <option value="GROCERY">Grocery</option>
+                <option value="HARDWARE">Hardware</option>
+                <option value="SANITARY">Sanitary</option>
+                <option value="PHARMACY">Pharmacy</option>
+                <option value="CLOTHING">Clothing</option>
+                <option value="SERVICES">Services</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <Button
+              disabled={isUpdating}
+              onClick={async () => {
+                if (!editing) return;
+                try {
+                  await updateCompany({
+                    id: editing.id,
+                    data: {
+                      companyName: editCompanyName.trim() || undefined,
+                      companyType: editCompanyType ? (editCompanyType as CompanyType) : undefined,
+                      businessType: editBusinessType ? (editBusinessType as BusinessType) : undefined,
+                    },
+                  }).unwrap();
+                  setEditing(null);
+                } catch (cause) {
+                  setError(getApiErrorMessage(cause));
+                }
+              }}
+            >
+              {isUpdating ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

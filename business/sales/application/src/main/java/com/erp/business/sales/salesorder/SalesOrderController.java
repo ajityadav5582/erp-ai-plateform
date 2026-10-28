@@ -5,7 +5,7 @@ import com.erp.business.sales.salesorder.dto.CreateSalesOrderRequest;
 import com.erp.business.sales.salesorder.dto.SalesOrderDecisionRequest;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
 import com.erp.business.sales.salesorder.dto.UpdateSalesOrderRequest;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

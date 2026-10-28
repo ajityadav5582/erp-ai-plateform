@@ -11,8 +11,6 @@ import {
   Truck,
   Printer,
   FileText,
-  PackageCheck,
-  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/services/error-handler";

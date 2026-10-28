@@ -25,6 +25,23 @@ public interface PurchaseRequisitionRepository extends JpaRepository<PurchaseReq
     Optional<PurchaseRequisition> findByTenantIdAndCompanyIdAndId(
             Long tenantId, Long companyId, Long id);
 
+    /**
+     * Loads a requisition together with its lines in one query, for the read-only
+     * detail and actionability paths.
+     *
+     * <p>Without it the header loads and then each lazy collection - lines,
+     * approvals, status history - is a separate query. Fetching {@code lines} here
+     * removes the largest of those. Approvals and history stay lazy on purpose:
+     * JPQL cannot fetch more than one bag (list) in a single query, and they are
+     * small and not always needed. Mirrors the goods-receipt {@code findWithLines...}.
+     */
+    @Query("SELECT r FROM PurchaseRequisition r LEFT JOIN FETCH r.lines "
+         + "WHERE r.tenantId = :tenantId AND r.companyId = :companyId AND r.id = :id")
+    Optional<PurchaseRequisition> findWithLinesByTenantIdAndCompanyIdAndId(
+            @Param("tenantId") Long tenantId,
+            @Param("companyId") Long companyId,
+            @Param("id") Long id);
+
     Optional<PurchaseRequisition> findByTenantIdAndCompanyIdAndPrNumber(
             Long tenantId, Long companyId, String prNumber);
 

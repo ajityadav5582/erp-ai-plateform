@@ -54,4 +54,17 @@ public interface StockMovementService {
      * @return the outcome, including whether the reversal already existed
      */
     StockMovementBatchResponse reverseIssue(StockReceiptRequest request);
+
+    /**
+     * Reserves stock against a demand (e.g. a confirmed sales order), moving
+     * quantity into reserved so it is not available to other demand. Idempotent
+     * by (referenceType, referenceId) keyed on RESERVE movements.
+     */
+    StockMovementBatchResponse reserve(StockReceiptRequest request);
+
+    /**
+     * Releases a prior reservation, returning quantity to available. Idempotent
+     * by (referenceType, referenceId) keyed on RELEASE movements.
+     */
+    StockMovementBatchResponse release(StockReceiptRequest request);
 }

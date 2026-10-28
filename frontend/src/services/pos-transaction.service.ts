@@ -115,6 +115,7 @@ export interface CheckoutLineRequest {
 
 export interface CheckoutRequest {
   sessionId: number;
+  tableId?: number;
   customerId?: number;
   customerName?: string;
   customerPanNumber?: string;
@@ -181,8 +182,13 @@ export const posTransactionApi = api.injectEndpoints({
       providesTags: ["PosTransaction"],
     }),
 
-    checkout: build.mutation<PosTransaction, CheckoutRequest>({
-      query: (body) => ({ url: BASE_URL, method: "POST", data: body }),
+    checkout: build.mutation<PosTransaction, { request: CheckoutRequest; idempotencyKey?: string }>({
+      query: ({ request, idempotencyKey }) => ({
+        url: BASE_URL,
+        method: "POST",
+        data: request,
+        headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      }),
       invalidatesTags: ["PosTransaction", "PosSession"],
     }),
 

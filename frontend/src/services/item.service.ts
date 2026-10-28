@@ -5,12 +5,23 @@ import type { PageResponse } from "@/types/api";
  * Mirrors the backend `ItemType` enum. Jackson rejects any value outside this
  * union with a 400, so the union is the contract, not a convenience.
  */
-export const ITEM_TYPES = ["GOODS", "SERVICE"] as const;
+export const ITEM_TYPES = [
+  "GOODS",
+  "SERVICE",
+  "RAW_MATERIAL",
+  "FINISHED_GOODS",
+  "CONSUMABLE",
+  "SEMI_FINISHED",
+] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   GOODS: "Goods",
   SERVICE: "Service",
+  RAW_MATERIAL: "Raw Material",
+  FINISHED_GOODS: "Finished Goods",
+  CONSUMABLE: "Consumable",
+  SEMI_FINISHED: "Semi-Finished",
 };
 
 /** Mirrors the backend `TaxabilityType` enum (Nepal VAT Act 2052). */
@@ -93,6 +104,10 @@ export interface Item extends ItemListResponse {
   isInventoryTracked: boolean;
   isBatchTracked: boolean;
   isExpiryTracked: boolean;
+  isPurchasable: boolean;
+  isSellable: boolean;
+  isComponent: boolean;
+  isManufactured: boolean;
   minStockLevel: number | null;
   reorderLevel: number | null;
   reorderQuantity: number | null;
@@ -127,6 +142,10 @@ export interface CreateItemRequest {
   isInventoryTracked?: boolean;
   isBatchTracked?: boolean;
   isExpiryTracked?: boolean;
+  isPurchasable?: boolean;
+  isSellable?: boolean;
+  isComponent?: boolean;
+  isManufactured?: boolean;
   minStockLevel?: number;
   reorderLevel?: number;
   reorderQuantity?: number;
@@ -163,6 +182,10 @@ export interface UpdateItemRequest {
   isInventoryTracked?: boolean;
   isBatchTracked?: boolean;
   isExpiryTracked?: boolean;
+  isPurchasable?: boolean;
+  isSellable?: boolean;
+  isComponent?: boolean;
+  isManufactured?: boolean;
   minStockLevel?: number;
   reorderLevel?: number;
   reorderQuantity?: number;

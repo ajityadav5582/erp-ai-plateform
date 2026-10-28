@@ -4,7 +4,7 @@ import com.erp.business.sales.delivery.domain.DeliveryStatus;
 import com.erp.business.sales.delivery.dto.CreateDeliveryRequest;
 import com.erp.business.sales.delivery.dto.DeliveryDecisionRequest;
 import com.erp.business.sales.delivery.dto.SalesDeliveryResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

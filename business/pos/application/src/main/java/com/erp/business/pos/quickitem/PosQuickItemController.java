@@ -4,7 +4,7 @@ import com.erp.business.pos.quickitem.dto.CreateQuickItemRequest;
 import com.erp.business.pos.quickitem.dto.PosQuickItemResponse;
 import com.erp.business.pos.quickitem.dto.ReorderQuickItemsRequest;
 import com.erp.business.pos.quickitem.dto.UpdateQuickItemRequest;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

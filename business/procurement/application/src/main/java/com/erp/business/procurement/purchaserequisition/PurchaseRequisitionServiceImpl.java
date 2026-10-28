@@ -14,7 +14,6 @@ import com.erp.business.procurement.purchaserequisition.dto.CreateRequisitionReq
 import com.erp.business.procurement.purchaserequisition.dto.OrderAwardRequest;
 import com.erp.business.procurement.purchaserequisition.dto.RequisitionActionabilityResponse;
 import com.erp.business.procurement.purchaserequisition.dto.RequisitionDetailResponse;
-import com.erp.business.procurement.purchaserequisition.dto.RequisitionLineResponse;
 import com.erp.business.procurement.purchaserequisition.dto.RequisitionListResponse;
 import com.erp.business.procurement.purchaserequisition.dto.UpdateRequisitionRequest;
 import com.erp.business.procurement.purchaserequisition.infrastructure.persistence.PurchaseRequisitionApprovalPolicyRepository;
@@ -22,7 +21,7 @@ import com.erp.business.procurement.purchaserequisition.infrastructure.persisten
 import com.erp.business.procurement.purchaserequisition.infrastructure.persistence.PurchaseRequisitionOrderLinkRepository;
 import com.erp.business.procurement.purchaserequisition.infrastructure.persistence.PurchaseRequisitionRepository;
 import com.erp.business.procurement.purchaseorder.infrastructure.persistence.PurchaseOrderRepository;
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.procurement.shared.domain.DocumentSequence;
 import com.erp.business.procurement.shared.infrastructure.persistence.DocumentSequenceRepository;
 import com.erp.business.procurement.shared.security.PurchaseRequisitionPermissions;
@@ -153,6 +152,8 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
      */
     private final WorkflowConfigurationService workflowConfiguration;
 
+    private final RequisitionResponseMapper responseMapper;
+
     @Override
     @Transactional
     @RequiresPermission(PurchaseRequisitionPermissions.CREATE)
@@ -224,7 +225,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
         }
 
         requisition.recordTransition(null, PurchaseRequisitionStatus.DRAFT, actor, null);
-        return toDetail(requisitionRepository.save(requisition));
+        return responseMapper.toDetail(requisitionRepository.save(requisition));
     }
 
     @Override
@@ -267,7 +268,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
         applyEditedLines(requisition, request.lines(), tenantId, companyId);
         assignFiscalYear(requisition, actor);
 
-        return toDetail(requisitionRepository.save(requisition));
+        return responseMapper.toDetail(requisitionRepository.save(requisition));
     }
 
     /**
@@ -373,7 +374,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
     @Transactional(readOnly = true)
     @RequiresPermission(PurchaseRequisitionPermissions.VIEW)
     public RequisitionDetailResponse getById(Long tenantId, Long companyId, Long id) {
-        return toDetail(load(tenantId, companyId, id));
+        return responseMapper.toDetail(load(tenantId, companyId, id));
     }
 
     @Override
@@ -396,7 +397,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
             page = requisitionRepository.findByTenantIdAndCompanyId(tenantId, companyId, pageable);
         }
 
-        return page.map(this::toList);
+        return page.map(responseMapper::toList);
     }
 
     @Override
@@ -411,7 +412,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
         return requisitionRepository
                 .findByTenantIdAndCompanyIdAndRequestedByOrderByCreatedAtDesc(
                         tenantId, companyId, requestedBy, pageable)
-                .map(this::toList);
+                .map(responseMapper::toList);
     }
 
     @Override
@@ -462,7 +463,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
         int to = Math.min(from + pageable.getPageSize(), inbox.size());
 
         return new PageImpl<>(
-                inbox.subList(from, to).stream().map(this::toList).toList(),
+                inbox.subList(from, to).stream().map(responseMapper::toList).toList(),
                 pageable,
                 inbox.size());
     }
@@ -619,7 +620,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
                     PurchaseRequisitionApproval.AUTO_APPROVAL_COMMENT);
         }
 
-        return toDetail(requisitionRepository.save(requisition));
+        return responseMapper.toDetail(requisitionRepository.save(requisition));
     }
 
     /**
@@ -707,7 +708,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
                     request.action() + " is not a decision an approver can record");
         }
 
-        return toDetail(requisitionRepository.save(requisition));
+        return responseMapper.toDetail(requisitionRepository.save(requisition));
     }
 
     /**
@@ -849,7 +850,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
             orderLinkRepository.save(link);
         });
 
-        return toDetail(requisition);
+        return responseMapper.toDetail(requisition);
     }
 
     /**
@@ -885,7 +886,7 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
 
         requisition.cancel(actor, reason);
         requisition.recordTransition(from, PurchaseRequisitionStatus.CANCELLED, actor, reason);
-        return toDetail(requisitionRepository.save(requisition));
+        return responseMapper.toDetail(requisitionRepository.save(requisition));
     }
 
     @Override
@@ -1000,7 +1001,9 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
     }
 
     private PurchaseRequisition load(Long tenantId, Long companyId, Long id) {
-        return requisitionRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, id)
+        // Read-only paths (detail, actionability): fetch lines with the header so the
+        // detail view is not one query for the header plus one per lazy collection.
+        return requisitionRepository.findWithLinesByTenantIdAndCompanyIdAndId(tenantId, companyId, id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Purchase requisition " + id + " was not found"));
     }
@@ -1482,119 +1485,5 @@ public class PurchaseRequisitionServiceImpl implements PurchaseRequisitionServic
         }
     }
 
-    private RequisitionListResponse toList(PurchaseRequisition requisition) {
-        return new RequisitionListResponse(
-                requisition.getId(),
-                requisition.getPrNumber(),
-                requisition.getBranchId(),
-                requisition.getDepartmentId(),
-                requisition.getRequestedBy(),
-                requisition.getRequestDate(),
-                requisition.getRequestDateNp(),
-                requisition.getRequiredByDate(),
-                requisition.getRequiredByDateNp(),
-                requisition.getStatus(),
-                requisition.getPriority(),
-                requisition.getCurrency(),
-                requisition.getEstimatedTotalAmount(),
-                requisition.getApprovedTotalAmount(),
-                requisition.getOrderedTotalAmount(),
-                requisition.outstandingValue(),
-                requisition.getSubmittedAt(),
-                requisition.getCreatedAt());
-    }
 
-    private RequisitionDetailResponse toDetail(PurchaseRequisition requisition) {
-        return new RequisitionDetailResponse(
-                requisition.getId(),
-                requisition.getPrNumber(),
-                requisition.getTenantId(),
-                requisition.getCompanyId(),
-                requisition.getBranchId(),
-                requisition.getDepartmentId(),
-                requisition.getFiscalYearId(),
-                requisition.getRequestedBy(),
-                requisition.getRequestDate(),
-                requisition.getRequestDateNp(),
-                requisition.getRequestDateNpYear(),
-                requisition.getRequiredByDate(),
-                requisition.getRequiredByDateNp(),
-                requisition.getStatus(),
-                requisition.getPriority(),
-                requisition.getCurrency(),
-                requisition.getEstimatedSubtotalAmount(),
-                requisition.getEstimatedTaxAmount(),
-                requisition.getEstimatedTotalAmount(),
-                requisition.getApprovedTotalAmount(),
-                requisition.getOrderedTotalAmount(),
-                requisition.outstandingValue(),
-                requisition.getWarehouseId(),
-                requisition.getWarehouseCode(),
-                requisition.getWarehouseName(),
-                requisition.getJustification(),
-                requisition.getNotes(),
-                requisition.getSubmittedAt(),
-                requisition.getSubmittedBy(),
-                requisition.getApprovedAt(),
-                requisition.getApprovedBy(),
-                requisition.getRejectedAt(),
-                requisition.getRejectedBy(),
-                requisition.getRejectionReason(),
-                requisition.getConvertedAt(),
-                requisition.getConvertedBy(),
-                requisition.getCancelledAt(),
-                requisition.getCancelledBy(),
-                requisition.getCancellationReason(),
-                requisition.getVersion(),
-                requisition.getLines().stream().map(this::toLine).toList(),
-                requisition.getApprovals().stream().map(this::toApproval).toList(),
-                requisition.getStatusHistory().stream().map(this::toHistory).toList());
-    }
-
-    private RequisitionLineResponse toLine(PurchaseRequisitionLine line) {
-        return new RequisitionLineResponse(
-                line.getId(),
-                line.getLineNumber(),
-                line.getItemId(),
-                line.getItemCode(),
-                line.getItemName(),
-                line.getUomCode(),
-                line.getUnitId(),
-                line.getRequestedQuantity(),
-                line.getApprovedQuantity(),
-                line.getOrderedQuantity(),
-                line.shortfallQuantity(),
-                line.getEstimatedUnitPrice(),
-                line.getTaxRate(),
-                line.approvedNetAmount(),
-                line.approvedTaxAmount(),
-                line.approvedGrossAmount(),
-                line.getStatus(),
-                line.getRemarks());
-    }
-
-    private RequisitionDetailResponse.ApprovalStepResponse toApproval(PurchaseRequisitionApproval approval) {
-        return new RequisitionDetailResponse.ApprovalStepResponse(
-                approval.getId(),
-                approval.getSequenceNo(),
-                approval.getApproverId(),
-                approval.getApproverRoleId(),
-                approval.getApproverRole(),
-                approval.getAmountThreshold(),
-                approval.getAction(),
-                approval.getActedBy(),
-                approval.getActedAt(),
-                approval.getComments());
-    }
-
-    private RequisitionDetailResponse.RequisitionHistoryResponse toHistory(
-            com.erp.business.procurement.purchaserequisition.domain.PurchaseRequisitionStatusHistory history) {
-        return new RequisitionDetailResponse.RequisitionHistoryResponse(
-                history.getId(),
-                history.getFromStatus(),
-                history.getToStatus(),
-                history.getChangedBy(),
-                history.getChangedAt(),
-                history.getReason());
-    }
 }

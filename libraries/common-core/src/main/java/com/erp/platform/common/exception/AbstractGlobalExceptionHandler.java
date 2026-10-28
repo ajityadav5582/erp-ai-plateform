@@ -183,6 +183,20 @@ public abstract class AbstractGlobalExceptionHandler {
     }
 
     /**
+     * Invalid request state, such as missing tenant/company context or invalid
+     * business state → 400. This ensures missing business context (auth token,
+     * company selection) returns a proper client error instead of 500.
+     *
+     * @param ex      the rejected state
+     * @param request the current request
+     * @return the standard error response
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex, jakarta.servlet.http.HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_STATE", messageOrDefault(ex, "Invalid request state"), request);
+    }
+
+    /**
      * Invalid entity state, such as an optimistic-lock version conflict on flush →
      * 409. Reported as a conflict rather than a 500 because it is a concurrency
      * problem the caller can resolve by retrying with fresh data.
@@ -228,9 +242,20 @@ public abstract class AbstractGlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex, jakarta.servlet.http.HttpServletRequest request) {
         log.error("Unexpected error processing {} {}", request.getMethod(), request.getRequestURI(), ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
-                "An unexpected error occurred while processing " + request.getMethod()
-                        + " " + request.getRequestURI(), request);
+        String message = "An unexpected error occurred while processing " + request.getMethod()
+                + " " + request.getRequestURI();
+        // Include root cause details for better diagnostics
+        Throwable rootCause = ex;
+        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+            rootCause = rootCause.getCause();
+        }
+        String rootMsg = rootCause.getMessage();
+        if (rootMsg != null && !rootMsg.isBlank()) {
+            message = message + ": " + rootCause.getClass().getSimpleName() + " - " + rootMsg;
+        } else {
+            message = message + ": " + ex.getClass().getSimpleName();
+        }
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", message, request);
     }
 
     /**

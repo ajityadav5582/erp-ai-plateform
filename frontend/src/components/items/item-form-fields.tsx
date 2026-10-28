@@ -66,6 +66,7 @@ export function ItemFormFields({ control, watch, disabled }: ItemFormFieldsProps
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="pricing">Pricing & Tax</TabsTrigger>
         <TabsTrigger value="inventory">Inventory</TabsTrigger>
+        <TabsTrigger value="usage">Usage</TabsTrigger>
       </TabsList>
 
       {/* ---------------- General ---------------- */}
@@ -653,6 +654,100 @@ export function ItemFormFields({ control, watch, disabled }: ItemFormFieldsProps
                 <p className="text-xs text-muted-foreground">
                   Suggested purchase quantity when reordering.
                 </p>
+              </FormItem>
+            )}
+          />
+        </div>
+      </TabsContent>
+
+      {/* ---------------- Usage flags ---------------- */}
+      <TabsContent value="usage" className="space-y-4">
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <FormField
+            control={control}
+            name="isPurchasable"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel>Purchasable</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Item may appear on purchase orders and requisitions.
+                  </p>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="isSellable"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel>Sellable</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Item may appear on sales invoices, orders, and POS transactions.
+                  </p>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="isComponent"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel>Component</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Item may be used as an ingredient in a recipe / BOM.
+                  </p>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="isManufactured"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel>Manufactured</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Item is the output of a recipe / production order.
+                  </p>
+                  <FormMessage />
+                </div>
               </FormItem>
             )}
           />

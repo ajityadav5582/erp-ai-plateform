@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Eye, MoreVertical, PackageOpen, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
   useGetGoodsReceiptsQuery,
   type GoodsReceipt,
@@ -66,10 +66,11 @@ const COLUMNS = 8;
  */
 export default function GoodsReceiptsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(Number(searchParams.get("page") ?? 0));
+  const [pageSize, setPageSize] = useState(Number(searchParams.get("size") ?? 10));
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") ?? "");
   const [detailsId, setDetailsId] = useState<number | null>(null);
 
   /** The order the operator wants to receive against, as typed. */
@@ -79,6 +80,16 @@ export default function GoodsReceiptsPage() {
     () => ({ page, size: pageSize, sort: "receiptDate,desc" }),
     [page, pageSize]
   );
+
+  // Keep the URL in sync with the active filters so views are shareable/bookmarkable.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (page > 0) params.set("page", String(page));
+    if (pageSize !== 10) params.set("size", String(pageSize));
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "", { scroll: false });
+  }, [page, pageSize, searchTerm, router]);
 
   const {
     data,
@@ -149,7 +160,7 @@ export default function GoodsReceiptsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="flex flex-1 flex-col space-y-4 p-3 sm:space-y-6 sm:p-6 lg:p-8">
       <ListPageHeader
         title="Goods Receipts"
         description="Record deliveries as they arrive and see what has been received against each order."
@@ -269,7 +280,19 @@ export default function GoodsReceiptsPage() {
                     {receipt.deliveryChallanNo ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <GoodsReceiptStatusBadge status={receipt.status} />
+                    <div className="flex flex-col gap-1">
+                      <GoodsReceiptStatusBadge status={receipt.status} />
+                      {receipt.stockPostStatus === "FAILED" && (
+                        <span className="text-xs font-medium text-destructive">
+                          Stock post failed
+                        </span>
+                      )}
+                      {receipt.stockPostStatus === "PENDING" && (
+                        <span className="text-xs text-muted-foreground">
+                          Stock pending
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right text-sm font-medium text-foreground">
                     {formatMoney(receipt.receivedAmount, receipt.currency)}

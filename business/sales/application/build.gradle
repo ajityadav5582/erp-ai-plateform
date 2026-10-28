@@ -25,6 +25,8 @@ dependencyManagement {
 }
 
 dependencies {
+    // Shared platform library (Phase 1 consolidation)
+    implementation project(':platform:shared')
     // Domain entities + shared TenantScopedEntity live in the sibling domain module.
     // It is exposed as `api` so the JPA annotations and OptimisticLock base class
     // remain on the compile classpath of anything consuming this module.
@@ -37,6 +39,7 @@ dependencies {
 
     api project(':libraries:common-core')
     api project(':libraries:common-data')
+    implementation project(':libraries:common-events')
     implementation project(':libraries:common-security')
 
     // Bikram Sambat conversion. Declared here as well as on the domain module
@@ -49,6 +52,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // Required by @RequiresPermission / @RequiresRole, which are enforced by the
     // shared PermissionAspect in libraries:common-security. Without AOP on the
@@ -87,6 +93,7 @@ bootRun {
         'POSTGRES_PASSWORD': 'erpai_dev_password',
         'DB_USERNAME': 'erpai',
         'DB_PASSWORD': 'erpai_dev_password',
-        'SPRING_PROFILES_ACTIVE': 'local'
+        'SPRING_PROFILES_ACTIVE': 'local',
+        'JWT_SECRET': 'jwt-secret-key-change-me-in-production-32b'
     ]
 }

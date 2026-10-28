@@ -7,6 +7,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePosCart, type CartLine } from "@/hooks/use-pos-cart";
+import { useSelectedCompany } from "@/config/company-context";
+import { usePosCapabilities } from "@/config/pos-capabilities";
+import { useGetPosTablesQuery } from "@/services/pos-table.service";
+import { useCreatePosKitchenTicketMutation } from "@/services/pos-kitchen-ticket.service";
 import { useLazyScanPosItemQuery } from "@/services/pos-scan.service";
 import { useGetMyOpenPosSessionsQuery } from "@/services/pos-session.service";
 import {
@@ -45,6 +49,26 @@ export default function PosTerminalPage() {
   const session = openSessions?.[0] ?? null;
 
   const cart = usePosCart();
+  const selectedCompany = useSelectedCompany();
+  const capabilities = usePosCapabilities();
+  const { data: posTables = [] } = useGetPosTablesQuery(undefined, { skip: !capabilities.tableManagement });
+  const [selectedTableId, setSelectedTableId] = React.useState<number | null>(null);
+  const [createKitchenTicket] = useCreatePosKitchenTicketMutation();
+  const previousCompanyIdRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (
+      previousCompanyIdRef.current !== null &&
+      previousCompanyIdRef.current !== (selectedCompany?.id ?? null)
+    ) {
+       cart.clear();
+       setReceiptId(null);
+       setIsPaymentOpen(false);
+       setIsCartOpen(false);
+       setOrderNotes("");
+       setScanError(null);
+    }
+    previousCompanyIdRef.current = selectedCompany?.id ?? null;
+  }, [selectedCompany?.id, cart]);
   const [scanItem, scanState] = useLazyScanPosItemQuery();
   const [checkout, checkoutState] = useCheckoutMutation();
   const [parkTransaction, parkState] = useParkTransactionMutation();
@@ -52,6 +76,21 @@ export default function PosTerminalPage() {
   const [isCartOpen, setIsCartOpen] = React.useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = React.useState(false);
   const [receiptId, setReceiptId] = React.useState<number | null>(null);
+  const [orderNotes, setOrderNotes] = React.useState("");
+  const [scanError, setScanError] = React.useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = React.useState<string | null>(null);
+  const isCheckingOutRef = React.useRef(false);
+
+  // A new cart is a new logical checkout attempt.
+  React.useEffect(() => {
+    setIdempotencyKey(null);
+  }, [cart.lines.length, cart.lines.map((l) => l.itemId).join(",")]);
+
+  React.useEffect(() => {
+    if (isPaymentOpen && !idempotencyKey) {
+      setIdempotencyKey(crypto.randomUUID());
+    }
+  }, [isPaymentOpen, idempotencyKey]);
   const { data: receipt } = useGetPosReceiptQuery(receiptId ?? 0, { skip: receiptId === null });
 
   const { data: parked } = useGetParkedPosTransactionsQuery(undefined, { skip: !session });
@@ -59,6 +98,7 @@ export default function PosTerminalPage() {
   /** Resolves a code to a priced item and adds it to the cart. */
   const handleScan = React.useCallback(
     async (code: string) => {
+      setScanError(null);
       try {
         const item = await scanItem(code).unwrap();
         cart.addLine({
@@ -73,7 +113,7 @@ export default function PosTerminalPage() {
           vatRate: item.vatRate,
         });
       } catch (error) {
-        toast.error(getApiErrorMessage(error) || `Could not resolve '${code}'.`);
+        setScanError(getApiErrorMessage(error) || `Could not resolve '${code}'.`);
       }
     },
     [cart, scanItem]
@@ -95,23 +135,35 @@ export default function PosTerminalPage() {
     customerName?: string;
     customerPanNumber?: string;
   }) => {
-    if (!session) return;
+    if (!session || isCheckingOutRef.current) return;
+    isCheckingOutRef.current = true;
     try {
       const transaction = await checkout({
-        sessionId: session.id,
-        lines: cart.lines.map((line) => ({
-          itemId: line.itemId,
-          quantity: line.quantity,
-          discountPercentage: line.discountPercentage,
-        })),
-        ...payment,
+        request: {
+          sessionId: session.id,
+          tableId: selectedTableId ?? undefined,
+          lines: cart.lines.map((line) => ({
+            itemId: line.itemId,
+            quantity: line.quantity,
+            discountPercentage: line.discountPercentage,
+          })),
+          ...payment,
+          notes: orderNotes.trim() || undefined,
+        },
+        idempotencyKey: idempotencyKey ?? undefined,
       }).unwrap();
       cart.clear();
       setIsPaymentOpen(false);
       setIsCartOpen(false);
+      setOrderNotes("");
+      if (capabilities.kitchenTickets) {
+        void createKitchenTicket(transaction.id);
+      }
       setReceiptId(transaction.id);
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Checkout failed.");
+    } finally {
+      isCheckingOutRef.current = false;
     }
   };
 
@@ -240,13 +292,57 @@ export default function PosTerminalPage() {
           </div>
         </header>
 
-        <ScanField onScan={(code) => void handleScan(code)} />
+        {capabilities.tableManagement && posTables.length > 0 && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="pos-table">
+              Table
+            </label>
+            <select
+              id="pos-table"
+              value={selectedTableId ?? ""}
+              onChange={(event) => setSelectedTableId(event.target.value ? Number(event.target.value) : null)}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">No table</option>
+              {posTables.map((table) => (
+                <option key={table.id} value={table.id}>
+                  {table.tableName} ({table.status})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <QuickItemGrid
-          registerId={session.registerId}
-          onSelect={handleQuickItem}
-          disabled={scanState.isLoading}
-        />
+        {capabilities.barcodeScanning && (
+          <ScanField
+            onScan={(code) => void handleScan(code)}
+            error={scanError}
+            onClearError={() => setScanError(null)}
+          />
+        )}
+
+        {capabilities.productGrid && (
+          <QuickItemGrid
+            registerId={session.registerId}
+            onSelect={handleQuickItem}
+            disabled={scanState.isLoading}
+          />
+        )}
+
+        {capabilities.orderTypes && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="order-notes">
+              Order notes
+            </label>
+            <input
+              id="order-notes"
+              value={orderNotes}
+              onChange={(event) => setOrderNotes(event.target.value)}
+              placeholder="Dine-in / takeaway notes"
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            />
+          </div>
+        )}
 
         {parked && parked.content.length > 0 && (
           <section className="rounded-lg border p-3">

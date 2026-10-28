@@ -131,8 +131,10 @@ export function CreateUnitDialog({ open, onOpenChange }: CreateUnitDialogProps) 
       toast.success(`Unit "${result.name}" created successfully!`, {
         description: `Code: ${result.code}`,
       });
-      form.reset();
+      // Close the dialog immediately so the form disappears without waiting
+      // for the list refetch triggered by cache invalidation.
       onOpenChange(false);
+      form.reset();
     } catch (err) {
       toast.error("Failed to create unit", {
         description: getApiErrorMessage(err),

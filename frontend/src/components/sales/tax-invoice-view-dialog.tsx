@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, Loader2, CheckCircle2 } from "lucide-react";
+import { Printer, Loader2 } from "lucide-react";
 import { useGetTaxInvoiceViewQuery } from "@/services/sales-invoice.service";
 import { formatMoney, formatQty, formatDate, amountToWords } from "@/lib/sales-format";
 
@@ -165,7 +165,6 @@ export function TaxInvoiceViewDialog({
                 <tbody>
                   {data.lines.map((l) => {
                     const gross = l.quantity * l.unitPrice;
-                    const disc = (gross * (l.discountPercentage || 0)) / 100;
                     return (
                       <tr key={l.lineNumber} className="divide-x divide-foreground/30">
                         <td className="border border-foreground/30 p-1.5 text-center">{l.lineNumber}</td>

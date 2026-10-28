@@ -72,6 +72,15 @@ const RequisitionDetailsSheet = dynamic(
     })),
   { ssr: false, loading: () => null }
 );
+
+const ConvertToPurchaseOrderDialog = dynamic(
+  () =>
+    import("@/components/procurement/convert-to-purchase-order-dialog").then((mod) => ({
+      default: mod.ConvertToPurchaseOrderDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -127,6 +136,7 @@ export default function PurchaseRequisitionsPage() {
   const [decisionId, setDecisionId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [toCancel, setToCancel] = useState<RequisitionListResponse | null>(null);
+  const [toConvert, setToConvert] = useState<RequisitionListResponse | null>(null);
 
   const listParams = {
     page,
@@ -443,6 +453,7 @@ export default function PurchaseRequisitionsPage() {
                       onEdit={setEditId}
                       onDecide={setDecisionId}
                       onCancel={setToCancel}
+                      onConvertToPO={setToConvert}
                     />
                   </TableCell>
                 </TableRow>
@@ -500,6 +511,14 @@ export default function PurchaseRequisitionsPage() {
         open={!!toCancel}
         onOpenChange={(open) => {
           if (!open) setToCancel(null);
+        }}
+      />
+
+      <ConvertToPurchaseOrderDialog
+        requisition={toConvert}
+        open={!!toConvert}
+        onOpenChange={(open) => {
+          if (!open) setToConvert(null);
         }}
       />
     </div>

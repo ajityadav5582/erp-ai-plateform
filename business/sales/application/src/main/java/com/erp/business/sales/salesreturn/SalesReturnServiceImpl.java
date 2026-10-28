@@ -17,7 +17,7 @@ import com.erp.business.sales.salesreturn.dto.SalesReturnResponse;
 import com.erp.business.sales.salesreturn.exception.SalesReturnNotFoundException;
 import com.erp.business.sales.salesreturn.infrastructure.persistence.SalesReturnRepository;
 import com.erp.business.sales.salesreturn.mapper.SalesReturnMapper;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.SalesReturnPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;

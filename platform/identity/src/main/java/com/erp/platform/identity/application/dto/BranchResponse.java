@@ -7,9 +7,7 @@ import java.time.LocalDateTime;
 /**
  * Response DTO for branch data.
  *
- * <p>A branch's location is derived from a local level (province -> district ->
- * local level) referenced via {@code localLevelId}. An optional {@code wardNo}
- * can further qualify the branch address.
+ * <p>A branch carries a free-text address and an optional ward number.
  *
  * @since 1.0.0
  */
@@ -19,10 +17,7 @@ public record BranchResponse(
     Long companyId,
     String branchCode,
     String branchName,
-    String email,
-    String phone,
     String address,
-    String localLevelId,
     String wardNo,
     BranchStatus status,
     LocalDateTime createdAt,

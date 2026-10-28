@@ -30,6 +30,18 @@ public interface ItemService {
 
     Page<ItemListResponse> listItemsByTaxability(Long tenantId, Long companyId, TaxabilityType taxabilityType, Pageable pageable);
 
+    /**
+     * Returns active items flagged as purchasable (isPurchasable=true).
+     * Used by procurement module item-pickers to restrict selection to buyable items.
+     */
+    Page<ItemListResponse> listPurchasableItems(Long tenantId, Long companyId, Pageable pageable);
+
+    /**
+     * Returns active items flagged as sellable (isSellable=true).
+     * Used by POS and sales module item-pickers to restrict selection to sellable items.
+     */
+    Page<ItemListResponse> listSellableItems(Long tenantId, Long companyId, Pageable pageable);
+
     ItemResponse updateItem(Long tenantId, Long companyId, Long itemId, UpdateItemRequest request);
 
     ItemResponse activateItem(Long tenantId, Long companyId, Long itemId);

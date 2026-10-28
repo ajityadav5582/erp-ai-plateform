@@ -51,6 +51,28 @@ public interface ItemService {
     boolean validateItem(Long itemId);
 
     /**
+     * Validates that an item exists, is active, and is flagged as purchasable.
+     *
+     * <p>Procurement must call this before adding an item to a Purchase Order or
+     * Requisition line. Returns false if the item is FINISHED_GOODS or SERVICE.
+     *
+     * @param itemId the item identifier to validate
+     * @return true if the item is active and purchasable
+     */
+    boolean validatePurchasableItem(Long itemId);
+
+    /**
+     * Validates that an item exists, is active, and is flagged as sellable.
+     *
+     * <p>Sales and POS must call this before adding an item to an invoice or
+     * transaction line. Returns false if the item is RAW_MATERIAL or CONSUMABLE.
+     *
+     * @param itemId the item identifier to validate
+     * @return true if the item is active and sellable
+     */
+    boolean validateSellableItem(Long itemId);
+
+    /**
      * Validates that an item SKU exists, is active, and belongs to the current scope.
      *
      * @param sku the item SKU to validate
@@ -87,10 +109,29 @@ public interface ItemService {
         Long getUnitId();
         String getUnitCode();
         String getUnitName();
-        String getItemType(); // PRODUCT, SERVICE, RAW_MATERIAL, etc.
-        String getTaxabilityType(); // TAXABLE, EXEMPT, etc.
+        String getItemType(); // GOODS, SERVICE, RAW_MATERIAL, FINISHED_GOODS, CONSUMABLE, SEMI_FINISHED
+        String getTaxabilityType(); // TAXABLE, EXEMPT, ZERO_RATED
         Boolean getIsActive();
         Boolean getIsStockable();
+
+        /**
+         * Whether this item may appear on a Purchase Order or Requisition.
+         * Procurement modules must call this before adding a line.
+         */
+        default Boolean getIsPurchasable() { return null; }
+
+        /**
+         * Whether this item may appear on a Sales Invoice, Sales Order, or POS transaction.
+         * Sales and POS modules must call this before adding a line.
+         */
+        default Boolean getIsSellable() { return null; }
+
+        /** Whether this item may be used as a Recipe / BOM component. */
+        default Boolean getIsComponent() { return null; }
+
+        /** Whether this item is the finished-product output of a Recipe / BOM. */
+        default Boolean getIsManufactured() { return null; }
+
         // Stock information (optional, for modules that need it)
         default Long getAvailableStock() { return null; }
         default Long getReservedStock() { return null; }

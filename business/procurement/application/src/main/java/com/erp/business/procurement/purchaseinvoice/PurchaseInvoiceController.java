@@ -2,7 +2,7 @@ package com.erp.business.procurement.purchaseinvoice;
 
 import com.erp.business.procurement.purchaseinvoice.dto.CreateInvoiceRequest;
 import com.erp.business.procurement.purchaseinvoice.dto.PurchaseInvoiceResponse;
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

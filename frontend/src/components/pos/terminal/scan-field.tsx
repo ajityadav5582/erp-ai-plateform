@@ -11,6 +11,10 @@ interface ScanFieldProps {
   onScan: (code: string) => void;
   /** Set false while a dialog owns the keyboard. */
   enabled?: boolean;
+  /** Inline error message shown beneath the field (e.g. unknown barcode). */
+  error?: string | null;
+  /** Called when the user starts typing again, to clear the inline error. */
+  onClearError?: () => void;
 }
 
 /**
@@ -20,7 +24,7 @@ interface ScanFieldProps {
  * button beside it for phones and tablets. Hardware scanners (keyboard wedge)
  * need no button at all — the burst detector fires as they type.
  */
-export function ScanField({ onScan, enabled = true }: ScanFieldProps) {
+export function ScanField({ onScan, enabled = true, error, onClearError }: ScanFieldProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [value, setValue] = React.useState("");
 
@@ -62,7 +66,10 @@ export function ScanField({ onScan, enabled = true }: ScanFieldProps) {
           <Input
             ref={inputRef}
             value={value}
-            onChange={(event) => setValue(event.target.value)}
+            onChange={(event) => {
+              setValue(event.target.value);
+              if (error) onClearError?.();
+            }}
             onKeyDown={onKeyDown}
             disabled={!enabled}
             autoComplete="off"
@@ -101,6 +108,12 @@ export function ScanField({ onScan, enabled = true }: ScanFieldProps) {
             <div className="h-1/2 w-2/3 rounded-lg border-2 border-white/70" />
           </div>
         </div>
+      )}
+
+       {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
       )}
 
       {cameraError && (

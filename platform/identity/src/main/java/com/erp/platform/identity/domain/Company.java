@@ -123,6 +123,15 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "company_type", length = 40)
     private CompanyType companyType;
 
+    /**
+     * Operational business category of the company (restaurant, cafe, ...).
+     * Distinct from {@link #companyType}, which describes the legal structure.
+     * Used to configure module-specific behaviour such as the POS interface.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "business_type", length = 40)
+    private BusinessType businessType;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "fiscal_year_type", length = 20)
     private FiscalYearType fiscalYearType;
@@ -191,6 +200,48 @@ public class Company extends OptimisticLock<Long> {
         }
     }
 
+    public void updateCompanyName(String companyName) {
+        if (companyName != null && !companyName.isBlank()) {
+            this.companyName = companyName.trim();
+        }
+    }
+
+    public void updatePanNumber(String panNumber) {
+        if (panNumber != null && !panNumber.isBlank()) {
+            this.panNumber = panNumber.trim();
+        }
+    }
+
+    public void updateCity(String city) {
+        if (city != null && !city.isBlank()) {
+            this.city = city.trim();
+        }
+    }
+
+    public void updateCompanyType(CompanyType companyType) {
+        if (companyType != null) {
+            this.companyType = companyType;
+        }
+    }
+
+    public void updateBusinessType(BusinessType businessType) {
+        if (businessType != null) {
+            this.businessType = businessType;
+        }
+    }
+
+    public void updateFiscalYearType(FiscalYearType fiscalYearType) {
+        if (fiscalYearType != null) {
+            this.fiscalYearType = fiscalYearType;
+        }
+    }
+
+    public void updateVatRegistered(Boolean vatRegistered) {
+        if (vatRegistered != null) {
+            this.vatRegistered = vatRegistered;
+        }
+    }
+
     // ==================== Factory Methods ====================
 
     /**
@@ -226,17 +277,29 @@ public class Company extends OptimisticLock<Long> {
 
     public static Company create(Long tenantId, String companyCode, String companyName,
                                  String panNumber, String city, String phone, String email,
-                                 CompanyType companyType, FiscalYearType fiscalYearType,
-                                 boolean vatRegistered) {
+                                 CompanyType companyType, BusinessType businessType,
+                                 FiscalYearType fiscalYearType, boolean vatRegistered) {
         Company company = create(tenantId, companyCode, companyName);
-        company.panNumber = panNumber.trim();
-        company.city = city.trim();
-        company.phone = phone.trim();
-        company.email = email.trim();
+        company.panNumber = panNumber == null ? null : panNumber.trim();
+        company.city = city == null ? null : city.trim();
+        company.phone = phone == null ? null : phone.trim();
+        company.email = email == null ? null : email.trim();
         company.companyType = companyType;
+        company.businessType = businessType == null ? BusinessType.OTHER : businessType;
         company.fiscalYearType = fiscalYearType;
         company.vatRegistered = vatRegistered;
         return company;
+    }
+
+    /**
+     * Backwards-compatible overload that defaults {@link BusinessType} to {@link BusinessType#OTHER}.
+     */
+    public static Company create(Long tenantId, String companyCode, String companyName,
+                                 String panNumber, String city, String phone, String email,
+                                 CompanyType companyType, FiscalYearType fiscalYearType,
+                                 boolean vatRegistered) {
+        return create(tenantId, companyCode, companyName, panNumber, city, phone, email,
+                companyType, BusinessType.OTHER, fiscalYearType, vatRegistered);
     }
 
     // ==================== Validation Methods ====================

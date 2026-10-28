@@ -1,6 +1,6 @@
 package com.erp.business.procurement.menu;
 
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.procurement.shared.security.ProcurementPermissions;
 import com.erp.business.procurement.shared.security.PurchaseOrderPermissions;
 import com.erp.business.procurement.shared.security.PurchaseRequisitionPermissions;

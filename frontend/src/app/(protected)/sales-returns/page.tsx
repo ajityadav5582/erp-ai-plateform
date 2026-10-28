@@ -16,7 +16,7 @@ import { ListPagination } from "@/components/common/list-pagination";
 import { ReturnStatusBadge } from "@/components/sales/sales-status-badge";
 import { SalesDetailsSheet, type DetailField } from "@/components/sales/sales-details-sheet";
 import { CreateReturnDialog } from "@/components/sales/create-return-dialog";
-import { formatMoney, formatDate } from "@/lib/sales-format";
+import { formatMoney } from "@/lib/sales-format";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,

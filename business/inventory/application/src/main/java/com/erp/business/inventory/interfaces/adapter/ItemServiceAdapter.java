@@ -3,7 +3,7 @@ package com.erp.business.inventory.interfaces.adapter;
 import com.erp.business.inventory.interfaces.item.ItemService;
 import com.erp.business.inventory.items.dto.ItemResponse;
 import com.erp.business.inventory.items.dto.ItemListResponse;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.dto.PageRequest;
 import com.erp.platform.common.dto.PageResponse;
 import org.springframework.data.domain.Page;
@@ -73,6 +73,22 @@ public class ItemServiceAdapter implements ItemService {
     }
 
     @Override
+    public boolean validatePurchasableItem(Long itemId) {
+        return findById(itemId)
+                .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                .map(u -> Boolean.TRUE.equals(u.getIsPurchasable()))
+                .orElse(false);
+    }
+
+    @Override
+    public boolean validateSellableItem(Long itemId) {
+        return findById(itemId)
+                .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                .map(u -> Boolean.TRUE.equals(u.getIsSellable()))
+                .orElse(false);
+    }
+
+    @Override
     public boolean validateItemSku(String sku) {
         return findBySku(sku).map(u -> Boolean.TRUE.equals(u.getIsActive())).orElse(false);
     }
@@ -122,6 +138,10 @@ public class ItemServiceAdapter implements ItemService {
             @Override public Long getReservedStock() { return null; }
             @Override public java.math.BigDecimal getSellingPrice() { return internal.sellingPrice(); }
             @Override public java.math.BigDecimal getVatRate() { return internal.vatRate(); }
+            @Override public Boolean getIsPurchasable() { return internal.isPurchasable(); }
+            @Override public Boolean getIsSellable() { return internal.isSellable(); }
+            @Override public Boolean getIsComponent() { return internal.isComponent(); }
+            @Override public Boolean getIsManufactured() { return internal.isManufactured(); }
         };
     }
 
@@ -143,6 +163,10 @@ public class ItemServiceAdapter implements ItemService {
             @Override public Boolean getIsStockable() { return null; } // Not in list response
             @Override public Long getAvailableStock() { return null; }
             @Override public Long getReservedStock() { return null; }
+            @Override public Boolean getIsPurchasable() { return internal.isPurchasable(); }
+            @Override public Boolean getIsSellable() { return internal.isSellable(); }
+            @Override public Boolean getIsComponent() { return internal.isComponent(); }
+            @Override public Boolean getIsManufactured() { return internal.isManufactured(); }
         };
     }
 }

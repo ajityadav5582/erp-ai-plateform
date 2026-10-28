@@ -22,7 +22,7 @@ import java.util.List;
  *
  * @param requisitionId  the requisition examined
  * @param status         its current lifecycle state
- * @param editable       whether its content may still be amended
+ * @param canEdit        whether its content may still be amended
  * @param canSubmit      whether the caller may submit it for approval
  * @param canDecide      whether the caller may record an approval decision
  * @param canCancel      whether the caller may cancel it
@@ -34,7 +34,7 @@ import java.util.List;
 public record RequisitionActionabilityResponse(
         Long requisitionId,
         PurchaseRequisitionStatus status,
-        boolean editable,
+        boolean canEdit,
         boolean canSubmit,
         boolean canDecide,
         boolean canCancel,

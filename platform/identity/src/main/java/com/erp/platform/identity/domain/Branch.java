@@ -30,7 +30,7 @@ import java.time.Instant;
  *   <li>Branch name must be unique within a company</li>
  *   <li>A branch belongs to exactly one tenant and one company</li>
  *   <li>Only active branches can have new assignments (departments, users, etc.)</li>
- *   <li>A branch's location is derived from a local level (province -> district -> local level)</li>
+ *   <li>A branch carries a free-text address and ward number</li>
  * </ul>
  *
  * @since 1.0.0
@@ -85,22 +85,6 @@ public class Branch extends TenantScopedEntity<Long> {
     private String branchName;
 
     /**
-     * Contact email for the branch.
-     * Used for notifications and communications.
-     */
-    @Size(max = 255, message = "Email must not exceed 255 characters")
-    @Column(name = "email", length = 255)
-    private String email;
-
-    /**
-     * Contact phone number for the branch.
-     * Used for communications and emergency contacts.
-     */
-    @Size(max = 50, message = "Phone must not exceed 50 characters")
-    @Column(name = "phone", length = 50)
-    private String phone;
-
-    /**
      * Street address of the branch.
      */
     @Size(max = 500, message = "Address must not exceed 500 characters")
@@ -108,15 +92,7 @@ public class Branch extends TenantScopedEntity<Long> {
     private String address;
 
     /**
-     * The local level (municipality / rural municipality) where the branch is located.
-     * Province and district are derived from this reference.
-     */
-    @Size(max = 50, message = "Local level ID must not exceed 50 characters")
-    @Column(name = "local_level_id", length = 50)
-    private String localLevelId;
-
-    /**
-     * Ward number within the local level.
+     * Ward number for the branch address.
      */
     @Size(max = 50, message = "Ward number must not exceed 50 characters")
     @Column(name = "ward_no", length = 50)
@@ -170,15 +146,11 @@ public class Branch extends TenantScopedEntity<Long> {
     }
 
     /**
-     * Updates the location information for the branch.
+     * Updates the ward number for the branch.
      *
-     * <p>Both fields are optional and can be updated independently.
-     *
-     * @param localLevelId the local level id (municipality_id), or null to clear
      * @param wardNo the ward number, or null to clear
      */
-    public void updateLocation(String localLevelId, String wardNo) {
-        this.localLevelId = localLevelId;
+    public void updateLocation(String wardNo) {
         this.wardNo = wardNo;
     }
 
@@ -197,16 +169,13 @@ public class Branch extends TenantScopedEntity<Long> {
      * untouched. Blank values are ignored so an update request cannot erase a
      * required field.
      *
-     * @param branchCode   the new branch code, or {@code null} to keep the current one
-     * @param branchName   the new branch name, or {@code null} to keep the current one
-     * @param email        the new email, or {@code null} to keep the current one
-     * @param phone        the new phone, or {@code null} to keep the current one
-     * @param address      the new address, or {@code null} to keep the current one
-     * @param localLevelId the new local level id, or {@code null} to keep the current one
-     * @param wardNo       the new ward number, or {@code null} to keep the current one
+     * @param branchCode the new branch code, or {@code null} to keep the current one
+     * @param branchName the new branch name, or {@code null} to keep the current one
+     * @param address    the new address, or {@code null} to keep the current one
+     * @param wardNo     the new ward number, or {@code null} to keep the current one
      */
-    public void updateDetails(String branchCode, String branchName, String email,
-                              String phone, String address, String localLevelId, String wardNo) {
+    public void updateDetails(String branchCode, String branchName,
+                              String address, String wardNo) {
         if (branchCode != null && !branchCode.isBlank()) {
             validateBranchCode(branchCode);
             this.branchCode = branchCode.trim().toUpperCase();
@@ -215,17 +184,8 @@ public class Branch extends TenantScopedEntity<Long> {
             validateBranchName(branchName);
             this.branchName = branchName.trim();
         }
-        if (email != null && !email.isBlank()) {
-            this.email = email.trim();
-        }
-        if (phone != null && !phone.isBlank()) {
-            this.phone = phone.trim();
-        }
         if (address != null && !address.isBlank()) {
             this.address = address.trim();
-        }
-        if (localLevelId != null && !localLevelId.isBlank()) {
-            this.localLevelId = localLevelId.trim();
         }
         if (wardNo != null && !wardNo.isBlank()) {
             this.wardNo = wardNo.trim();

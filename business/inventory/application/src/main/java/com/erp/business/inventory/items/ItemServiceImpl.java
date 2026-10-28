@@ -96,6 +96,11 @@ public class ItemServiceImpl implements ItemService {
                         .minStockLevel(request.minStockLevel())
                         .reorderLevel(request.reorderLevel())
                         .reorderQuantity(request.reorderQuantity())
+                        // Usage flags: null lets the domain derive defaults from ItemType
+                        .isPurchasable(request.isPurchasable())
+                        .isSellable(request.isSellable())
+                        .isComponent(request.isComponent())
+                        .isManufactured(request.isManufactured())
                         .build()
         );
 
@@ -190,6 +195,34 @@ public class ItemServiceImpl implements ItemService {
                 .map(itemMapper::toListResponse);
     }
 
+    /**
+     * Returns active items that may be placed on a Purchase Order or Requisition.
+     *
+     * <p>Procurement module calls this to populate item-picker dropdowns so that
+     * users are never offered a FINISHED_GOODS or SERVICE item as something to buy.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ItemListResponse> listPurchasableItems(Long tenantId, Long companyId, Pageable pageable) {
+        return itemRepository.findByTenantIdAndCompanyIdAndIsPurchasableTrueAndIsActiveTrue(
+                tenantId, companyId, pageable)
+                .map(itemMapper::toListResponse);
+    }
+
+    /**
+     * Returns active items that may be placed on a Sales Invoice, Sales Order, or POS transaction.
+     *
+     * <p>Sales and POS modules call this to populate item-picker dropdowns so that
+     * users are never offered a RAW_MATERIAL or CONSUMABLE as something to sell.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ItemListResponse> listSellableItems(Long tenantId, Long companyId, Pageable pageable) {
+        return itemRepository.findByTenantIdAndCompanyIdAndIsSellableTrueAndIsActiveTrue(
+                tenantId, companyId, pageable)
+                .map(itemMapper::toListResponse);
+    }
+
     @Override
     @Transactional
     public ItemResponse updateItem(Long tenantId, Long companyId, Long itemId, UpdateItemRequest request) {
@@ -254,6 +287,11 @@ public class ItemServiceImpl implements ItemService {
                 .minStockLevel(request.minStockLevel())
                 .reorderLevel(request.reorderLevel())
                 .reorderQuantity(request.reorderQuantity())
+                // Usage flags: null leaves the stored value unchanged
+                .isPurchasable(request.isPurchasable())
+                .isSellable(request.isSellable())
+                .isComponent(request.isComponent())
+                .isManufactured(request.isManufactured())
                 .build());
 
         Item saved = itemRepository.save(item);

@@ -11,7 +11,7 @@ import com.erp.business.pos.session.dto.PosSessionResponse;
 import com.erp.business.pos.session.exception.PosSessionNotFoundException;
 import com.erp.business.pos.session.infrastructure.persistence.PosSessionRepository;
 import com.erp.business.pos.session.mapper.PosSessionMapper;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.shared.numbering.DocumentNumberService;
 import com.erp.business.pos.shared.security.PosSessionPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;

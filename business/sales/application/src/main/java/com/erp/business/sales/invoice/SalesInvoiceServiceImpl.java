@@ -8,6 +8,7 @@ import com.erp.business.sales.invoice.domain.SalesInvoiceLine;
 import com.erp.business.sales.invoice.domain.SalesInvoiceStatus;
 import com.erp.business.sales.invoice.domain.VatType;
 import com.erp.business.sales.invoice.dto.CreateInvoiceRequest;
+import com.erp.business.sales.invoice.dto.CreatePosInvoiceRequest;
 import com.erp.business.sales.invoice.dto.InvoiceDecisionRequest;
 import com.erp.business.sales.invoice.dto.InvoiceLineRequest;
 import com.erp.business.sales.invoice.dto.SalesInvoiceResponse;
@@ -18,7 +19,7 @@ import com.erp.business.sales.invoice.mapper.SalesInvoiceMapper;
 import com.erp.business.sales.invoice.mapper.TaxInvoiceMapper;
 import com.erp.business.sales.salesorder.SalesOrderService;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.SalesInvoicePermissions;
 import com.erp.platform.security.annotation.RequiresPermission;
@@ -120,6 +121,41 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         }
 
         return invoiceMapper.toResponse(invoiceRepository.save(invoice));
+    }
+
+    @Override
+    public SalesInvoiceResponse createPosInvoice(Long tenantId, Long companyId, CreatePosInvoiceRequest request) {
+        java.util.Optional<SalesInvoice> existing = invoiceRepository
+                .findByTenantIdAndCompanyIdAndPosTransactionId(tenantId, companyId, request.posTransactionId());
+        if (existing.isPresent()) {
+            return invoiceMapper.toResponse(existing.get());
+        }
+
+        String periodKey = context.findFiscalYearId() != null
+                ? "FY" + context.findFiscalYearId() : "CY" + request.invoiceDate().getYear();
+        String invoiceNumber = documentNumberService.nextNumber(
+                tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
+
+        boolean isTaxInvoice = request.customerPanNumber() != null && !request.customerPanNumber().isBlank();
+
+        SalesInvoice invoice = SalesInvoice.draft(
+                invoiceNumber, null, null,
+                null, null,
+                request.customerId(), null, request.customerName(),
+                request.customerPanNumber(), request.invoiceDate(), null,
+                isTaxInvoice, "NPR", context.findFiscalYearId(), null,
+                request.notes());
+        invoice.setPosTransactionId(request.posTransactionId());
+        invoice.assignScope(tenantId, companyId);
+
+        int lineNumber = 1;
+        for (InvoiceLineRequest lineRequest : request.lines()) {
+            invoice.addLine(buildLine(lineNumber++, lineRequest));
+        }
+
+        SalesInvoice saved = invoiceRepository.save(invoice);
+        saved.issue(currentUser());
+        return invoiceMapper.toResponse(invoiceRepository.save(saved));
     }
 
     @Override
@@ -294,6 +330,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     }
 
     private String currentUser() {
-        return context.getUserId();
+        String userId = context.getUserId();
+        return (userId == null || userId.isBlank()) ? "pos-integration" : userId;
     }
 }

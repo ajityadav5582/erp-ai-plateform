@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -91,11 +92,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         // Create authenticated user
                         AuthenticatedUser authenticatedUser = JwtAuthenticatedUser.from(claims);
 
+                        // Populate authorities from token claims so Spring Security method-level
+                        // checks (@PreAuthorize / hasRole) work in addition to the custom aspect.
+                        List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                        for (String role : claims.roles()) {
+                            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                        }
+                        for (String permission : claims.permissions()) {
+                            authorities.add(new SimpleGrantedAuthority(permission));
+                        }
+
                         // Set authentication in security context
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 authenticatedUser,
                                 null,
-                                List.of() // authorities can be populated from roles if needed
+                                authorities
                         );
                         authToken.setDetails(
                                 new WebAuthenticationDetailsSource().buildDetails(request)
@@ -110,10 +121,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
         } finally {
-            // Always clear thread-locals so nothing leaks to the next request
-            // served by this pooled thread.
+            // Always clear thread-locals and security context so nothing leaks to
+            // the next request served by this pooled thread.
             TenantContext.clear();
             RequestContext.clear();
+            SecurityContextHolder.clearContext();
         }
     }
 }

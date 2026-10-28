@@ -34,6 +34,7 @@ import {
   ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
 } from "@/config/company-context";
 import { useGetCompaniesQuery, useGetCompanyFiscalYearsQuery } from "@/services/company.service";
+import type { BusinessType } from "@/services/company.service";
 import { useGetProcurementMenuQuery, getProcurementIcon } from "@/services/procurement-menu.service";
 import { useGetSalesMenuQuery, getSalesIcon } from "@/services/sales-menu.service";
 import { useGetPosMenuQuery, getPosIcon } from "@/services/pos-menu.service";
@@ -63,6 +64,7 @@ interface ActiveFiscalSelection {
   fiscalYearId: number;
   companyName: string;
   fiscalYearName: string;
+  businessType: BusinessType | null;
 }
 
 const navigation: NavItem[] = [
@@ -157,13 +159,12 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    title: "Inventory",
+    title: "Master Data",
     requiredPermission: "INVENTORY_VIEW",
     icon: ({ className }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line x1="12" y1="22.08" x2="12" y2="12" />
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
     children: [
@@ -235,6 +236,104 @@ const navigation: NavItem[] = [
     ],
   },
   {
+    title: "Inventory",
+    requiredPermission: "INVENTORY_VIEW",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    ),
+    children: [
+      {
+        title: "Stock on Hand",
+        href: "/stock",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 8h14l-1 12H6L5 8z" />
+            <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Ledger",
+        href: "/stock/ledger",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 6h13" />
+            <path d="M8 12h13" />
+            <path d="M8 18h13" />
+            <path d="M3 6h.01" />
+            <path d="M3 12h.01" />
+            <path d="M3 18h.01" />
+          </svg>
+        ),
+      },
+      {
+        title: "Movement Summary",
+        href: "/stock/summary",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+        ),
+      },
+      {
+        title: "Low Stock",
+        href: "/stock/low-stock",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Valuation",
+        href: "/stock/valuation",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v10" />
+            <path d="M9.5 9.5h5" />
+            <path d="M9.5 14.5h5" />
+          </svg>
+        ),
+      },
+      {
+        title: "Negative Stock",
+        href: "/stock/negative",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+            <polyline points="17 18 23 18 23 12" />
+          </svg>
+        ),
+      },
+      {
+        title: "Stock Aging",
+        href: "/stock/aging",
+        requiredPermission: "INVENTORY_VIEW",
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12 7 12 12 15.5 14" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     title: "HR",
     href: "/hr",
     requiredPermission: "HR_VIEW",
@@ -278,7 +377,44 @@ const navigation: NavItem[] = [
         <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
       </svg>
     ),
-    children: [], // Will be populated dynamically from backend
+    children: [
+      {
+        title: "Purchase Requisitions",
+        href: "/purchase-requisitions",
+        requiredPermission: "PR_VIEW",
+        icon: getProcurementIcon("file-text"),
+      },
+      {
+        title: "Purchase Orders",
+        href: "/purchase-orders",
+        requiredPermission: "PURCHASE_ORDER_VIEW",
+        icon: getProcurementIcon("shopping-cart"),
+      },
+      {
+        title: "Goods Receipts",
+        href: "/goods-receipts",
+        requiredPermission: "GOODS_RECEIPT_VIEW",
+        icon: getProcurementIcon("truck"),
+      },
+      {
+        title: "Purchase Invoices",
+        href: "/purchase-invoices",
+        requiredPermission: "PURCHASE_INVOICE_VIEW",
+        icon: getProcurementIcon("file-invoice"),
+      },
+      {
+        title: "Supplier Payments",
+        href: "/supplier-payments",
+        requiredPermission: "SUPPLIER_PAYMENT_VIEW",
+        icon: getProcurementIcon("credit-card"),
+      },
+      {
+        title: "Workflow Configuration",
+        href: "/workflow-configuration",
+        requiredPermission: "PR_ADMIN",
+        icon: getProcurementIcon("settings"),
+      },
+    ],
   },
   {
     title: "POS",
@@ -383,14 +519,21 @@ const AppSidebar = React.memo(function AppSidebar({
   const { data: salesMenu } = useGetSalesMenuQuery(undefined, { skip: !selection });
   const { data: posMenu } = useGetPosMenuQuery(undefined, { skip: !selection });
   const userPermissions = useAppSelector((state) => state.auth.user?.permissions ?? []);
+  const userRoles = useAppSelector((state) => state.auth.user?.roles ?? []);
+
+  // Backend treats any administrative role as holding every permission, so
+  // mirror that here to keep module visibility in sync for tenant admins.
+  const ADMIN_ROLES = new Set(["SUPER_ADMIN", "TENANT_ADMIN", "OWNER", "ADMIN"]);
+  const isAdmin = userRoles.some((role) => ADMIN_ROLES.has(role));
 
   // Check if user has a specific permission
   const hasPermission = React.useCallback(
     (permission: string | undefined) => {
+      if (isAdmin) return true;
       if (!permission) return true;
       return userPermissions.includes(permission);
     },
-    [userPermissions]
+    [userPermissions, isAdmin]
   );
 
   // Filter navigation items based on user permissions
@@ -568,6 +711,7 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
             fiscalYearId: candidate.fiscalYearId,
             companyName: candidate.companyName || "Selected company",
             fiscalYearName: candidate.fiscalYearName || "Active fiscal year",
+            businessType: (candidate as { businessType?: BusinessType | null }).businessType ?? null,
           };
         }
       }
@@ -586,7 +730,8 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
       previous.companyId === selection.companyId &&
       previous.fiscalYearId === selection.fiscalYearId &&
       previous.companyName === selection.companyName &&
-      previous.fiscalYearName === selection.fiscalYearName
+      previous.fiscalYearName === selection.fiscalYearName &&
+      previous.businessType === selection.businessType
         ? previous
         : selection
     );
@@ -607,6 +752,7 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
       ...activeFiscalSelection,
       companyName: company.companyName,
       fiscalYearName: fiscalYear.name,
+      businessType: company.businessType ?? activeFiscalSelection.businessType,
     };
     setActiveFiscalSelection(resolvedSelection);
     window.localStorage.setItem(ACTIVE_FISCAL_SELECTION_STORAGE_KEY, JSON.stringify(resolvedSelection));
@@ -670,11 +816,12 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
           </div>
           <Separator />
           <div className="flex flex-1 flex-col">
-            <CompanyProvider
-              company={{
-                id: activeFiscalSelection.companyId,
-                name: activeFiscalSelection.companyName,
-              }}
+             <CompanyProvider
+               company={{
+                 id: activeFiscalSelection.companyId,
+                 name: activeFiscalSelection.companyName,
+                 businessType: activeFiscalSelection.businessType,
+               }}
             >
               {/*
                 Keyed on the path so this wrapper is remounted together with the

@@ -1,6 +1,6 @@
 package com.erp.business.inventory.interfaces.rest;
 
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.inventory.unit.dto.UnitCreateRequest;
 import com.erp.business.inventory.unit.dto.UnitResponse;
 import com.erp.business.inventory.unit.dto.UnitUpdateRequest;

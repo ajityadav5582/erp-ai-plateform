@@ -4,7 +4,7 @@ import com.erp.business.pos.domain.PosSessionStatus;
 import com.erp.business.pos.session.dto.CloseSessionRequest;
 import com.erp.business.pos.session.dto.OpenSessionRequest;
 import com.erp.business.pos.session.dto.PosSessionResponse;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

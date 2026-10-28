@@ -2,7 +2,6 @@ package com.erp.business.inventory.interfaces.stock;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -17,13 +16,12 @@ import java.math.BigDecimal;
  * @param warehouseId the warehouse the goods move through
  * @param itemId      the item being moved
  * @param uomCode     the unit-of-measure code, resolved by Inventory in scope
- * @param quantity    how much moved; must be strictly positive
+ * @param quantity    how much moved; positive for IN/OUT, signed for ADJUST
  */
 public record StockMovementLineRequest(
         @NotNull(message = "Warehouse is required") Long warehouseId,
         @NotNull(message = "Item is required") Long itemId,
         @NotBlank(message = "Unit of measure code is required") String uomCode,
-        @NotNull(message = "Quantity is required")
-        @Positive(message = "Quantity must be positive") BigDecimal quantity
+        @NotNull(message = "Quantity is required") BigDecimal quantity
 ) {
 }

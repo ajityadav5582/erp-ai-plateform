@@ -10,7 +10,7 @@ import com.erp.business.sales.receipt.dto.ReceiptDecisionRequest;
 import com.erp.business.sales.receipt.exception.CustomerReceiptNotFoundException;
 import com.erp.business.sales.receipt.infrastructure.persistence.CustomerReceiptRepository;
 import com.erp.business.sales.receipt.mapper.CustomerReceiptMapper;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.CustomerReceiptPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;

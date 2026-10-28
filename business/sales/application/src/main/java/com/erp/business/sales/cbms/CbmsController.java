@@ -4,7 +4,7 @@ import com.erp.business.sales.invoice.domain.SalesInvoice;
 import com.erp.business.sales.invoice.infrastructure.persistence.SalesInvoiceRepository;
 import com.erp.business.sales.salesreturn.domain.SalesReturn;
 import com.erp.business.sales.salesreturn.infrastructure.persistence.SalesReturnRepository;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.security.SalesInvoicePermissions;
 import com.erp.platform.security.annotation.RequiresPermission;
 import lombok.RequiredArgsConstructor;

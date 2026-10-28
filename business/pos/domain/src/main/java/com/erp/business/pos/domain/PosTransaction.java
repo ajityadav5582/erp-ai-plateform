@@ -134,6 +134,16 @@ public class PosTransaction extends TenantScopedEntity<Long> {
     @Column(name = "branch_id")
     private Long branchId;
 
+    @Column(name = "table_id")
+    private Long tableId;
+
+    @Column(name = "kitchen_ticket_id")
+    private Long kitchenTicketId;
+
+    public void setKitchenTicketId(Long kitchenTicketId) {
+        this.kitchenTicketId = kitchenTicketId;
+    }
+
     // -----------------------------------------------------------------------
     // Transaction date (both calendars)
     // -----------------------------------------------------------------------
@@ -361,9 +371,9 @@ public class PosTransaction extends TenantScopedEntity<Long> {
             Long warehouseId, String warehouseCode, String warehouseName,
             String cashierId, String cashierName,
             LocalDate transactionDate, String transactionDateNp,
-            Long fiscalYearId, Long branchId,
-            Long customerId, String customerCode, String customerName, String customerPanNumber,
-            String currency, String notes) {
+             Long fiscalYearId, Long branchId, Long tableId,
+             Long customerId, String customerCode, String customerName, String customerPanNumber,
+             String currency, String notes) {
 
         Objects.requireNonNull(sessionId, "Session id is required");
         Objects.requireNonNull(registerId, "Register id is required");
@@ -387,6 +397,7 @@ public class PosTransaction extends TenantScopedEntity<Long> {
                 .transactionDateNp(transactionDateNp)
                 .fiscalYearId(fiscalYearId)
                 .branchId(branchId)
+                .tableId(tableId)
                 .customerId(customerId)
                 .customerCode(customerCode)
                 .customerName(effectiveCustomerName)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,13 +8,6 @@ import { Loader2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUpdateBranchMutation, type Branch } from "@/services/branch.service";
 import { getApiErrorMessage } from "@/services/error-handler";
-import {
-  useGetProvincesQuery,
-  useGetDistrictsByProvinceQuery,
-  useGetDistrictByIdQuery,
-  useGetLocalLevelsByDistrictQuery,
-  useGetLocalLevelByMunicipalityIdQuery,
-} from "@/services/geography.service";
 
 import {
   Dialog,
@@ -33,13 +26,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
 const editBranchSchema = z.object({
@@ -51,17 +37,6 @@ const editBranchSchema = z.object({
     .string()
     .min(1, "Branch name is required")
     .max(200, "Branch name must not exceed 200 characters"),
-  email: z
-    .string()
-    .email("Invalid email address")
-    .max(255, "Email must not exceed 255 characters")
-    .optional()
-    .or(z.literal("")),
-  phone: z
-    .string()
-    .max(50, "Phone must not exceed 50 characters")
-    .optional()
-    .or(z.literal("")),
   address: z
     .string()
     .max(500, "Address must not exceed 500 characters")
@@ -80,36 +55,11 @@ interface EditBranchDialogProps {
 export function EditBranchDialog({ branch, open, onOpenChange }: EditBranchDialogProps) {
   const [updateBranch, { isLoading }] = useUpdateBranchMutation();
 
-  const [selectedProvinceId, setSelectedProvinceId] = useState<number | undefined>(undefined);
-  const [selectedDistrictId, setSelectedDistrictId] = useState<number | undefined>(undefined);
-  const [selectedLocalLevelId, setSelectedLocalLevelId] = useState<string | undefined>(undefined);
-
-  const { data: provincesData } = useGetProvincesQuery();
-  const { data: districtsData } = useGetDistrictsByProvinceQuery(selectedProvinceId ?? -1, {
-    skip: !selectedProvinceId,
-  });
-  const { data: localLevelsData } = useGetLocalLevelsByDistrictQuery(selectedDistrictId ?? -1, {
-    skip: !selectedDistrictId,
-  });
-
-  // Resolve the stored local level (province -> district -> local level) so the
-  // cascading dropdowns can be pre-populated when editing an existing branch.
-  const storedLocalLevelId = branch?.localLevelId ?? undefined;
-  const { data: localLevelData } = useGetLocalLevelByMunicipalityIdQuery(
-    storedLocalLevelId ?? "",
-    { skip: !storedLocalLevelId }
-  );
-  const { data: districtData } = useGetDistrictByIdQuery(localLevelData?.districtId ?? -1, {
-    skip: !localLevelData?.districtId,
-  });
-
   const form = useForm<EditBranchFormValues>({
     resolver: zodResolver(editBranchSchema),
     defaultValues: {
       branchCode: "",
       branchName: "",
-      email: "",
-      phone: "",
       address: "",
     },
   });
@@ -119,37 +69,18 @@ export function EditBranchDialog({ branch, open, onOpenChange }: EditBranchDialo
       form.reset({
         branchCode: branch.branchCode,
         branchName: branch.branchName,
-        email: branch.email || "",
-        phone: branch.phone || "",
         address: branch.address || "",
       });
-      // Reset any previously-selected geography before resolving the new branch.
-      setSelectedProvinceId(undefined);
-      setSelectedDistrictId(undefined);
-      setSelectedLocalLevelId(undefined);
     }
   }, [branch, form]);
-
-  // Once the stored local level and its district have been resolved, seed the
-  // cascading dropdowns so province / district / local level are shown.
-  useEffect(() => {
-    if (!branch || !localLevelData || !districtData) return;
-    if (selectedLocalLevelId === localLevelData.municipalityId) return;
-
-    setSelectedProvinceId(districtData.provinceId);
-    setSelectedDistrictId(districtData.id);
-    setSelectedLocalLevelId(localLevelData.municipalityId);
-  }, [branch, localLevelData, districtData, selectedLocalLevelId]);
 
   const onSubmit = async (values: EditBranchFormValues) => {
     if (!branch) return;
     try {
       const payload = {
-        ...values,
-        email: values.email || undefined,
-        phone: values.phone || undefined,
+        branchCode: values.branchCode,
+        branchName: values.branchName,
         address: values.address || undefined,
-        localLevelId: selectedLocalLevelId || undefined,
       };
       const result = await updateBranch({
         branchId: branch.id,
@@ -213,36 +144,6 @@ export function EditBranchDialog({ branch, open, onOpenChange }: EditBranchDialo
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="branch@example.com" type="email" disabled={isLoading} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 555-0100" disabled={isLoading} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
               name="address"
@@ -256,89 +157,6 @@ export function EditBranchDialog({ branch, open, onOpenChange }: EditBranchDialo
                 </FormItem>
               )}
             />
-
-            {/* Province Dropdown */}
-            <FormItem>
-              <FormLabel>Province</FormLabel>
-              <Select
-                value={selectedProvinceId?.toString() ?? ""}
-                onValueChange={(value) => {
-                  const id = Number(value);
-                  setSelectedProvinceId(id);
-                  setSelectedDistrictId(undefined);
-                  setSelectedLocalLevelId(undefined);
-                }}
-                disabled={isLoading}
-              >
-                <FormControl>
-                  <SelectTrigger disabled={isLoading}>
-                    <SelectValue placeholder="Select province" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {provincesData?.map((province) => (
-                    <SelectItem key={province.id} value={province.id.toString()}>
-                      {province.provinceName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-
-            {/* District Dropdown */}
-            <FormItem>
-              <FormLabel>District</FormLabel>
-              <Select
-                value={selectedDistrictId?.toString() ?? ""}
-                onValueChange={(value) => {
-                  const id = Number(value);
-                  setSelectedDistrictId(id);
-                  setSelectedLocalLevelId(undefined);
-                }}
-                disabled={!selectedProvinceId || isLoading}
-              >
-                <FormControl>
-                  <SelectTrigger disabled={!selectedProvinceId || isLoading}>
-                    <SelectValue placeholder="Select district" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {districtsData?.map((district) => (
-                    <SelectItem key={district.id} value={district.id.toString()}>
-                      {district.districtName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-
-            {/* Local Level Dropdown */}
-            <FormItem>
-              <FormLabel>Local Level</FormLabel>
-              <Select
-                value={selectedLocalLevelId ?? ""}
-                onValueChange={(value) => {
-                  setSelectedLocalLevelId(value);
-                }}
-                disabled={!selectedDistrictId || isLoading}
-              >
-                <FormControl>
-                  <SelectTrigger disabled={!selectedDistrictId || isLoading}>
-                    <SelectValue placeholder="Select local level" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {localLevelsData?.map((localLevel) => (
-                    <SelectItem key={localLevel.municipalityId} value={localLevel.municipalityId}>
-                      {localLevel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>

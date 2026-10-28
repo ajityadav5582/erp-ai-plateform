@@ -4,6 +4,7 @@ import com.erp.business.inventory.interfaces.item.ItemService;
 import com.erp.business.inventory.interfaces.stock.StockMovementBatchResponse;
 import com.erp.business.inventory.interfaces.stock.StockMovementLineRequest;
 import com.erp.business.inventory.interfaces.stock.StockMovementService;
+import com.erp.platform.data.tx.TransactionCallbacks;
 import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
 import com.erp.business.sales.delivery.domain.DeliveryStatus;
 import com.erp.business.sales.delivery.domain.SalesDelivery;
@@ -17,7 +18,7 @@ import com.erp.business.sales.delivery.infrastructure.persistence.SalesDeliveryR
 import com.erp.business.sales.delivery.mapper.SalesDeliveryMapper;
 import com.erp.business.sales.salesorder.SalesOrderService;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.sales.shared.numbering.DocumentNumberService;
 import com.erp.business.sales.shared.security.SalesDeliveryPermissions;
 import com.erp.platform.security.annotation.RequiresPermission;
@@ -189,6 +190,17 @@ public class SalesDeliveryServiceImpl implements SalesDeliveryService {
 
         // Issue the outbound stock, then advance the order's delivery progress.
         stockMovementService.postIssue(buildStockRequest(saved));
+        // If the order-progress update below fails and the delivery rolls back, the
+        // stock was already issued in Inventory - reverse it. Idempotent by
+        // (SALES_DELIVERY, id, IN).
+        TransactionCallbacks.onRollback(() -> stockMovementService.reverseIssue(buildStockRequest(saved)));
+        // Consume the order's reservation for the delivered quantity. Idempotent
+        // by (SALES_DELIVERY, id, RELEASE); same body as the issue, different
+        // endpoint, so the two never collide.
+        stockMovementService.release(buildStockRequest(saved));
+        // ...and if we roll back after releasing, re-reserve. Idempotent by
+        // (SALES_DELIVERY, id, RESERVE).
+        TransactionCallbacks.onRollback(() -> stockMovementService.reserve(buildStockRequest(saved)));
         for (SalesDeliveryLine line : saved.getLines()) {
             salesOrderService.recordDelivery(tenantId, companyId, saved.getSalesOrderId(),
                     line.getSalesOrderLineNumber(), line.getQuantity());
@@ -208,6 +220,9 @@ public class SalesDeliveryServiceImpl implements SalesDeliveryService {
         // Reverse the outbound stock, then roll back the order's delivery progress only if it was posted.
         if (wasPosted) {
             stockMovementService.reverseIssue(buildStockRequest(saved));
+            // The goods are back, so re-reserve the returned quantity against the
+            // order. Idempotent by (SALES_DELIVERY, id, RESERVE).
+            stockMovementService.reserve(buildStockRequest(saved));
             for (SalesDeliveryLine line : saved.getLines()) {
                 salesOrderService.reverseDelivery(tenantId, companyId, saved.getSalesOrderId(),
                         line.getSalesOrderLineNumber(), line.getQuantity());

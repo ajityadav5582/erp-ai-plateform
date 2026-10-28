@@ -11,8 +11,6 @@ import { BranchStatusBadge } from "./branch-status-badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  Mail,
-  Phone,
   MapPin,
   Building2,
   CheckCircle2,
@@ -155,22 +153,8 @@ export function BranchDetailsSheet({
 
             <Separator />
 
-            {/* Contact & Location fields */}
+            {/* Location fields */}
             <div className="space-y-3 text-sm">
-              {branch.email && (
-                <div className="flex items-center gap-3">
-                  <Mail className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="text-foreground">{branch.email}</span>
-                </div>
-              )}
-
-              {branch.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="text-foreground">{branch.phone}</span>
-                </div>
-              )}
-
               {branch.address && (
                 <div className="flex items-start gap-3">
                   <MapPin className="size-4 shrink-0 text-muted-foreground mt-0.5" />

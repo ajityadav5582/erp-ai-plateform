@@ -27,10 +27,20 @@ import java.time.Instant;
 @Entity
 @Table(
         name = "stock_movements",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_stock_movements_id_scope",
-                columnNames = {"id", "tenant_id", "company_id"}
-        ),
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_stock_movements_id_scope",
+                        columnNames = {"id", "tenant_id", "company_id"}
+                ),
+                // DB-enforced idempotency: at most one set of movements per source
+                // document and direction, so a concurrent retry cannot double-post.
+                // reference_type/reference_id are nullable and SQL treats NULLs as
+                // distinct, so manual movements without a reference are unaffected.
+                @UniqueConstraint(
+                        name = "uk_stock_movements_reference_direction",
+                        columnNames = {"tenant_id", "company_id", "reference_type", "reference_id", "movement_type", "item_id", "unit_id", "warehouse_id"}
+                )
+        },
         indexes = {
                 @Index(name = "idx_stock_movements_tenant_company", columnList = "tenant_id, company_id"),
                 @Index(name = "idx_stock_movements_warehouse_item_unit", columnList = "tenant_id, company_id, warehouse_id, item_id, unit_id"),

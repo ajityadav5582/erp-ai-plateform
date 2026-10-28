@@ -16,22 +16,35 @@ spring:
         format_sql: false
   flyway:
     enabled: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 0
+      delivery-timeout.ms: 1000
+      max-block.ms: 1000
+      request-timeout.ms: 1000
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "com.erp.business.pos.*"
 
 server:
   port: ${SERVER_PORT:8086}
 
-# Platform security (libraries:common-security). The signing secret/issuer MUST
-# match platform/identity's auth.jwt values or access tokens fail validation.
+# Platform security (libraries:common-security).
 erp:
   security:
     jwt:
       enabled: true
-      secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
+      secret: ${JWT_SECRET}
       issuer: ${JWT_ISSUER:erp-ai-platform-identity}
+  integration:
+    service-token: ${POS_SALES_SERVICE_TOKEN:pos-sales-integration-secret}
 
-# Nepal IRD CBMS real-time reporting. Disabled by default: pushes are
-# simulated as successful so the outbox flow can be exercised without IRD
-# credentials. Enable with real credentials in production.
+# Nepal IRD CBMS real-time reporting.
 ird:
   cbms:
     url: ${IRD_CBMS_URL:https://cbms.ird.gov.np/api}

@@ -34,7 +34,11 @@ public interface PosTransactionService {
      * allocates the document number, deducts stock from the register's
      * warehouse and updates the session totals.
      */
-    PosTransactionResponse checkout(Long tenantId, Long companyId, CheckoutRequest request);
+    /**
+     * Completes a sale in one atomic call. {@code idempotencyKey} may be null
+     * to disable idempotency; when present it is scoped to tenant/company/user.
+     */
+    PosTransactionResponse checkout(Long tenantId, Long companyId, String idempotencyKey, CheckoutRequest request);
 
     /**
      * Parks a cart as an OPEN transaction so it can be resumed later. Takes no

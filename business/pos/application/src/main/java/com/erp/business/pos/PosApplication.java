@@ -21,7 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = "com.erp.business.pos")
+@ComponentScan(basePackages = {"com.erp.business.pos", "com.erp.platform.shared"})
 @EntityScan(basePackages = {
         "com.erp.business.pos.domain",
         "com.erp.business.pos.shared.domain"

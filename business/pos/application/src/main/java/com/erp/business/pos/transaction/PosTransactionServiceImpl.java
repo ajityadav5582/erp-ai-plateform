@@ -3,10 +3,14 @@ package com.erp.business.pos.transaction;
 import com.erp.business.inventory.interfaces.item.ItemService;
 import com.erp.business.inventory.interfaces.stock.StockMovementLineRequest;
 import com.erp.business.inventory.interfaces.stock.StockMovementService;
+import com.erp.platform.data.tx.TransactionCallbacks;
 import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
 import com.erp.business.pos.domain.PosRegister;
 import com.erp.business.pos.domain.PosSession;
 import com.erp.business.pos.domain.PosSessionStatus;
+import com.erp.business.pos.domain.PosCheckoutIdempotency;
+import com.erp.business.pos.domain.PosKitchenTicket;
+import com.erp.business.pos.domain.PosSalesIntegrationJob;
 import com.erp.business.pos.domain.PosTransaction;
 import com.erp.business.pos.domain.PosTransactionLine;
 import com.erp.business.pos.domain.PosTransactionStatus;
@@ -16,7 +20,7 @@ import com.erp.business.pos.register.exception.PosRegisterNotFoundException;
 import com.erp.business.pos.register.infrastructure.persistence.PosRegisterRepository;
 import com.erp.business.pos.session.exception.PosSessionNotFoundException;
 import com.erp.business.pos.session.infrastructure.persistence.PosSessionRepository;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.shared.numbering.DocumentNumberService;
 import com.erp.business.pos.shared.security.PosTransactionPermissions;
 import com.erp.business.pos.transaction.dto.CheckoutLineRequest;
@@ -27,6 +31,9 @@ import com.erp.business.pos.transaction.dto.PosTransactionResponse;
 import com.erp.business.pos.transaction.dto.UpdateLineRequest;
 import com.erp.business.pos.transaction.dto.VoidTransactionRequest;
 import com.erp.business.pos.transaction.exception.PosTransactionNotFoundException;
+import com.erp.business.pos.integration.PosSalesIntegrationJobRepository;
+import com.erp.business.pos.kitchen.PosKitchenTicketRepository;
+import com.erp.business.pos.transaction.infrastructure.persistence.PosCheckoutIdempotencyRepository;
 import com.erp.business.pos.transaction.infrastructure.persistence.PosTransactionRepository;
 import com.erp.business.pos.transaction.mapper.PosTransactionMapper;
 import com.erp.platform.common.nepali.date.NepaliDateConverter;
@@ -70,6 +77,9 @@ public class PosTransactionServiceImpl implements PosTransactionService {
     private static final String STOCK_REFERENCE_TYPE = "POS_TRANSACTION";
 
     private final PosTransactionRepository transactionRepository;
+    private final PosCheckoutIdempotencyRepository idempotencyRepository;
+    private final PosSalesIntegrationJobRepository integrationJobRepository;
+    private final PosKitchenTicketRepository kitchenTicketRepository;
     private final PosSessionRepository sessionRepository;
     private final PosRegisterRepository registerRepository;
     private final PosPricingService pricingService;
@@ -80,6 +90,9 @@ public class PosTransactionServiceImpl implements PosTransactionService {
     private final BusinessContextAccessor context;
 
     public PosTransactionServiceImpl(PosTransactionRepository transactionRepository,
+                                     PosCheckoutIdempotencyRepository idempotencyRepository,
+                                     PosSalesIntegrationJobRepository integrationJobRepository,
+                                     PosKitchenTicketRepository kitchenTicketRepository,
                                      PosSessionRepository sessionRepository,
                                      PosRegisterRepository registerRepository,
                                      PosPricingService pricingService,
@@ -89,6 +102,9 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                                      DocumentNumberService documentNumberService,
                                      BusinessContextAccessor context) {
         this.transactionRepository = transactionRepository;
+        this.idempotencyRepository = idempotencyRepository;
+        this.integrationJobRepository = integrationJobRepository;
+        this.kitchenTicketRepository = kitchenTicketRepository;
         this.sessionRepository = sessionRepository;
         this.registerRepository = registerRepository;
         this.pricingService = pricingService;
@@ -105,7 +121,58 @@ public class PosTransactionServiceImpl implements PosTransactionService {
 
     @Override
     @RequiresPermission(PosTransactionPermissions.POS_TRANSACTION_CHECKOUT)
-    public PosTransactionResponse checkout(Long tenantId, Long companyId, CheckoutRequest request) {
+    public PosTransactionResponse checkout(Long tenantId, Long companyId, String idempotencyKey, CheckoutRequest request) {
+        String userId = context.getUserId();
+
+        // Idempotency: if a key is supplied, look for a prior attempt scoped to
+        // this tenant/company/cashier. A matching payload returns the original
+        // result; a differing payload is rejected.
+        PosCheckoutIdempotency idempotencyRecord = null;
+        String requestHash = null;
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            requestHash = hashRequest(request);
+            java.util.Optional<PosCheckoutIdempotency> existing =
+                    idempotencyRepository.findByTenantIdAndCompanyIdAndUserIdAndIdempotencyKey(
+                            tenantId, companyId, userId, idempotencyKey);
+            if (existing.isPresent()) {
+                PosCheckoutIdempotency prior = existing.get();
+                if (!requestHash.equals(prior.getRequestHash())) {
+                    throw new IllegalArgumentException(
+                            "Idempotency key reused with a different checkout payload");
+                }
+                if (prior.getTransactionId() != null) {
+                    return transactionMapper.toResponse(
+                            loadTransaction(tenantId, companyId, prior.getTransactionId()));
+                }
+                throw new IllegalStateException("Checkout with this idempotency key is already in progress");
+            }
+            idempotencyRecord = PosCheckoutIdempotency.builder()
+                    .userId(userId)
+                    .idempotencyKey(idempotencyKey)
+                    .requestHash(requestHash)
+                    .status("IN_PROGRESS")
+                    .build();
+            idempotencyRecord.assignScope(tenantId, companyId);
+            try {
+                idempotencyRepository.saveAndFlush(idempotencyRecord);
+            } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+                // Concurrent request won the race; reconcile with its result.
+                PosCheckoutIdempotency concurrent = idempotencyRepository
+                        .findByTenantIdAndCompanyIdAndUserIdAndIdempotencyKey(
+                                tenantId, companyId, userId, idempotencyKey)
+                        .orElseThrow(() -> ex);
+                if (!requestHash.equals(concurrent.getRequestHash())) {
+                    throw new IllegalArgumentException(
+                            "Idempotency key reused with a different checkout payload");
+                }
+                if (concurrent.getTransactionId() != null) {
+                    return transactionMapper.toResponse(
+                            loadTransaction(tenantId, companyId, concurrent.getTransactionId()));
+                }
+                throw new IllegalStateException("Checkout with this idempotency key is already in progress");
+            }
+        }
+
         PosSession session = loadSession(tenantId, companyId, request.sessionId());
         PosRegister register = loadRegister(tenantId, companyId, session.getRegisterId());
 
@@ -115,7 +182,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 register.getWarehouseId(), register.getWarehouseCode(), register.getWarehouseName(),
                 context.getUserId(), context.getCurrentUserFullName(),
                 transactionDate, NepaliDateConverter.format(transactionDate),
-                session.getFiscalYearId(), register.getBranchId(),
+                session.getFiscalYearId(), register.getBranchId(), request.tableId(),
                 request.customerId(), null, request.customerName(), request.customerPanNumber(),
                 null, request.notes());
         transaction.assignScope(tenantId, companyId);
@@ -131,7 +198,15 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         // contract. All three share this transaction, so a failure at any step
         // rolls the whole sale back, number allocation included.
         String transactionNumber = allocateNumber(tenantId, companyId, saved);
-        stockMovementService.postIssue(buildStockRequest(saved));
+        StockReceiptRequest stockRequest = buildStockRequest(saved, transactionNumber);
+        if (!stockRequest.lines().isEmpty()) {
+            stockMovementService.postIssue(stockRequest);
+            // If completing the sale or saving the session fails and the checkout rolls
+            // back, the stock was already deducted in Inventory - reverse it so the
+            // ledger and the (absent) sale stay consistent. Idempotent by
+            // (POS_TRANSACTION, id, IN).
+            TransactionCallbacks.onRollback(() -> stockMovementService.reverseIssue(stockRequest));
+        }
 
         saved.complete(transactionNumber, request.paymentMethod(), request.amountTendered(),
                 request.paymentReference(), context.getUserId());
@@ -140,6 +215,38 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         session.recordCompletedTransaction(
                 completed.getPaymentMethod(), completed.getTotalAmount(), completed.getVatAmount());
         sessionRepository.save(session);
+
+        if (idempotencyRecord != null) {
+            idempotencyRecord.complete(completed.getId());
+            idempotencyRepository.save(idempotencyRecord);
+        }
+
+        // Link kitchen ticket for restaurant-style flows when a table is selected.
+        if (request.tableId() != null) {
+            PosKitchenTicket ticket = PosKitchenTicket.builder()
+                    .posTransactionId(completed.getId())
+                    .status("PENDING")
+                    .build();
+            ticket.assignScope(tenantId, companyId);
+            PosKitchenTicket savedTicket = kitchenTicketRepository.save(ticket);
+            completed.setKitchenTicketId(savedTicket.getId());
+            transactionRepository.save(completed);
+        }
+
+        // Durable integration outbox: one job per completed POS transaction.
+        if (integrationJobRepository.findByTenantIdAndCompanyIdAndPosTransactionId(
+                tenantId, companyId, completed.getId()).isEmpty()) {
+            PosSalesIntegrationJob job = PosSalesIntegrationJob.builder()
+                    .posTransactionId(completed.getId())
+                    .status("PENDING")
+                    .attemptCount(0)
+                    .nextRetryAt(Instant.now())
+                    .build();
+            job.assignScope(tenantId, companyId);
+            integrationJobRepository.save(job);
+        }
+
+        // Integration is handled by PosSalesIntegrationWorker (transactional outbox).
 
         return transactionMapper.toResponse(completed);
     }
@@ -160,7 +267,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 register.getWarehouseId(), register.getWarehouseCode(), register.getWarehouseName(),
                 context.getUserId(), context.getCurrentUserFullName(),
                 transactionDate, NepaliDateConverter.format(transactionDate),
-                session.getFiscalYearId(), register.getBranchId(),
+                session.getFiscalYearId(), register.getBranchId(), null,
                 request.customerId(), null, request.customerName(), request.customerPanNumber(),
                 null, request.notes());
         transaction.assignScope(tenantId, companyId);
@@ -228,7 +335,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         // before the aggregate flips to VOIDED. An OPEN cart has neither.
         if (wasCompleted) {
             PosSession session = loadSession(tenantId, companyId, transaction.getSessionId());
-            stockMovementService.reverseIssue(buildStockRequest(transaction));
+            stockMovementService.reverseIssue(buildStockRequest(transaction, transaction.getTransactionNumber()));
             session.recordVoidedTransaction(
                     transaction.getPaymentMethod(), transaction.getTotalAmount(), transaction.getVatAmount());
             sessionRepository.save(session);
@@ -348,11 +455,25 @@ public class PosTransactionServiceImpl implements PosTransactionService {
      * Re-prices one requested line server-side and freezes the snapshot onto a
      * domain line. The unit price and VAT come from the catalogue via
      * {@link PosPricingService}; the amounts are computed by the domain.
+     *
+     * <p>The sellable guard runs first: a RAW_MATERIAL, CONSUMABLE, or SEMI_FINISHED
+     * item cannot be added to a customer receipt regardless of what the client sends.
      */
     private PosTransactionLine buildLine(int lineNumber, CheckoutLineRequest request) {
         ItemService.ItemResponse item = itemService.findById(request.itemId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Item not found with ID: " + request.itemId()));
+
+        // Enforce the sellable flag: only items that have been explicitly enabled
+        // for sale may appear on a POS transaction. This prevents staff from
+        // accidentally selling Sugar or Tea Leaf directly to a customer when it
+        // should only be consumed internally through a recipe.
+        if (!Boolean.TRUE.equals(item.getIsSellable())) {
+            throw new IllegalArgumentException(
+                    "Item '" + item.getName() + "' (ID: " + request.itemId()
+                            + ") is not marked as sellable and cannot be added to a POS transaction.");
+        }
+
         PricedLine priced = pricingService.priceLine(item, request.quantity(), request.discountPercentage());
         return PosTransactionLine.of(
                 lineNumber, priced.itemId(), priced.itemCode(), priced.itemName(), item.getBarcode(),
@@ -378,13 +499,42 @@ public class PosTransactionServiceImpl implements PosTransactionService {
      * the issue and its reversal, so a retried checkout after a timeout returns
      * the movements already posted rather than deducting stock twice.
      */
-    private StockReceiptRequest buildStockRequest(PosTransaction transaction) {
+    private StockReceiptRequest buildStockRequest(PosTransaction transaction, String transactionNumber) {
+        // Only inventory-tracked items consume stock. Non-tracked items (services,
+        // and products such as tea that are produced internally and never purchased)
+        // are sold without a stock movement, so a zero on-hand balance never blocks
+        // the sale. Unknown items are skipped rather than posted, so a stale catalogue
+        // reference cannot create a phantom stock movement.
         List<StockMovementLineRequest> stockLines = transaction.getLines().stream()
+                .filter(line -> {
+                    ItemService.ItemResponse item = itemService.findById(line.getItemId()).orElse(null);
+                    return item != null && Boolean.TRUE.equals(item.getIsStockable());
+                })
                 .map(line -> new StockMovementLineRequest(
                         transaction.getWarehouseId(), line.getItemId(), line.getUomCode(), line.getQuantity()))
                 .toList();
+        // The number is allocated before stock is posted, so use the freshly
+        // allocated value rather than transaction.getTransactionNumber(), which is
+        // only set when the aggregate is completed (after this point).
+        String referenceNumber = transactionNumber != null ? transactionNumber : transaction.getTransactionNumber();
         return new StockReceiptRequest(
-                STOCK_REFERENCE_TYPE, transaction.getId(), transaction.getTransactionNumber(),
+                STOCK_REFERENCE_TYPE, transaction.getId(), referenceNumber,
                 Instant.now(), context.getUserId(), null, stockLines);
+    }
+
+    private String hashRequest(CheckoutRequest request) {
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String json = mapper.writeValueAsString(request);
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to hash checkout request", ex);
+        }
     }
 }

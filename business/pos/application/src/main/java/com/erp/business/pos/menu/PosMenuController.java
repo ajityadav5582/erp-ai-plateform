@@ -1,6 +1,6 @@
 package com.erp.business.pos.menu;
 
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.shared.security.PosQuickItemPermissions;
 import com.erp.business.pos.shared.security.PosRegisterPermissions;
 import com.erp.business.pos.shared.security.PosScanPermissions;

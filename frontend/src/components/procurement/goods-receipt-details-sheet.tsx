@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
 import { toast } from "sonner";
-import { useGetGoodsReceiptQuery } from "@/services/goods-receipt.service";
+import { useGetGoodsReceiptQuery, useRetryGoodsReceiptStockPostMutation } from "@/services/goods-receipt.service";
 import {
   formatAmount,
   formatDate,
@@ -69,6 +69,8 @@ export function GoodsReceiptDetailsSheet({
   const [invoiceTarget, setInvoiceTarget] =
     useState<{ receiptId: number } | null>(null);
 
+  const [retryStockPost, { isLoading: isRetrying }] = useRetryGoodsReceiptStockPostMutation();
+
   const {
     data: receipt,
     isLoading,
@@ -77,6 +79,17 @@ export function GoodsReceiptDetailsSheet({
   } = useGetGoodsReceiptQuery(goodsReceiptId ?? 0, {
     skip: !goodsReceiptId || !open,
   });
+
+  const handleRetryStockPost = async () => {
+    if (!receipt) return;
+    try {
+      await retryStockPost(receipt.id).unwrap();
+      toast.success("Stock posted successfully");
+      refetch();
+    } catch (e) {
+      toast.error("Retry failed");
+    }
+  };
 
   const handleInvoiceCreated = (invoice: PurchaseInvoice) => {
     toast.success(`Supplier invoice ${invoice.invoiceNumber} recorded`, {
@@ -128,6 +141,23 @@ export function GoodsReceiptDetailsSheet({
               <div className="mb-4 flex flex-wrap gap-2">
                 <GoodsReceiptStatusBadge status={receipt.status} />
               </div>
+
+              {receipt.stockPostStatus === "FAILED" && (
+                <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                  <p className="font-medium text-destructive">Stock post failed</p>
+                  {receipt.stockPostError && (
+                    <p className="mt-1 text-xs text-muted-foreground">{receipt.stockPostError}</p>
+                  )}
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={handleRetryStockPost}
+                    disabled={isRetrying}
+                  >
+                    {isRetrying ? "Retrying…" : "Retry stock post"}
+                  </Button>
+                </div>
+              )}
 
               <div className="space-y-4 py-2">
                 <div>
@@ -250,20 +280,27 @@ export function GoodsReceiptDetailsSheet({
             </div>
           )}
 
-          {!isLoading && !error && receipt && receipt.status === "POSTED" && (
-            <SheetFooter className="border-t border-border pt-4">
-              <Button
-                size="sm"
-                onClick={() => setInvoiceTarget({ receiptId: receipt.id })}
-              >
-                <Receipt className="mr-2 size-4" aria-hidden="true" />
-                Record supplier invoice
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                An invoice is raised against a delivery, so it needs this receipt.
-              </p>
-            </SheetFooter>
-          )}
+           {!isLoading && !error && receipt && receipt.status === "POSTED" && !receipt.invoiceNumber && (
+             <SheetFooter className="border-t border-border pt-4">
+               <Button
+                 size="sm"
+                 onClick={() => setInvoiceTarget({ receiptId: receipt.id })}
+               >
+                 <Receipt className="mr-2 size-4" aria-hidden="true" />
+                 Record supplier invoice
+               </Button>
+               <p className="text-xs text-muted-foreground">
+                 An invoice is raised against a delivery, so it needs this receipt.
+               </p>
+             </SheetFooter>
+           )}
+           {!isLoading && !error && receipt && receipt.invoiceNumber && (
+             <SheetFooter className="border-t border-border pt-4">
+               <p className="text-xs text-muted-foreground">
+                 Already invoiced as {receipt.invoiceNumber}.
+               </p>
+             </SheetFooter>
+           )}
         </SheetContent>
       </Sheet>
 

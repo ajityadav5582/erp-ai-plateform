@@ -42,7 +42,7 @@ interface SelectedDeliveryLine {
   itemName: string;
   uomCode: string;
   outstandingQuantity: number;
-  quantity: number;
+  quantity: string;
   description: string;
 }
 
@@ -115,7 +115,7 @@ export function CreateDeliveryDialog({
         itemName: l.itemName,
         uomCode: l.uomCode,
         outstandingQuantity: l.outstandingQuantity,
-        quantity: l.outstandingQuantity,
+        quantity: String(l.outstandingQuantity),
         description: l.description ?? "",
       }));
     setLines(linesToDeliver);
@@ -127,13 +127,13 @@ export function CreateDeliveryDialog({
     );
   };
 
-  const handleQuantityChange = (lineNumber: number, val: number) => {
+  const handleQuantityChange = (lineNumber: number, val: string) => {
     setLines((prev) =>
       prev.map((l) => (l.salesOrderLineNumber === lineNumber ? { ...l, quantity: val } : l))
     );
   };
 
-  const selectedLinesToShip = lines.filter((l) => l.checked && l.quantity > 0);
+  const selectedLinesToShip = lines.filter((l) => l.checked && Number(l.quantity) > 0);
   const isLoading = isCreating || isPosting;
   const canSubmit = !!activeOrder && !!warehouseId && selectedLinesToShip.length > 0 && !isLoading;
 
@@ -144,7 +144,7 @@ export function CreateDeliveryDialog({
     if (selectedLinesToShip.length === 0) return setError("Select at least one line with a positive quantity.");
 
     for (const l of selectedLinesToShip) {
-      if (l.quantity > l.outstandingQuantity) {
+      if (Number(l.quantity) > l.outstandingQuantity) {
         return setError(
           `Delivery quantity (${l.quantity}) for item "${l.itemCode} — ${l.itemName}" exceeds remaining outstanding order quantity (${l.outstandingQuantity}).`
         );
@@ -155,7 +155,7 @@ export function CreateDeliveryDialog({
       salesOrderLineNumber: l.salesOrderLineNumber,
       itemId: l.itemId,
       uomCode: l.uomCode,
-      quantity: l.quantity,
+      quantity: Number(l.quantity),
       description: l.description || undefined,
     }));
 
@@ -299,8 +299,9 @@ export function CreateDeliveryDialog({
                         max={l.outstandingQuantity}
                         step="any"
                         disabled={!l.checked}
+                        inputMode="decimal"
                         value={l.quantity}
-                        onChange={(e) => handleQuantityChange(l.salesOrderLineNumber, Number(e.target.value))}
+                        onChange={(e) => handleQuantityChange(l.salesOrderLineNumber, e.target.value)}
                         className="w-24 text-right h-8"
                       />
                       <span className="text-xs text-muted-foreground w-10">{l.uomCode}</span>

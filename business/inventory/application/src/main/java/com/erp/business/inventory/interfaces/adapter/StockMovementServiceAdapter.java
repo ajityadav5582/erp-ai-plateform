@@ -4,7 +4,7 @@ import com.erp.business.inventory.domain.StockMovement;
 import com.erp.business.inventory.interfaces.stock.StockMovementBatchResponse;
 import com.erp.business.inventory.interfaces.stock.StockMovementService;
 import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
-import com.erp.business.inventory.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.inventory.stock.StockMovementBatchResult;
 import org.springframework.stereotype.Component;
 
@@ -65,6 +65,24 @@ public class StockMovementServiceAdapter implements StockMovementService {
         Long companyId = contextAccessor.getCompanyId();
         StockMovementBatchResult result =
                 internalStockMovementService.reverseIssueBatch(tenantId, companyId, request);
+        return toResponse(request, result);
+    }
+
+    @Override
+    public StockMovementBatchResponse reserve(StockReceiptRequest request) {
+        Long tenantId = contextAccessor.getTenantId();
+        Long companyId = contextAccessor.getCompanyId();
+        StockMovementBatchResult result =
+                internalStockMovementService.reserveBatch(tenantId, companyId, request);
+        return toResponse(request, result);
+    }
+
+    @Override
+    public StockMovementBatchResponse release(StockReceiptRequest request) {
+        Long tenantId = contextAccessor.getTenantId();
+        Long companyId = contextAccessor.getCompanyId();
+        StockMovementBatchResult result =
+                internalStockMovementService.releaseBatch(tenantId, companyId, request);
         return toResponse(request, result);
     }
 

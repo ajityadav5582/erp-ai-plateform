@@ -184,6 +184,55 @@ public class Item extends TenantScopedEntity<Long> {
     @Builder.Default
     private BigDecimal reorderQuantity = BigDecimal.ZERO;
 
+    /**
+     * When {@code true} this item may appear on a Purchase Order or Purchase Requisition line.
+     *
+     * <p>Typical values by item type:
+     * <ul>
+     *   <li>RAW_MATERIAL / CONSUMABLE — {@code true}</li>
+     *   <li>FINISHED_GOODS / SEMI_FINISHED — {@code false} (you produce, not buy)</li>
+     *   <li>GOODS (trading) — {@code true} (you buy wholesale, sell retail)</li>
+     *   <li>SERVICE — {@code false}</li>
+     * </ul>
+     */
+    @Column(name = "is_purchasable", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private Boolean isPurchasable = false;
+
+    /**
+     * When {@code true} this item may appear on a Sales Invoice, Sales Order, or POS transaction.
+     *
+     * <p>Typical values by item type:
+     * <ul>
+     *   <li>FINISHED_GOODS / SERVICE / GOODS — {@code true}</li>
+     *   <li>RAW_MATERIAL / CONSUMABLE — {@code false}</li>
+     *   <li>SEMI_FINISHED — {@code false} (internal use only)</li>
+     * </ul>
+     */
+    @Column(name = "is_sellable", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private Boolean isSellable = false;
+
+    /**
+     * When {@code true} this item may be used as an ingredient / component inside a Recipe
+     * (Bill of Materials).
+     *
+     * <p>Typical values: RAW_MATERIAL=true, SEMI_FINISHED=true, others=false.
+     */
+    @Column(name = "is_component", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private Boolean isComponent = false;
+
+    /**
+     * When {@code true} this item is the output of a Recipe (Bill of Materials) and may
+     * appear as the finished-product target in a production order.
+     *
+     * <p>Typical values: FINISHED_GOODS=true, SEMI_FINISHED=true, others=false.
+     */
+    @Column(name = "is_manufactured", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private Boolean isManufactured = false;
+
     @NotNull(message = "Active status is required")
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -241,7 +290,12 @@ public class Item extends TenantScopedEntity<Long> {
             Boolean isExpiryTracked,
             BigDecimal minStockLevel,
             BigDecimal reorderLevel,
-            BigDecimal reorderQuantity) {
+            BigDecimal reorderQuantity,
+            // Usage flags — null means "leave as is" (patch semantics)
+            Boolean isPurchasable,
+            Boolean isSellable,
+            Boolean isComponent,
+            Boolean isManufactured) {
     }
 
     /**
@@ -373,6 +427,18 @@ public class Item extends TenantScopedEntity<Long> {
         if (changes.reorderQuantity() != null) {
             this.reorderQuantity = changes.reorderQuantity();
         }
+        if (changes.isPurchasable() != null) {
+            this.isPurchasable = changes.isPurchasable();
+        }
+        if (changes.isSellable() != null) {
+            this.isSellable = changes.isSellable();
+        }
+        if (changes.isComponent() != null) {
+            this.isComponent = changes.isComponent();
+        }
+        if (changes.isManufactured() != null) {
+            this.isManufactured = changes.isManufactured();
+        }
     }
 
     /**
@@ -403,21 +469,72 @@ public class Item extends TenantScopedEntity<Long> {
             throw new IllegalArgumentException("Selling price is required");
         }
 
+        // Derive the ItemType that will be applied: honour the caller's choice when
+        // supplied via ItemChanges, otherwise fall back to the legacy GOODS default.
+        ItemType effectiveType = (changes != null && changes.itemType() != null)
+                ? changes.itemType()
+                : ItemType.GOODS;
+
+        // Derive smart usage-flag defaults from the effective ItemType so that callers
+        // do not have to set four booleans for every create call.  The flags in
+        // ItemChanges take precedence when explicitly supplied.
+        UsageFlags defaults = UsageFlags.forType(effectiveType);
+
         Item item = Item.builder()
                 .sku(sku.trim().toUpperCase())
                 .nameEn(nameEn.trim())
                 .uom(uom)
                 .sellingPrice(sellingPrice)
-                .itemType(ItemType.GOODS)
+                .itemType(effectiveType)
                 .taxabilityType(TaxabilityType.TAXABLE)
                 .vatRate(DEFAULT_VAT_RATE)
                 .exciseType(ExciseType.NONE)
+                .isPurchasable(defaults.isPurchasable())
+                .isSellable(defaults.isSellable())
+                .isComponent(defaults.isComponent())
+                .isManufactured(defaults.isManufactured())
                 .isActive(true)
                 .build();
 
         item.applyChanges(changes);
         item.assignScope(tenantId, companyId);
         return item;
+    }
+
+    /**
+     * Smart usage-flag defaults derived from an {@link ItemType}.
+     *
+     * <p>These are starting points — every flag can be overridden by the caller via
+     * {@link ItemChanges}.  The defaults exist so that a restaurant creating a
+     * "Cup of Tea" as {@code FINISHED_GOODS} does not have to explicitly set all
+     * four flags every time.
+     *
+     * <p>Mapping rationale:
+     * <ul>
+     *   <li>GOODS       — traded as-is: buy and sell, no production.</li>
+     *   <li>SERVICE     — sold only, never stocked or manufactured.</li>
+     *   <li>RAW_MATERIAL — bought and used as input; not directly sold.</li>
+     *   <li>FINISHED_GOODS — produced and sold; not re-purchased.</li>
+     *   <li>CONSUMABLE  — bought for internal use; never sold or manufactured.</li>
+     *   <li>SEMI_FINISHED — produced as intermediate; used as component again.</li>
+     * </ul>
+     */
+    public record UsageFlags(boolean isPurchasable, boolean isSellable,
+                              boolean isComponent, boolean isManufactured) {
+
+        public static UsageFlags forType(ItemType type) {
+            if (type == null) {
+                return new UsageFlags(true, true, false, false); // same as GOODS
+            }
+            return switch (type) {
+                case GOODS         -> new UsageFlags(true,  true,  false, false);
+                case SERVICE       -> new UsageFlags(false, true,  false, false);
+                case RAW_MATERIAL  -> new UsageFlags(true,  false, true,  false);
+                case FINISHED_GOODS-> new UsageFlags(false, true,  false, true);
+                case CONSUMABLE    -> new UsageFlags(true,  false, false, false);
+                case SEMI_FINISHED -> new UsageFlags(false, false, true,  true);
+            };
+        }
     }
 
     private static void validateTenantId(Long tenantId) {

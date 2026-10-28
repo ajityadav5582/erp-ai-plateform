@@ -4,7 +4,7 @@ import com.erp.business.sales.customer.domain.CustomerType;
 import com.erp.business.sales.customer.dto.CreateCustomerRequest;
 import com.erp.business.sales.customer.dto.CustomerResponse;
 import com.erp.business.sales.customer.dto.UpdateCustomerRequest;
-import com.erp.business.sales.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

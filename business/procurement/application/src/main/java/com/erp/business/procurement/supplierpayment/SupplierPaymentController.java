@@ -1,6 +1,6 @@
 package com.erp.business.procurement.supplierpayment;
 
-import com.erp.business.procurement.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.procurement.supplierpayment.dto.CreatePaymentRequest;
 import com.erp.business.procurement.supplierpayment.dto.SupplierPaymentResponse;
 import com.erp.platform.common.exception.UnauthorizedException;

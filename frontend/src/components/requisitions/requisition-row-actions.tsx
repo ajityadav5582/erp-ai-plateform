@@ -10,6 +10,7 @@ import {
   Ban,
   Trash2,
   ShieldAlert,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -35,6 +36,7 @@ interface RequisitionRowActionsProps {
   onEdit: (id: number) => void;
   onDecide: (id: number) => void;
   onCancel: (requisition: RequisitionListResponse) => void;
+  onConvertToPO?: (requisition: RequisitionListResponse) => void;
 }
 
 /**
@@ -57,6 +59,7 @@ export function RequisitionRowActions({
   onEdit,
   onDecide,
   onCancel,
+  onConvertToPO,
 }: RequisitionRowActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -147,6 +150,16 @@ export function RequisitionRowActions({
                 <Ban className="mr-2 size-4 text-amber-600" />
                 Cancel Requisition
               </DropdownMenuItem>
+            )}
+
+            {actions?.canAwardToOrder && onConvertToPO && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onConvertToPO(requisition)}>
+                  <ShoppingCart className="mr-2 size-4 text-indigo-600" />
+                  Convert to Purchase Order
+                </DropdownMenuItem>
+              </>
             )}
 
             {actions?.canDelete && (

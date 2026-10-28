@@ -11,12 +11,14 @@ import com.erp.business.procurement.goodsreceipt.domain.StockPostStatus;
 import com.erp.business.procurement.goodsreceipt.dto.CreateGoodsReceiptRequest;
 import com.erp.business.procurement.goodsreceipt.dto.GoodsReceiptResponse;
 import com.erp.business.procurement.goodsreceipt.infrastructure.persistence.GoodsReceiptRepository;
+import com.erp.business.procurement.purchaseinvoice.infrastructure.persistence.PurchaseInvoiceRepository;
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrder;
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrderLine;
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrderLineStatus;
 import com.erp.business.procurement.purchaseorder.infrastructure.persistence.PurchaseOrderRepository;
 import com.erp.business.procurement.shared.domain.DocumentSequence;
 import com.erp.business.procurement.shared.infrastructure.persistence.DocumentSequenceRepository;
+import com.erp.platform.business.inventory.InventoryRequestContext;
 import com.erp.business.procurement.shared.security.ProcurementPermissions;
 import com.erp.platform.common.exception.ResourceNotFoundException;
 import com.erp.platform.common.exception.ValidationException;
@@ -28,16 +30,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Records goods receipts and applies them to their purchase orders.
@@ -62,6 +70,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     private static final int NUMBER_WIDTH = 6;
 
     private final GoodsReceiptRepository receiptRepository;
+    private final PurchaseInvoiceRepository invoiceRepository;
     private final PurchaseOrderRepository orderRepository;
     private final DocumentSequenceRepository sequenceRepository;
     private final UnitService unitService;
@@ -135,7 +144,8 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         // receipt (stockPostStatus = FAILED) for retry rather than lost.
         StockReceiptRequest batch = stockBatch(saved, saved.getPostedAt(),
                 "Receipt " + saved.getGrnNumber() + " against PO " + saved.getPoNumber());
-        events.publishEvent(new GoodsReceiptRecordedEvent(tenantId, companyId, saved.getId(), batch));
+        events.publishEvent(new GoodsReceiptRecordedEvent(tenantId, companyId, saved.getId(), batch,
+                captureInventoryHeaders()));
 
         return toResponse(saved);
     }
@@ -146,9 +156,43 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
      * network call, and in a fresh context so the status update persists
      * reliably (a raw TransactionSynchronization callback does not).
      */
+    @Async("stockPostExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onGoodsReceiptRecorded(GoodsReceiptRecordedEvent event) {
-        postStockAndUpdateStatus(event.tenantId(), event.companyId(), event.receiptId(), event.batch());
+        // The async worker has no request context, so install the headers captured
+        // on the request thread for the duration of the call, then clear them.
+        log.info("Posting stock for goods receipt {} ({} captured headers)",
+                event.receiptId(), event.authHeaders() == null ? 0 : event.authHeaders().size());
+        InventoryRequestContext.set(event.authHeaders());
+        try {
+            postStockAndUpdateStatus(event.tenantId(), event.companyId(), event.receiptId(), event.batch());
+        } finally {
+            InventoryRequestContext.clear();
+        }
+    }
+
+    /**
+     * Captures the caller's Inventory-bound headers on the request thread so the
+     * async stock post can forward them. Empty when there is no live request, in
+     * which case the client falls back to the request context - which is also what
+     * the synchronous cancel and retry paths use.
+     */
+    private Map<String, String> captureInventoryHeaders() {
+        Map<String, String> headers = new HashMap<>();
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            HttpServletRequest request = attrs.getRequest();
+            copyIfPresent(request, headers, "Authorization");
+            copyIfPresent(request, headers, "X-Company-Id");
+            copyIfPresent(request, headers, "X-Fiscal-Year-Id");
+        }
+        return headers;
+    }
+
+    private static void copyIfPresent(HttpServletRequest request, Map<String, String> headers, String name) {
+        String value = request.getHeader(name);
+        if (value != null && !value.isBlank()) {
+            headers.put(name, value);
+        }
     }
 
     @Override
@@ -469,6 +513,12 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                     line.getRemarks()));
         }
 
+        String invoiceNumber = invoiceRepository
+                .findByTenantIdAndCompanyIdAndGoodsReceiptId(
+                        receipt.getTenantId(), receipt.getCompanyId(), receipt.getId())
+                .map(com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoice::getInvoiceNumber)
+                .orElse(null);
+
         return new GoodsReceiptResponse(
                 receipt.getId(),
                 receipt.getGrnNumber(),
@@ -495,6 +545,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 receipt.getPostedAt(),
                 receipt.getPostedBy(),
                 receipt.getCancellationReason(),
+                invoiceNumber,
                 receipt.getCreatedAt(),
                 lines);
     }
@@ -524,10 +575,15 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     private StockReceiptRequest stockBatch(GoodsReceipt receipt, Instant movementDate, String notes) {
         List<StockMovementLineRequest> lines = new ArrayList<>();
         for (GoodsReceiptLine line : receipt.getLines()) {
+            // Inventory resolves the unit by code and normalises it internally, so
+            // send the code in the same canonical form Procurement validated it in.
+            // A mixed-case code here would otherwise fail the exact repository lookup
+            // in Inventory and fail the whole receipt's stock post.
+            String uomCode = line.getUomCode() == null ? null : line.getUomCode().trim().toUpperCase();
             lines.add(new StockMovementLineRequest(
                     line.getWarehouseId(),
                     line.getItemId(),
-                    line.getUomCode(),
+                    uomCode,
                     line.getReceivedQuantity()));
         }
         return new StockReceiptRequest(
@@ -554,7 +610,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             applyStockStatus(tenantId, companyId, receiptId, StockPostStatus.POSTED, null);
         } catch (RuntimeException ex) {
             log.warn("Failed to post stock movement for goods receipt {}: {}",
-                    receiptId, ex.getMessage());
+                    receiptId, ex.getMessage(), ex);
             applyStockStatus(tenantId, companyId, receiptId, StockPostStatus.FAILED,
                     abbreviate(ex.getMessage()));
         }
@@ -574,7 +630,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                     } else {
                         receipt.markStockFailed(error);
                     }
-                    receiptRepository.save(receipt);
+                    receiptRepository.saveAndFlush(receipt);
                 });
     }
 

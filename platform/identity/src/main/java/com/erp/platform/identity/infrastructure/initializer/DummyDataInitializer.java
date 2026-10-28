@@ -2,6 +2,7 @@ package com.erp.platform.identity.infrastructure.initializer;
 
 import com.erp.platform.identity.domain.Company;
 import com.erp.platform.identity.domain.CompanyFiscalYear;
+import com.erp.platform.identity.domain.BusinessType;
 import com.erp.platform.identity.domain.CompanyType;
 import com.erp.platform.identity.domain.FiscalYearType;
 import com.erp.platform.identity.domain.MasterFiscalYear;
@@ -187,6 +188,7 @@ public class DummyDataInitializer implements CommandLineRunner {
                         "+9779812345678",
                         "ktm@techsolutions.com",
                         CompanyType.PRIVATE_LIMITED,
+                        BusinessType.OTHER,
                         FiscalYearType.NEPALI_BS,
                         true
                 );
@@ -206,6 +208,7 @@ public class DummyDataInitializer implements CommandLineRunner {
                         "+9779812345670",
                         "pkh@techsolutions.com",
                         CompanyType.PRIVATE_LIMITED,
+                        BusinessType.OTHER,
                         FiscalYearType.NEPALI_BS,
                         true
                 );
@@ -225,6 +228,7 @@ public class DummyDataInitializer implements CommandLineRunner {
                         "+9779812345680",
                         "ktm@globaltrading.com",
                         CompanyType.PRIVATE_LIMITED,
+                        BusinessType.OTHER,
                         FiscalYearType.ENGLISH_AD,
                         true
                 );
@@ -244,6 +248,7 @@ public class DummyDataInitializer implements CommandLineRunner {
                         "+9779812345681",
                         "bir@globaltrading.com",
                         CompanyType.PRIVATE_LIMITED,
+                        BusinessType.OTHER,
                         FiscalYearType.ENGLISH_AD,
                         true
                 );

@@ -6,31 +6,9 @@
  */
 
 import { toast } from "sonner";
-import type { ApiError } from "@/services/api";
 
-/**
- * Extracts a user-friendly error message from an API error.
- */
-export function getApiErrorMessage(error: unknown): string {
-  if (error && typeof error === "object") {
-    const err = error as { data?: { message?: string; code?: string }; error?: string; message?: string };
-    if (typeof err.data?.message === "string" && err.data.message.trim().length > 0) {
-      return err.data.message;
-    }
-    if (err.error) {
-      return err.error;
-    }
-    if (err.message) {
-      return err.message;
-    }
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "An unexpected error occurred. Please try again.";
-}
+import { getApiErrorMessage } from "@/services/error-handler";
+export { getApiErrorMessage };
 
 /**
  * Shows a toast notification for an API error.

@@ -9,6 +9,7 @@ export interface Company {
   phone: string;
   email: string;
   companyType: CompanyType | null;
+  businessType: BusinessType | null;
   fiscalYearType: FiscalYearType | null;
   vatRegistered: boolean | null;
   status: "ACTIVE" | "INACTIVE";
@@ -23,6 +24,20 @@ export type CompanyType =
   | "COOPERATIVE"
   | "GOVERNMENT_ENTITY";
 
+export type BusinessType =
+  | "RESTAURANT"
+  | "CAFE"
+  | "HOTEL"
+  | "SWEETS_RETAIL"
+  | "GENERAL_RETAIL"
+  | "GROCERY"
+  | "HARDWARE"
+  | "SANITARY"
+  | "PHARMACY"
+  | "CLOTHING"
+  | "SERVICES"
+  | "OTHER";
+
 export type FiscalYearType = "NEPALI_BS" | "ENGLISH_AD";
 
 export interface CreateCompanyRequest {
@@ -32,8 +47,24 @@ export interface CreateCompanyRequest {
   phone: string;
   email: string;
   companyType: CompanyType;
+  businessType: BusinessType;
   fiscalYearType: FiscalYearType;
   vatRegistered: boolean;
+}
+
+export interface UpdateCompanyRequest {
+  companyName?: string;
+  panNumber?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  legalName?: string;
+  website?: string;
+  address?: string;
+  companyType?: CompanyType;
+  businessType?: BusinessType;
+  fiscalYearType?: FiscalYearType;
+  vatRegistered?: boolean;
 }
 
 export interface CompanyFiscalYear {
@@ -81,6 +112,10 @@ export const companyApi = api.injectEndpoints({
       query: (data) => ({ url: "/identity/companies", method: "POST", data }),
       invalidatesTags: ["Company"],
     }),
+    updateCompany: build.mutation<Company, { id: number; data: UpdateCompanyRequest }>({
+      query: ({ id, data }) => ({ url: `/identity/companies/${id}`, method: "PUT", data }),
+      invalidatesTags: ["Company"],
+    }),
     getMasterFiscalYears: build.query<MasterFiscalYear[], void>({
       query: () => ({ url: "/identity/master-fiscal-years", method: "GET" }),
     }),
@@ -102,6 +137,7 @@ export const companyApi = api.injectEndpoints({
 export const {
   useGetCompaniesQuery,
   useCreateCompanyMutation,
+  useUpdateCompanyMutation,
   useGetMasterFiscalYearsQuery,
   useGetCompanyFiscalYearsQuery,
   useCreateCompanyFiscalYearMutation,

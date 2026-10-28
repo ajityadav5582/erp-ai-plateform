@@ -48,7 +48,9 @@ public interface PurchaseRequisitionApprovalRepository
      * @param roleNames the acting user's role names, guaranteed non-empty
      * @return every pending step naming the user or one of their roles
      */
-    @Query("SELECT a FROM PurchaseRequisitionApproval a WHERE a.tenantId = :tenantId " +
+    @Query("SELECT a FROM PurchaseRequisitionApproval a " +
+           "JOIN FETCH a.requisition " +
+           "WHERE a.tenantId = :tenantId " +
            "AND a.companyId = :companyId " +
            "AND a.action = com.erp.business.procurement.purchaserequisition.domain.ApprovalAction.PENDING " +
            "AND (a.approverId = :approverId OR a.approverRole IN :roleNames) " +

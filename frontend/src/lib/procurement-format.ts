@@ -18,20 +18,8 @@
  *   conflate them.
  */
 
-/** Renders a money amount with its currency code, or a dash when absent. */
-export function formatMoney(
-  value: number | null | undefined,
-  currency: string | null | undefined
-): string {
-  if (value === null || value === undefined) return "—";
-  const amount = Number(value);
-  if (Number.isNaN(amount)) return "—";
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return currency ? `${currency} ${formatted}` : formatted;
-}
+import { formatMoney, formatDate } from "./format";
+export { formatMoney, formatDate };
 
 /** Renders a money amount without a currency, for columns headed with the currency. */
 export function formatAmount(value: number | null | undefined): string {
@@ -93,12 +81,6 @@ export function formatQuantity(value: number | null | undefined): string {
   const amount = Number(value);
   if (Number.isNaN(amount)) return "—";
   return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
-}
-
-/** Renders a `yyyy-MM-dd` date as-is: it is already the canonical wire format. */
-export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  return value;
 }
 
 /**

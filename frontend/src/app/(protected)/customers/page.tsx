@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, MoreVertical, Eye, Pencil, Trash2, Power } from "lucide-react";
+import { Plus, MoreVertical, Eye, Trash2, Power } from "lucide-react";
 import {
   useGetCustomersQuery,
   useSearchCustomersQuery,

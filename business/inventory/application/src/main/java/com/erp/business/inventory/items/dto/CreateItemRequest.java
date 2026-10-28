@@ -57,6 +57,30 @@ public record CreateItemRequest(
         Boolean isExpiryTracked,
         BigDecimal minStockLevel,
         BigDecimal reorderLevel,
-        BigDecimal reorderQuantity
+        BigDecimal reorderQuantity,
+
+        /**
+         * Whether this item may be added to a Purchase Order or Requisition.
+         * When null, defaults are derived from itemType (e.g. RAW_MATERIAL → true).
+         */
+        Boolean isPurchasable,
+
+        /**
+         * Whether this item may be added to a Sales Invoice, Sales Order, or POS transaction.
+         * When null, defaults are derived from itemType (e.g. FINISHED_GOODS → true).
+         */
+        Boolean isSellable,
+
+        /**
+         * Whether this item may be used as a component inside a Recipe / Bill of Materials.
+         * When null, defaults are derived from itemType (e.g. RAW_MATERIAL → true).
+         */
+        Boolean isComponent,
+
+        /**
+         * Whether this item is the output of a Recipe / Bill of Materials.
+         * When null, defaults are derived from itemType (e.g. FINISHED_GOODS → true).
+         */
+        Boolean isManufactured
 ) {
 }

@@ -25,6 +25,8 @@ dependencyManagement {
 }
 
 dependencies {
+    // Shared platform library (Phase 1 consolidation)
+    implementation project(':platform:shared')
     // Domain entities + shared TenantScopedEntity live in the sibling domain module.
     // It is exposed as `api` so the JPA annotations and OptimisticLock base class
     // remain on the compile classpath of anything consuming this module.
@@ -78,6 +80,11 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
+    // Spring test slice (@DataJpaTest) + AssertJ, for the repository fetch tests.
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Real PostgreSQL for the JPQL fetch tests; the schema is Hibernate-generated.
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -103,6 +110,7 @@ bootRun {
         'POSTGRES_PASSWORD': 'erpai_dev_password',
         'DB_USERNAME': 'erpai',
         'DB_PASSWORD': 'erpai_dev_password',
-        'SPRING_PROFILES_ACTIVE': 'local'
+        'SPRING_PROFILES_ACTIVE': 'local',
+        'JWT_SECRET': 'jwt-secret-key-change-me-in-production-32b'
     ]
 }

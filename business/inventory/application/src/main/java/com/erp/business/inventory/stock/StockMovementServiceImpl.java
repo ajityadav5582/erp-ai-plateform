@@ -100,9 +100,32 @@ public class StockMovementServiceImpl implements StockMovementService {
     @Override
     @Transactional
     public StockMovementBatchResult reverseIssueBatch(Long tenantId, Long companyId, StockReceiptRequest request) {
-        // A voided delivery: an outbound batch that reverses a prior issue, sharing
-        // the same reference so the ledger shows both the issue and its undo.
-        return postBatch(tenantId, companyId, StockMovementType.OUT, request);
+        // A voided delivery: an inbound batch (IN) that reverses a prior issue (OUT),
+        // sharing the same reference so the ledger shows both the issue and its undo.
+        // It must be IN, not OUT: an OUT here would collide with the original issue's
+        // (reference, OUT) idempotency key and be skipped, so the void would never
+        // restock. IN restocks and stays idempotent by (reference, IN).
+        return postBatch(tenantId, companyId, StockMovementType.IN, request);
+    }
+
+    @Override
+    @Transactional
+    public StockMovementBatchResult postAdjustmentBatch(Long tenantId, Long companyId, StockReceiptRequest request) {
+        // Signed adjustment batch (count variance, damage, write-off). Line
+        // quantities are signed; idempotent by (reference, ADJUST).
+        return postBatch(tenantId, companyId, StockMovementType.ADJUST, request);
+    }
+
+    @Override
+    @Transactional
+    public StockMovementBatchResult reserveBatch(Long tenantId, Long companyId, StockReceiptRequest request) {
+        return postBatch(tenantId, companyId, StockMovementType.RESERVE, request);
+    }
+
+    @Override
+    @Transactional
+    public StockMovementBatchResult releaseBatch(Long tenantId, Long companyId, StockReceiptRequest request) {
+        return postBatch(tenantId, companyId, StockMovementType.RELEASE, request);
     }
 
     /**
@@ -117,8 +140,8 @@ public class StockMovementServiceImpl implements StockMovementService {
     private StockMovementBatchResult postBatch(Long tenantId, Long companyId,
                                           StockMovementType type, StockReceiptRequest request) {
         List<StockMovement> existing = movementRepository
-                .findByReferenceTypeAndReferenceIdAndMovementType(
-                        request.referenceType(), request.referenceId(), type);
+                .findByTenantIdAndCompanyIdAndReferenceTypeAndReferenceIdAndMovementType(
+                        tenantId, companyId, request.referenceType(), request.referenceId(), type);
         if (!existing.isEmpty()) {
             log.debug("Batch {} for {} {} already applied ({} rows); returning existing",
                     type, request.referenceType(), request.referenceId(), existing.size());
@@ -268,8 +291,11 @@ public class StockMovementServiceImpl implements StockMovementService {
                                String referenceType, Long referenceId, String referenceNumber,
                                Instant movementDate, String postedBy, String notes) {
 
-        if (quantity == null || quantity.signum() <= 0) {
-            throw new IllegalArgumentException("Movement quantity must be positive");
+        if (quantity == null || quantity.signum() == 0) {
+            throw new IllegalArgumentException("Movement quantity must be non-zero");
+        }
+        if (type != StockMovementType.ADJUST && quantity.signum() < 0) {
+            throw new IllegalArgumentException("Only ADJUST movements may carry a negative quantity");
         }
 
         Warehouse warehouse = warehouseRepository
@@ -292,7 +318,9 @@ public class StockMovementServiceImpl implements StockMovementService {
                 postedBy, notes);
 
         StockMovement saved = movementRepository.save(movement);
-        applyToBalance(tenantId, companyId, warehouseId, itemId, unitId, saved);
+        applyToBalance(tenantId, companyId, warehouseId, itemId, unitId, saved,
+                Boolean.TRUE.equals(warehouse.getAllowNegativeStock()),
+                item.getSku(), warehouse.getCode());
 
         log.debug("Posted {} movement {} for item {} in warehouse {}: {}",
                 type, saved.getId(), itemId, warehouseId, saved.getSignedQuantity());
@@ -302,15 +330,41 @@ public class StockMovementServiceImpl implements StockMovementService {
     /**
      * Applies a movement to the denormalized balance, creating the balance
      * row on first touch.
+     *
+     * <p>An outbound (OUT) movement is refused when it would take on-hand below
+     * zero, unless the warehouse explicitly allows negative stock. The check runs
+     * against the same balance row that is about to be updated, inside the
+     * caller's transaction, so a rejected issue leaves neither a ledger row nor a
+     * balance change behind.
      */
     private void applyToBalance(Long tenantId, Long companyId,
                                 Long warehouseId, Long itemId, Long unitId,
-                                StockMovement movement) {
+                                StockMovement movement, boolean allowNegativeStock,
+                                String itemSku, String warehouseCode) {
         StockBalance balance = balanceRepository
                 .findByTenantIdAndCompanyIdAndWarehouseIdAndItemIdAndUnitId(
                         tenantId, companyId, warehouseId, itemId, unitId)
                 .orElseGet(() -> balanceRepository.save(
                         StockBalance.create(tenantId, companyId, warehouseId, itemId, unitId)));
+
+        boolean reducesOnHand = movement.getMovementType() == StockMovementType.OUT
+                || (movement.getMovementType() == StockMovementType.ADJUST
+                    && movement.getSignedQuantity().signum() < 0);
+        if (reducesOnHand && !allowNegativeStock) {
+            BigDecimal resultingOnHand = balance.getOnHandQty().add(movement.getSignedQuantity());
+            if (resultingOnHand.signum() < 0) {
+                throw new InsufficientStockException(
+                        itemSku, warehouseCode, movement.getQuantity().abs(), balance.getOnHandQty());
+            }
+        }
+
+        if (movement.getMovementType() == StockMovementType.RESERVE && !allowNegativeStock) {
+            BigDecimal resultingAvailable = balance.getAvailableQty().subtract(movement.getQuantity());
+            if (resultingAvailable.signum() < 0) {
+                throw new InsufficientStockException(
+                        itemSku, warehouseCode, movement.getQuantity(), balance.getAvailableQty());
+            }
+        }
 
         balance.applyMovement(movement);
         balanceRepository.save(balance);

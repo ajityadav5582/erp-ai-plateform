@@ -140,6 +140,8 @@ export const api = createApi({
     "PosSession",
     "PosTransaction",
     "PosQuickItem",
+    "PosTable",
+    "PosKitchenTicket",
     "WorkflowConfiguration",
     "HR",
     "Manufacturing",

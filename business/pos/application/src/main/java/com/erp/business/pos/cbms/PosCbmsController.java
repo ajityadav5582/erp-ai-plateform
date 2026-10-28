@@ -1,7 +1,7 @@
 package com.erp.business.pos.cbms;
 
 import com.erp.business.pos.domain.PosTransaction;
-import com.erp.business.pos.shared.context.BusinessContextAccessor;
+import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.shared.security.PosTransactionPermissions;
 import com.erp.business.pos.transaction.infrastructure.persistence.PosTransactionRepository;
 import com.erp.platform.security.annotation.RequiresPermission;
