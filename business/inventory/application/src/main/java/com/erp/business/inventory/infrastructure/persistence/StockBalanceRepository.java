@@ -39,7 +39,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                        sb.last_movement_at AS lastMovementAt
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -51,7 +51,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                 SELECT COUNT(*)
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -81,7 +81,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                        sb.last_movement_at AS lastMovementAt
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -93,7 +93,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                 SELECT COUNT(*)
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -123,7 +123,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                        sb.last_movement_at AS lastMovementAt
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -135,7 +135,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                 SELECT COUNT(*)
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -177,7 +177,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                        sb.last_movement_at AS lastMovementAt
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -189,7 +189,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                 SELECT COUNT(*)
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -217,7 +217,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                        EXTRACT(EPOCH FROM (now() - sb.last_movement_at)) / 86400 AS daysSinceMovement
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId
@@ -231,7 +231,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                 SELECT COUNT(*)
                 FROM stock_balances sb
                 JOIN items i ON i.id = sb.item_id AND i.tenant_id = sb.tenant_id AND i.company_id = sb.company_id
-                JOIN units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
+                JOIN inventory_units u ON u.id = sb.unit_id AND u.tenant_id = sb.tenant_id AND u.company_id = sb.company_id
                 JOIN warehouses w ON w.id = sb.warehouse_id AND w.tenant_id = sb.tenant_id AND w.company_id = sb.company_id
                 WHERE sb.tenant_id = :tenantId
                   AND sb.company_id = :companyId

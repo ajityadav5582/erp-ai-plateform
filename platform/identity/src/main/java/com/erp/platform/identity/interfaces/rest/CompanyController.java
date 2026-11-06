@@ -56,8 +56,9 @@ public class CompanyController {
                  request.companyType(),
                  request.businessType(),
                  request.fiscalYearType(),
-                 request.vatRegistered()
-        );
+                  request.vatRegistered()
+         );
+         company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
         return CompanyResponse.from(companyRepository.save(company));
     }
 
@@ -83,6 +84,7 @@ public class CompanyController {
         company.updateBusinessType(request.businessType());
         company.updateFiscalYearType(request.fiscalYearType());
         company.updateVatRegistered(request.vatRegistered());
+        company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
         return ResponseEntity.ok(CompanyResponse.from(companyRepository.save(company)));
     }
 }

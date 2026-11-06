@@ -201,10 +201,37 @@ export function SupplierDetailsSheet({
                 </div>
               )}
 
-              {supplier.taxId && (
+               {supplier.taxId && (
                 <div className="flex items-center gap-3">
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
                   <span className="text-foreground">Tax ID: {supplier.taxId}</span>
+                </div>
+              )}
+
+              {supplier.vatRegistrationStatus && (
+                <div className="flex items-center gap-3">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-foreground">
+                    VAT Registration: {supplier.vatRegistrationStatus}
+                  </span>
+                </div>
+              )}
+
+              {supplier.vatRegistrationNumber && (
+                <div className="flex items-center gap-3">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-foreground">
+                    VAT Number: {supplier.vatRegistrationNumber}
+                  </span>
+                </div>
+              )}
+
+              {(supplier.vatEffectiveFrom || supplier.vatEffectiveTo) && (
+                <div className="flex items-center gap-3">
+                  <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-foreground">
+                    VAT Effective: {supplier.vatEffectiveFrom ?? "—"} to {supplier.vatEffectiveTo ?? "—"}
+                  </span>
                 </div>
               )}
 

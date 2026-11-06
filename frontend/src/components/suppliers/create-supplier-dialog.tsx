@@ -10,6 +10,8 @@ import {
   useCreateSupplierMutation,
   SUPPLIER_TYPES,
   SUPPLIER_TYPE_LABELS,
+  VAT_REGISTRATION_STATUSES,
+  VAT_REGISTRATION_STATUS_LABELS,
 } from "@/services/supplier.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { useSelectedCompany } from "@/config/company-context";
@@ -86,6 +88,14 @@ const createSupplierSchema = z.object({
   currency: z
     .string()
     .regex(/^$|^[A-Za-z]{3}$/, "Currency must be a 3-letter ISO code"),
+  vatRegistrationStatus: z.enum(VAT_REGISTRATION_STATUSES).optional(),
+  vatRegistrationNumber: z
+    .string()
+    .max(64, "VAT number must not exceed 64 characters")
+    .optional()
+    .or(z.literal("")),
+  vatEffectiveFrom: z.string().optional().or(z.literal("")),
+  vatEffectiveTo: z.string().optional().or(z.literal("")),
 });
 
 type CreateSupplierFormValues = z.infer<typeof createSupplierSchema>;
@@ -111,6 +121,10 @@ export function CreateSupplierDialog({ open, onOpenChange }: CreateSupplierDialo
       taxId: "",
       paymentTermsDays: "",
       currency: "",
+      vatRegistrationStatus: "UNKNOWN",
+      vatRegistrationNumber: "",
+      vatEffectiveFrom: "",
+      vatEffectiveTo: "",
     },
   });
 
@@ -144,6 +158,10 @@ export function CreateSupplierDialog({ open, onOpenChange }: CreateSupplierDialo
         taxId: values.taxId || undefined,
         paymentTermsDays: values.paymentTermsDays === "" ? undefined : Number(values.paymentTermsDays),
         currency: values.currency || undefined,
+        vatRegistrationStatus: values.vatRegistrationStatus,
+        vatRegistrationNumber: values.vatRegistrationNumber || undefined,
+        vatEffectiveFrom: values.vatEffectiveFrom || undefined,
+        vatEffectiveTo: values.vatEffectiveTo || undefined,
       };
 
       const result = await createSupplier(payload).unwrap();
@@ -329,6 +347,85 @@ export function CreateSupplierDialog({ open, onOpenChange }: CreateSupplierDialo
                 </FormItem>
               )}
             />
+
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <h4 className="text-sm font-medium">VAT Registration</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="vatRegistrationStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>VAT Registration Status</FormLabel>
+                      <Select
+                        value={field.value ?? "UNKNOWN"}
+                        onValueChange={(value) => field.onChange(value)}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {VAT_REGISTRATION_STATUSES.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {VAT_REGISTRATION_STATUS_LABELS[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("vatRegistrationStatus") === "VAT_REGISTERED" && (
+                  <FormField
+                    control={form.control}
+                    name="vatRegistrationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>VAT Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="VAT-123456" disabled={isLoading} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="vatEffectiveFrom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Effective From</FormLabel>
+                      <FormControl>
+                        <Input type="date" disabled={isLoading} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vatEffectiveTo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Effective To</FormLabel>
+                      <FormControl>
+                        <Input type="date" disabled={isLoading} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>

@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import {
-  ArrowDown,
-  ArrowUp,
   LayoutGrid,
   Loader2,
   Pencil,
@@ -12,33 +10,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { TableSkeletonRows } from "@/components/common/table-state";
 import { toast } from "sonner";
 import {
   useGetPosQuickItemsQuery,
+  useGetPosQuickItemGridQuery,
   useCreatePosQuickItemMutation,
   useUpdatePosQuickItemMutation,
   useDeletePosQuickItemMutation,
@@ -50,89 +25,76 @@ import {
 import { useGetActiveItemsQuery } from "@/services/item.service";
 import { useGetPosRegistersQuery } from "@/services/pos-register.service";
 import { getApiErrorMessage } from "@/services/error-handler";
-import { TILE_ICONS } from "@/components/pos/terminal/quick-item-grid";
+import {
+  QuickItemsCanvas,
+  QUICK_GRID_ROWS,
+} from "@/components/pos/quick-items/quick-items-canvas";
+import {
+  QuickItemFormDialog,
+  type QuickItemFormValues,
+} from "@/components/pos/quick-items/quick-item-form-dialog";
+import {
+  QuickItemsTabs,
+  type QuickTab,
+} from "@/components/pos/quick-items/quick-items-tabs";
+import { BatchAddDrawer } from "@/components/pos/quick-items/batch-add-drawer";
+import type { QuickItemFolder } from "@/types/pos-quick-items";
 
-const COLOR_PRESETS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
-const ICON_OPTIONS = Object.keys(TILE_ICONS);
 const SHARED_SCOPE = "shared";
-const NO_ICON = "none";
+const PAGE_COUNT = 4;
 
-interface QuickItemForm {
-  itemId: string;
-  registerId: string;
-  defaultPrice: string;
-  gridRow: string;
-  gridCol: string;
-  displayColor: string;
-  displayIcon: string;
-  sortOrder: string;
-}
-
-const EMPTY_FORM: QuickItemForm = {
-  itemId: "",
-  registerId: "",
-  defaultPrice: "",
-  gridRow: "0",
-  gridCol: "0",
-  displayColor: "",
-  displayIcon: "",
-  sortOrder: "0",
-};
-
-/**
- * Quick-item grid administration — mobile first.
- *
- * Tiles are terminal configuration: point one at a catalogue item, give it a
- * grid position, colour and icon, and it appears on the terminal. A tile is
- * either company-shared (every register) or pinned to one register. The item
- * snapshot is resolved server-side, so only the item id is entered here.
- */
 export default function PosQuickItemsPage() {
-  const [page, setPage] = React.useState(0);
   const [editing, setEditing] = React.useState<PosQuickItem | null>(null);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [form, setForm] = React.useState<QuickItemForm>(EMPTY_FORM);
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
-  const [showCustomize, setShowCustomize] = React.useState(false);
-  const [itemSearch, setItemSearch] = React.useState("");
+  const [position, setPosition] = React.useState<{ row: number; col: number } | null>(null);
+  const [isBatchOpen, setIsBatchOpen] = React.useState(false);
 
-  const { data, isLoading, isFetching, refetch } = useGetPosQuickItemsQuery({ page, size: 20 });
+  const [selectedRegisterId, setSelectedRegisterId] = React.useState<number | null>(null);
+  const [page, setPage] = React.useState(0);
+
+  // Tabbed grid state (client-side organization layer).
+  const [tabs, setTabs] = React.useState<QuickTab[]>([{ id: "default", name: "All Items" }]);
+  const [activeTabId, setActiveTabId] = React.useState("default");
+  const [tabItems, setTabItems] = React.useState<Record<string, PosQuickItem[]>>({ default: [] });
+  const [foldersByTab, setFoldersByTab] = React.useState<Record<string, QuickItemFolder[]>>({});
+
+  const { data: allItemsPage, isLoading: allLoading, isFetching, refetch } = useGetPosQuickItemsQuery({
+    page: 0,
+    size: 100,
+  });
+  const { data: gridItems, isLoading: gridLoading } = useGetPosQuickItemGridQuery(
+    selectedRegisterId ?? 0,
+    { skip: selectedRegisterId === null },
+  );
+
   const [createItem, { isLoading: isCreating }] = useCreatePosQuickItemMutation();
   const [updateItem, { isLoading: isUpdating }] = useUpdatePosQuickItemMutation();
   const [deleteItem] = useDeletePosQuickItemMutation();
   const [activateItem] = useActivatePosQuickItemMutation();
   const [deactivateItem] = useDeactivatePosQuickItemMutation();
-  const [reorderItems] = useReorderPosQuickItemsMutation();
-  const { data: itemsPage, isLoading: itemsLoading } = useGetActiveItemsQuery(
-    { size: 100 },
-    { skip: !isCreateOpen }
-  );
+  const [reorderItems, { isLoading: isReordering }] = useReorderPosQuickItemsMutation();
+
   const { data: registers } = useGetPosRegistersQuery({ size: 100 });
+  const { data: activeCatalog } = useGetActiveItemsQuery({ size: 100 });
 
-  // Catalogue options for the item picker. When editing, the tile's current item
-  // is always included even if it falls outside the first page of active items,
-  // so the select shows its name rather than an empty placeholder.
-  const itemOptions: { id: number; sku: string; nameEn: string }[] = React.useMemo(() => {
-    const list = (itemsPage?.content ?? []).map((it) => ({
-      id: it.id,
-      sku: it.sku,
-      nameEn: it.nameEn,
-    }));
-    if (editing && !list.some((it) => it.id === editing.itemId)) {
-      return [{ id: editing.itemId, sku: editing.itemCode, nameEn: editing.itemName }, ...list];
-    }
-    return list;
-  }, [itemsPage, editing]);
+  const allItems = allItemsPage?.content ?? [];
+  const serverItems: PosQuickItem[] =
+    selectedRegisterId === null
+      ? allItems.filter((it) => it.registerId == null)
+      : (gridItems ?? []);
 
-  const filteredItemOptions = React.useMemo(() => {
-    const term = itemSearch.trim().toLowerCase();
-    if (!term) return itemOptions;
-    return itemOptions.filter(
-      (it) =>
-        it.nameEn?.toLowerCase().includes(term) ||
-        it.sku?.toLowerCase().includes(term)
-    );
-  }, [itemOptions, itemSearch]);
+  // Sync server items into the active tab on first load.
+  React.useEffect(() => {
+    setTabItems((prev) => {
+      if ((prev[activeTabId] ?? []).length === 0 && serverItems.length > 0) {
+        return { ...prev, [activeTabId]: serverItems };
+      }
+      return prev;
+    });
+  }, [serverItems, activeTabId]);
+
+  const items = tabItems[activeTabId] ?? [];
+  const isLoading = selectedRegisterId === null ? allLoading : gridLoading;
 
   const registerLabel = React.useCallback(
     (id: number | null) => {
@@ -140,72 +102,124 @@ export default function PosQuickItemsPage() {
       const reg = registers?.content.find((r) => r.id === id);
       return reg ? reg.registerName : `Register ${id}`;
     },
-    [registers]
+    [registers],
   );
 
-  const openCreate = () => {
+  const openCreateAt = (row: number, col: number) => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setPosition({ row, col });
     setIsCreateOpen(true);
   };
 
   const openEdit = (item: PosQuickItem) => {
     setEditing(item);
-    setForm({
-      itemId: String(item.itemId),
-      registerId: item.registerId != null ? String(item.registerId) : "",
-      defaultPrice: item.defaultPrice != null ? String(item.defaultPrice) : "",
-      gridRow: String(item.gridRow),
-      gridCol: String(item.gridCol),
-      displayColor: item.displayColor ?? "",
-      displayIcon: item.displayIcon ?? "",
-      sortOrder: String(item.sortOrder),
-    });
+    setPosition({ row: item.gridRow, col: item.gridCol });
+    const itemPage = Math.floor(item.gridRow / QUICK_GRID_ROWS);
+    if (itemPage >= 0 && itemPage < PAGE_COUNT) setPage(itemPage);
     setIsCreateOpen(true);
   };
 
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    // Prevent duplicate products within the same scope.
+  const handleFormSubmit = async (values: QuickItemFormValues) => {
     const duplicate = items.some(
       (it) =>
-        it.itemId === Number(form.itemId) &&
-        it.registerId === (form.registerId ? Number(form.registerId) : null) &&
-        (!editing || it.id !== editing.id)
+        it.itemId === Number(values.itemId) &&
+        it.registerId === (values.registerId ? Number(values.registerId) : null) &&
+        (!editing || it.id !== editing.id),
     );
     if (duplicate) {
       toast.error("This product is already a quick item in this scope.");
       return;
     }
+
+    const row = editing ? editing.gridRow : (position?.row ?? 0);
+    const col = editing ? editing.gridCol : (position?.col ?? 0);
+
     const payload = {
-      itemId: Number(form.itemId),
-      defaultPrice: form.defaultPrice.trim() ? Number(form.defaultPrice) : null,
-      gridRow: Number(form.gridRow) || 0,
-      gridCol: Number(form.gridCol) || 0,
-      displayColor: form.displayColor.trim() || null,
-      displayIcon: form.displayIcon || null,
-      sortOrder: Number(form.sortOrder) || 0,
+      itemId: Number(values.itemId),
+      defaultPrice: values.defaultPrice?.trim() ? Number(values.defaultPrice) : null,
+      gridRow: row,
+      gridCol: col,
+      displayColor: values.displayColor?.trim() || null,
+      displayIcon: values.displayIcon || null,
+      sortOrder: row * 6 + col,
     };
+
     try {
+      let saved: PosQuickItem;
       if (editing) {
-        await updateItem({ id: editing.id, body: payload }).unwrap();
+        saved = await updateItem({ id: editing.id, body: payload }).unwrap();
         toast.success("Quick item updated.");
       } else {
-        await createItem({
+        saved = await createItem({
           ...payload,
-          registerId: form.registerId ? Number(form.registerId) : null,
+          registerId: values.registerId ? Number(values.registerId) : null,
         }).unwrap();
         toast.success("Quick item created.");
       }
+      setTabItems((prev) => {
+        const list = prev[activeTabId] ?? [];
+        const next = editing
+          ? list.map((it) => (it.id === saved.id ? saved : it))
+          : [...list, saved];
+        return { ...prev, [activeTabId]: next };
+      });
       setIsCreateOpen(false);
+      setPosition(null);
+      setEditing(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Could not save the quick item.");
+    }
+  };
+
+  const handleBatchAdd = async (itemIds: number[]) => {
+    const catalog = activeCatalog?.content ?? [];
+    const activeItems = tabItems[activeTabId] ?? [];
+    const occupied = new Set(activeItems.map((it) => `${it.gridRow}-${it.gridCol}`));
+    const slots: { row: number; col: number }[] = [];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 6; c++) {
+        if (!occupied.has(`${r}-${c}`)) slots.push({ row: r, col: c });
+      }
+    }
+
+    const created: PosQuickItem[] = [];
+    for (let i = 0; i < itemIds.length; i++) {
+      const slot = slots[i];
+      if (!slot) break;
+      const catItem = catalog.find((ci) => ci.id === itemIds[i]);
+      if (!catItem) continue;
+      try {
+        const saved = await createItem({
+          itemId: catItem.id,
+          defaultPrice: null,
+          gridRow: slot.row,
+          gridCol: slot.col,
+          displayColor: null,
+          displayIcon: null,
+          sortOrder: slot.row * 6 + slot.col,
+          registerId: selectedRegisterId,
+        }).unwrap();
+        created.push(saved);
+      } catch (error) {
+        toast.error(getApiErrorMessage(error) || "Could not add item.");
+      }
+    }
+    if (created.length) {
+      setTabItems((prev) => ({
+        ...prev,
+        [activeTabId]: [...(prev[activeTabId] ?? []), ...created],
+      }));
+      toast.success(`Added ${created.length} item(s).`);
     }
   };
 
   const onDelete = async (item: PosQuickItem) => {
     try {
       await deleteItem(item.id).unwrap();
+      setTabItems((prev) => ({
+        ...prev,
+        [activeTabId]: (prev[activeTabId] ?? []).filter((it) => it.id !== item.id),
+      }));
       toast.success(`${item.itemName} removed from the grid.`);
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Could not delete the quick item.");
@@ -224,52 +238,49 @@ export default function PosQuickItemsPage() {
     }
   };
 
-  // Swap a tile's sort order with its neighbour. The list is sorted by
-  // sortOrder, so this is a one-step move up or down the grid.
-  const moveItem = async (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= items.length) return;
-    const a = items[index];
-    const b = items[target];
-    if (!a || !b) return;
+  const onReorder = async (
+    placements: { id: number; gridRow: number; gridCol: number; sortOrder: number }[],
+  ) => {
     try {
-      await reorderItems({
-        placements: [
-          { id: a.id, gridRow: a.gridRow, gridCol: a.gridCol, sortOrder: b.sortOrder },
-          { id: b.id, gridRow: b.gridRow, gridCol: b.gridCol, sortOrder: a.sortOrder },
-        ],
-      }).unwrap();
+      await reorderItems({ placements }).unwrap();
+      setTabItems((prev) => {
+        const list = (prev[activeTabId] ?? []).map((it) => {
+          const p = placements.find((pl) => pl.id === it.id);
+          if (!p) return it;
+          return { ...it, gridRow: p.gridRow, gridCol: p.gridCol, sortOrder: p.sortOrder };
+        });
+        return { ...prev, [activeTabId]: list };
+      });
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Could not reorder the tiles.");
+      throw error;
     }
   };
 
-  const items = data?.content ?? [];
+  const handleAddTab = (name: string) => {
+    const id = `tab-${Date.now()}`;
+    setTabs((prev) => [...prev, { id, name }]);
+    setTabItems((prev) => ({ ...prev, [id]: [] }));
+    setActiveTabId(id);
+  };
 
-  const reorderButtons = (index: number) => (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        disabled={index === 0}
-        onClick={() => void moveItem(index, -1)}
-        aria-label="Move up"
-      >
-        <ArrowUp className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        disabled={index === items.length - 1}
-        onClick={() => void moveItem(index, 1)}
-        aria-label="Move down"
-      >
-        <ArrowDown className="h-4 w-4" />
-      </Button>
-    </div>
-  );
+  const handleRemoveTab = (id: string) => {
+    setTabs((prev) => prev.filter((t) => t.id !== id));
+    setTabItems((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (activeTabId === id) {
+      setActiveTabId(tabs.find((t) => t.id !== id)?.id ?? "default");
+    }
+  };
+
+  const handleRenameTab = (id: string, name: string) => {
+    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, name } : t)));
+  };
+
+  const pageOffset = page * QUICK_GRID_ROWS;
 
   return (
     <div className="space-y-4 p-4">
@@ -277,344 +288,192 @@ export default function PosQuickItemsPage() {
         <div>
           <h1 className="text-xl font-semibold">POS Quick Items</h1>
           <p className="text-sm text-muted-foreground">
-            The terminal&apos;s quick-access grid. Company-shared tiles appear on every register.
+            Tabbed terminal grids. Click an empty slot to add a tile; drag tiles to reorder.
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <Button onClick={openCreate}>
+          <Button variant="outline" onClick={() => setIsBatchOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Batch add
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const name = window.prompt("Folder name");
+              if (!name) return;
+              const folders = foldersByTab[activeTabId] ?? [];
+              const occupied = new Set([
+                ...items.map((it) => `${it.gridRow}-${it.gridCol}`),
+                ...folders.map((f) => `${f.gridRow}-${f.gridCol}`),
+              ]);
+              let slot: { row: number; col: number } | null = null;
+              for (let r = 0; r < 4 && !slot; r++) {
+                for (let c = 0; c < 6; c++) {
+                  if (!occupied.has(`${r}-${c}`)) {
+                    slot = { row: r, col: c };
+                    break;
+                  }
+                }
+              }
+              if (!slot) {
+                toast.error("No empty slot for folder.");
+                return;
+              }
+              const folder: QuickItemFolder = {
+                id: `folder-${Date.now()}`,
+                name,
+                displayColor: "#8b5cf6",
+                displayIcon: "folder",
+                gridRow: slot.row,
+                gridCol: slot.col,
+                sortOrder: slot.row * 6 + slot.col,
+                children: [],
+              };
+              setFoldersByTab((prev) => ({
+                ...prev,
+                [activeTabId]: [...(prev[activeTabId] ?? []), folder],
+              }));
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            New folder
+          </Button>
+          <Button onClick={() => openCreateAt(pageOffset, 0)}>
             <Plus className="mr-1 h-4 w-4" />
             Add quick item
           </Button>
         </div>
       </header>
 
+      <QuickItemsTabs
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelect={setActiveTabId}
+        onAdd={handleAddTab}
+        onRemove={handleRemoveTab}
+        onRename={handleRenameTab}
+      />
+
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <label htmlFor="register-select" className="text-xs font-medium">
+            Register
+          </label>
+          <select
+            id="register-select"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={selectedRegisterId == null ? SHARED_SCOPE : String(selectedRegisterId)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSelectedRegisterId(v === SHARED_SCOPE ? null : Number(v));
+              setPage(0);
+            }}
+          >
+            <option value={SHARED_SCOPE}>Company-Wide Default</option>
+            {(registers?.content ?? []).map((register) => (
+              <option key={register.id} value={String(register.id)}>
+                {register.registerName} ({register.registerCode})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Page</span>
+          {Array.from({ length: PAGE_COUNT }).map((_, i) => (
+            <Button
+              key={i}
+              size="sm"
+              variant={page === i ? "default" : "outline"}
+              onClick={() => setPage(i)}
+            >
+              {i + 1}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
-        <TableSkeletonRows columns={5} rows={5} />
-      ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-10">
-          <LayoutGrid className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No quick items yet.</p>
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <>
-          {/* Mobile: cards */}
-          <ul className="space-y-2 md:hidden">
-            {items.map((item, index) => (
-              <li key={item.id} className="rounded-lg border p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{item.itemName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.itemCode} · row {item.gridRow}, col {item.gridCol} · {registerLabel(item.registerId)}
-                    </p>
-                  </div>
-                  <span
-                    className={
-                      item.isActive
-                        ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700"
-                        : "rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                    }
-                  >
-                    {item.isActive ? "Active" : "Hidden"}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(item)}>
-                    <Pencil className="mr-1 h-4 w-4" /> Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onToggleActive(item)}>
-                    {item.isActive ? "Hide" : "Show"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onDelete(item)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  {reorderButtons(index)}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {/* Tablet and up: table */}
-          <div className="hidden rounded-lg border md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.itemName}</TableCell>
-                    <TableCell className="font-mono text-xs">{item.itemCode}</TableCell>
-                    <TableCell>
-                      r{item.gridRow} · c{item.gridCol}
-                    </TableCell>
-                    <TableCell>{registerLabel(item.registerId)}</TableCell>
-                    <TableCell>{item.isActive ? "Active" : "Hidden"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {reorderButtons(index)}
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(item)}>
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => void onToggleActive(item)}>
-                          {item.isActive ? "Hide" : "Show"}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => void onDelete(item)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <QuickItemsCanvas
+          items={items}
+          folders={foldersByTab[activeTabId] ?? []}
+          pageOffset={pageOffset}
+          onSlotClick={openCreateAt}
+          onTileEdit={openEdit}
+          onFolderClick={(folder) => toast.info(`Folder "${folder.name}" contains ${folder.children.length} items.`)}
+          onReorder={onReorder}
+          isSaving={isReordering}
+        />
       )}
 
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <Button variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {data.number + 1} of {data.totalPages}
-          </span>
-          <Button variant="outline" disabled={data.last} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </Button>
+      {!isLoading && items.length === 0 && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6">
+          <LayoutGrid className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No quick items yet. Click a slot to add one.</p>
         </div>
       )}
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit quick item" : "Add quick item"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="item-id">Item</Label>
-              <Input
-                placeholder="Search by name or SKU…"
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                className="mb-2"
-              />
-              <Select
-                value={form.itemId}
-                onValueChange={(value) => setForm({ ...form, itemId: value })}
-              >
-                <SelectTrigger id="item-id">
-                  <SelectValue placeholder={itemsLoading ? "Loading…" : "Select item"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemsLoading ? (
-                    <div className="flex items-center gap-2 px-2 py-1.5 text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-                    </div>
-                  ) : filteredItemOptions.length === 0 ? (
-                    <div className="px-2 py-1.5 text-muted-foreground">No matching items</div>
-                  ) : (
-                    filteredItemOptions.map((it) => (
-                      <SelectItem key={it.id} value={String(it.id)}>
-                        {it.sku} — {it.nameEn}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="register">Scope</Label>
-              <Select
-                value={form.registerId || SHARED_SCOPE}
-                onValueChange={(value) =>
-                  setForm({ ...form, registerId: value === SHARED_SCOPE ? "" : value })
-                }
-                disabled={editing !== null}
-              >
-                <SelectTrigger id="register">
-                  <SelectValue placeholder="Company-shared (all registers)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SHARED_SCOPE}>Company-shared (all registers)</SelectItem>
-                  {(registers?.content ?? []).map((register) => (
-                    <SelectItem key={register.id} value={String(register.id)}>
-                      {register.registerName} ({register.registerCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-               <p className="text-xs text-muted-foreground">
-                 Company-shared tiles appear on every register; register-specific tiles only on the chosen terminal.
-               </p>
-               {editing !== null && (
-                 <p className="text-xs text-muted-foreground">
-                   Scope is fixed at creation — delete and recreate to move a tile.
-                 </p>
-               )}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="default-price">Price override (optional)</Label>
-              <Input
-                id="default-price"
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.defaultPrice}
-                onChange={(e) => setForm({ ...form, defaultPrice: e.target.value })}
-                placeholder="Leave blank to use the catalogue price"
-              />
-            </div>
-            <button
-              type="button"
-              className="text-xs text-muted-foreground underline"
-              onClick={() => setShowAdvanced((v) => !v)}
-            >
-              {showAdvanced ? "Hide advanced settings" : "Show advanced settings (row, column, sort)"}
-            </button>
-            {showAdvanced && (
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="grid-row">Row</Label>
-                  <Input
-                    id="grid-row"
-                    type="number"
-                    min={0}
-                    value={form.gridRow}
-                    onChange={(e) => setForm({ ...form, gridRow: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="grid-col">Column</Label>
-                  <Input
-                    id="grid-col"
-                    type="number"
-                    min={0}
-                    value={form.gridCol}
-                    onChange={(e) => setForm({ ...form, gridCol: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="sort-order">Sort</Label>
-                  <Input
-                    id="sort-order"
-                    type="number"
-                    min={0}
-                    value={form.sortOrder}
-                    onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
-                  />
-                </div>
-              </div>
-            )}
-            <button
-              type="button"
-              className="text-xs text-muted-foreground underline"
-              onClick={() => setShowCustomize((v) => !v)}
-            >
-              {showCustomize ? "Hide appearance options" : "Customize appearance (colour, icon)"}
-            </button>
-            {showCustomize && (
-              <>
-            <div className="space-y-1">
-              <Label htmlFor="display-color">Tile colour</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="display-color"
-                  type="color"
-                  value={form.displayColor || "#3b82f6"}
-                  onChange={(e) => setForm({ ...form, displayColor: e.target.value })}
-                  className="h-9 w-14 p-1"
-                  aria-label="Tile colour"
-                />
-                <div className="flex flex-wrap items-center gap-1">
-                  {COLOR_PRESETS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setForm({ ...form, displayColor: color })}
-                      className="h-6 w-6 rounded-full border"
-                      style={{ backgroundColor: color }}
-                      aria-label={`Use colour ${color}`}
-                    />
-                  ))}
-                  {form.displayColor && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setForm({ ...form, displayColor: "" })}
-                    >
-                      Clear
+      {items.length > 0 && (
+        <div className="rounded-lg border">
+          <div className="border-b px-3 py-2 text-sm font-medium">Tiles on this view</div>
+          <ul className="divide-y">
+            {items
+              .filter((it) => Math.floor(it.gridRow / QUICK_GRID_ROWS) === page)
+              .map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{item.itemName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.itemCode} · r{item.gridRow + 1} c{item.gridCol + 1} · {registerLabel(item.registerId)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(item)}>
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="display-icon">Icon</Label>
-              <Select
-                value={form.displayIcon || NO_ICON}
-                onValueChange={(value) =>
-                  setForm({ ...form, displayIcon: value === NO_ICON ? "" : value })
-                }
-              >
-                <SelectTrigger id="display-icon">
-                  <SelectValue placeholder="No icon" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_ICON}>No icon</SelectItem>
-                  {ICON_OPTIONS.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-              </>
-            )}
-            {form.itemId && (
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-md text-white"
-                  style={{ backgroundColor: form.displayColor || "#3b82f6" }}
-                >
-                  {form.displayIcon && TILE_ICONS[form.displayIcon]
-                    ? React.createElement(TILE_ICONS[form.displayIcon] as React.ComponentType<{ className?: string }>, {
-                        className: "h-6 w-6",
-                      })
-                    : null}
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium">
-                    {itemOptions.find((it) => String(it.id) === form.itemId)?.nameEn ?? "Select an item"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {itemOptions.find((it) => String(it.id) === form.itemId)?.sku ?? ""}
-                    {form.defaultPrice ? ` · Price override: ${form.defaultPrice}` : " · Catalogue price"}
-                  </p>
-                </div>
-              </div>
-            )}
-            <Button type="submit" className="w-full" disabled={isCreating || isUpdating || !form.itemId}>
-              {editing ? "Save changes" : "Create tile"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+                    <Button size="sm" variant="ghost" onClick={() => void onToggleActive(item)}>
+                      {item.isActive ? "Hide" : "Show"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => void onDelete(item)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
+      <QuickItemFormDialog
+        open={isCreateOpen}
+        onOpenChange={(o) => {
+          setIsCreateOpen(o);
+          if (!o) {
+            setEditing(null);
+            setPosition(null);
+          }
+        }}
+        editing={editing}
+        position={position}
+        registers={registers?.content}
+        selectedRegisterId={selectedRegisterId}
+        isSubmitting={isCreating || isUpdating}
+        onSubmit={handleFormSubmit}
+      />
+
+      <BatchAddDrawer
+        open={isBatchOpen}
+        onOpenChange={setIsBatchOpen}
+        onAdd={handleBatchAdd}
+        isSubmitting={isCreating}
+      />
     </div>
   );
 }

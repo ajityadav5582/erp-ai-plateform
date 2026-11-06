@@ -17,9 +17,12 @@ public record CompanyResponse(
          CompanyType companyType,
          BusinessType businessType,
          FiscalYearType fiscalYearType,
-        Boolean vatRegistered,
-        CompanyStatus status
-) {
+         Boolean vatRegistered,
+         String vatRegistrationNumber,
+         java.time.LocalDate vatEffectiveFrom,
+         java.time.LocalDate vatEffectiveTo,
+         CompanyStatus status
+ ) {
     public static CompanyResponse from(Company company) {
         return new CompanyResponse(
                 company.getId(),
@@ -32,8 +35,11 @@ public record CompanyResponse(
                  company.getCompanyType(),
                  company.getBusinessType(),
                  company.getFiscalYearType(),
-                company.getVatRegistered(),
-                company.getStatus()
+                 company.getVatRegistered(),
+                 company.getVatRegistrationNumber(),
+                 company.getVatEffectiveFrom(),
+                 company.getVatEffectiveTo(),
+                 company.getStatus()
         );
     }
 }

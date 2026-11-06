@@ -52,14 +52,16 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     private final SalesReturnMapper returnMapper;
     private final DocumentNumberService documentNumberService;
     private final BusinessContextAccessor context;
+    private final com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService;
 
     public SalesReturnServiceImpl(SalesReturnRepository returnRepository,
-                                  SalesInvoiceService salesInvoiceService,
-                                  ItemService itemService,
-                                  StockMovementService stockMovementService,
-                                  SalesReturnMapper returnMapper,
-                                  DocumentNumberService documentNumberService,
-                                  BusinessContextAccessor context) {
+                                   SalesInvoiceService salesInvoiceService,
+                                   ItemService itemService,
+                                   StockMovementService stockMovementService,
+                                   SalesReturnMapper returnMapper,
+                                   DocumentNumberService documentNumberService,
+                                   BusinessContextAccessor context,
+                                   com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService) {
         this.returnRepository = returnRepository;
         this.salesInvoiceService = salesInvoiceService;
         this.itemService = itemService;
@@ -67,6 +69,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         this.returnMapper = returnMapper;
         this.documentNumberService = documentNumberService;
         this.context = context;
+        this.irdOutboxService = irdOutboxService;
     }
 
     @Override
@@ -193,6 +196,36 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         // Restock the returned goods (an inbound movement), idempotent by reference.
         stockMovementService.postReceipt(buildStockRequest(saved));
         return returnMapper.toResponse(saved);
+    }
+
+    @Override
+    @RequiresPermission(SalesReturnPermissions.SALES_RETURN_POST)
+    public SalesReturnResponse approveSalesReturn(Long tenantId, Long companyId, Long id) {
+        SalesReturn salesReturn = loadReturn(tenantId, companyId, id);
+        SalesInvoiceResponse originalInvoice = salesInvoiceService.getInvoiceById(tenantId, companyId, salesReturn.getInvoiceId());
+
+        com.erpai.integration.ird.port.FiscalCreditNoteCommand command = new com.erpai.integration.ird.port.FiscalCreditNoteCommand(
+                salesReturn.getTenantId(),
+                salesReturn.getCompanyId(),
+                salesReturn.getCreditNoteNumber(),
+                salesReturn.getReturnDate().toString(),
+                originalInvoice.invoiceNumber(),
+                null,
+                salesReturn.getCustomerPanNumber(),
+                salesReturn.getCustomerName(),
+                salesReturn.getTotalAmount(),
+                salesReturn.getSubtotalAmount(),
+                salesReturn.getVatAmount(),
+                java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO,
+                salesReturn.getReason(),
+                true
+        );
+
+        irdOutboxService.enqueueCreditNote(tenantId, companyId, salesReturn.getId(), command,
+                com.erpai.integration.ird.outbox.entity.IrdSourceModule.SALES);
+
+        return returnMapper.toResponse(salesReturn);
     }
 
     @Override

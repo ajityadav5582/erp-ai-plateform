@@ -1,6 +1,8 @@
 package com.erp.business.pos.quickitem;
 
+import com.erp.business.pos.quickitem.dto.BatchLayoutRequest;
 import com.erp.business.pos.quickitem.dto.CreateQuickItemRequest;
+import com.erp.business.pos.quickitem.dto.PosQuickItemResolvedDto;
 import com.erp.business.pos.quickitem.dto.PosQuickItemResponse;
 import com.erp.business.pos.quickitem.dto.ReorderQuickItemsRequest;
 import com.erp.business.pos.quickitem.dto.UpdateQuickItemRequest;
@@ -66,5 +68,18 @@ public interface PosQuickItemService {
                                                            Pageable pageable);
 
     Page<PosQuickItemResponse> searchQuickItems(Long tenantId, Long companyId, String term,
-                                                Pageable pageable);
+                                                        Pageable pageable);
+
+    /**
+     * Resolves the terminal grid for a tab/page, applying register-specific
+     * overrides over company-wide defaults and enriching with catalogue pricing.
+     */
+    List<PosQuickItemResolvedDto> resolveTilesForTerminal(Long tenantId, Long companyId,
+                                                          Long registerId, String tabName,
+                                                          Integer pageNumber);
+
+    /**
+     * Batch-updates tile positions for a tab/page using a two-phase safe update.
+     */
+    void batchUpdateLayout(Long tenantId, Long companyId, BatchLayoutRequest request);
 }

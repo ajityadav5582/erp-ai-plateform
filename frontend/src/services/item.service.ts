@@ -59,12 +59,7 @@ export function formatExciseType(exciseType: string | null | undefined): string 
   return EXCISE_TYPE_LABELS[exciseType as ExciseType] ?? exciseType;
 }
 
-/**
- * Standard Nepal VAT rate. Kept in sync with `Item.DEFAULT_VAT_RATE` on the
- * backend, which applies the same default when a taxable item is saved
- * without an explicit rate.
- */
-export const DEFAULT_VAT_RATE = 13;
+// No hardcoded VAT default; rate must come from backend TaxRate configuration.
 
 /**
  * Mirrors the backend `ItemListResponse` — the projection returned by every

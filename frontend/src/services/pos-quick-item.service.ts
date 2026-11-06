@@ -17,6 +17,12 @@ export interface PosQuickItem {
   displayColor: string | null;
   displayIcon: string | null;
   sortOrder: number;
+  tabName: string;
+  pageNumber: number;
+  itemType: "PRODUCT" | "FOLDER";
+  parentId: number | null;
+  isTaxInclusive: boolean;
+  hotkey: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

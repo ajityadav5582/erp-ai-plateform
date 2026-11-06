@@ -75,6 +75,12 @@ class StockReportRepositoryTest {
     @SuppressWarnings("removal")
     @MockBean private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @SuppressWarnings("removal")
+    @MockBean private com.erp.platform.business.context.BusinessContextAccessor businessContextAccessor;
+
+    @SuppressWarnings("removal")
+    @MockBean private com.erp.platform.shared.infrastructure.persistence.DocumentSequenceRepository documentSequenceRepository;
+
     private Long warehouseA;
     private Long warehouseB;
 

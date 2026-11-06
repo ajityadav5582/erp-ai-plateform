@@ -34,7 +34,7 @@ include "business:hr:application"
 include "business:hr:infrastructure"
 include "business:hr:interfaces"
 
-include "platform:inventory"
+// platform:inventory removed - consolidated into business:inventory (see GAP_ANALYSIS.md)
 include "platform:shared"
 
 include "business:sales:domain"
@@ -47,6 +47,7 @@ include "business:procurement:application"
 include "business:procurement:infrastructure"
 include "business:procurement:interfaces"
 
+include "business:reports:application"
 include "business:manufacturing:domain"
 include "business:manufacturing:application"
 include "business:manufacturing:infrastructure"
@@ -93,6 +94,7 @@ include "ai:orchestration:infrastructure"
 include "ai:orchestration:interfaces"
 
 // Integration Modules
+include "integration"
 include "integration:gateway:domain"
 include "integration:gateway:application"
 include "integration:gateway:infrastructure"

@@ -212,7 +212,8 @@ class ItemServiceImplCompanyScopingTest {
                 null, null, null,
                 null, null, null,
                 null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null,
+                null, null, null, null);
     }
 
     private static CreateItemRequest createRequest() {
@@ -224,6 +225,6 @@ class ItemServiceImplCompanyScopingTest {
                 null, null, null,
                 new BigDecimal("100.00"),
                 null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null, null, null, null);
     }
 }

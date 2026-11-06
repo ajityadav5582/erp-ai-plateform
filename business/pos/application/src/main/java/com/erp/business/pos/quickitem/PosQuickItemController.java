@@ -1,5 +1,6 @@
 package com.erp.business.pos.quickitem;
 
+import com.erp.business.pos.quickitem.dto.BatchLayoutRequest;
 import com.erp.business.pos.quickitem.dto.CreateQuickItemRequest;
 import com.erp.business.pos.quickitem.dto.PosQuickItemResponse;
 import com.erp.business.pos.quickitem.dto.ReorderQuickItemsRequest;
@@ -141,6 +142,14 @@ public class PosQuickItemController {
             Pageable pageable) {
         return ResponseEntity.ok(quickItemService.listCompanySharedQuickItems(
                 context.getTenantId(), context.getCompanyId(), pageable));
+    }
+
+    @PutMapping("/batch-layout")
+    public ResponseEntity<Void> batchUpdateLayout(
+            @Valid @RequestBody BatchLayoutRequest request) {
+        quickItemService.batchUpdateLayout(
+                context.getTenantId(), context.getCompanyId(), request);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

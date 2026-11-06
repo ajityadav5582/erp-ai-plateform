@@ -8,7 +8,6 @@ import {
   Printer,
   ReceiptText,
   RefreshCw,
-  UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +47,6 @@ import {
   type PosTransactionStatus,
 } from "@/services/pos-transaction.service";
 import { useGetPosRegistersQuery } from "@/services/pos-register.service";
-import { useSyncPosTransactionMutation } from "@/services/pos-cbms.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { PosTransactionStatusBadge } from "@/components/pos/pos-status-badge";
 import { formatPosCurrency as currency } from "@/lib/pos-format";
@@ -74,7 +72,6 @@ export default function PosTransactionsPage() {
   const [detailsTarget, setDetailsTarget] = React.useState<PosTransaction | null>(null);
   const [voidTarget, setVoidTarget] = React.useState<{ id: number; number: string } | null>(null);
   const [voidReason, setVoidReason] = React.useState("");
-  const [syncingId, setSyncingId] = React.useState<number | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useGetPosTransactionsQuery({
     page,
@@ -86,7 +83,6 @@ export default function PosTransactionsPage() {
   const { data: receipt } = useGetPosReceiptQuery(receiptId ?? 0, { skip: receiptId === null });
   const { data: registers } = useGetPosRegistersQuery({ size: 100 });
   const [voidTransaction, { isLoading: isVoiding }] = useVoidPosTransactionMutation();
-  const [syncCbms] = useSyncPosTransactionMutation();
 
   const onSubmitVoid = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -101,30 +97,12 @@ export default function PosTransactionsPage() {
     }
   };
 
-  const onRetrySync = async (transaction: PosTransaction) => {
-    setSyncingId(transaction.id);
-    try {
-      const result = await syncCbms(transaction.id).unwrap();
-      if (result.success) {
-        toast.success("Pushed to CBMS.");
-        refetch();
-      } else {
-        toast.error(result.message || "CBMS sync failed.");
-      }
-    } catch (error) {
-      toast.error(getApiErrorMessage(error) || "CBMS sync failed.");
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
   const exportCsv = () => {
     const header = [
       "Number",
       "Date (BS)",
       "Cashier",
       "Status",
-      "CBMS",
       "Payment",
       "Subtotal",
       "VAT",
@@ -135,7 +113,6 @@ export default function PosTransactionsPage() {
       t.transactionDateNp,
       t.cashierName,
       POS_TRANSACTION_STATUS_LABELS[t.status],
-      t.status === "COMPLETED" ? (t.cbmsSynced ? "Synced" : "Pending") : "",
       t.paymentMethod ? POS_PAYMENT_METHOD_LABELS[t.paymentMethod] : "",
       t.subtotalAmount,
       t.vatAmount,
@@ -154,18 +131,6 @@ export default function PosTransactionsPage() {
   };
 
   const transactions = data?.content ?? [];
-
-  const cbmsCell = (transaction: PosTransaction) => {
-    if (transaction.status !== "COMPLETED") return "—";
-    if (transaction.cbmsSynced) {
-      return <span className="text-emerald-600">Synced</span>;
-    }
-    return (
-      <span className="text-amber-600">
-        Pending{transaction.cbmsRetryCount > 0 ? ` (${transaction.cbmsRetryCount})` : ""}
-      </span>
-    );
-  };
 
   return (
     <div className="space-y-4 p-4">
@@ -273,16 +238,6 @@ export default function PosTransactionsPage() {
                   <Button size="sm" variant="outline" onClick={() => setDetailsTarget(transaction)}>
                     <Eye className="mr-1 h-4 w-4" /> Details
                   </Button>
-                  {transaction.status === "COMPLETED" && !transaction.cbmsSynced && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void onRetrySync(transaction)}
-                      disabled={syncingId === transaction.id}
-                    >
-                      <UploadCloud className="mr-1 h-4 w-4" /> Sync
-                    </Button>
-                  )}
                   {transaction.status !== "VOIDED" && (
                     <Button
                       size="sm"
@@ -312,7 +267,6 @@ export default function PosTransactionsPage() {
                   <TableHead>Date (BS)</TableHead>
                   <TableHead>Cashier</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead>CBMS</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -326,7 +280,6 @@ export default function PosTransactionsPage() {
                     <TableCell>{transaction.transactionDateNp}</TableCell>
                     <TableCell>{transaction.cashierName}</TableCell>
                     <TableCell className="text-right">{currency(transaction.totalAmount)}</TableCell>
-                    <TableCell>{cbmsCell(transaction)}</TableCell>
                     <TableCell>
                       <PosTransactionStatusBadge status={transaction.status} />
                     </TableCell>
@@ -337,16 +290,6 @@ export default function PosTransactionsPage() {
                       <Button variant="ghost" size="sm" onClick={() => setDetailsTarget(transaction)}>
                         Details
                       </Button>
-                      {transaction.status === "COMPLETED" && !transaction.cbmsSynced && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void onRetrySync(transaction)}
-                          disabled={syncingId === transaction.id}
-                        >
-                          {syncingId === transaction.id ? "Syncing…" : "Sync"}
-                        </Button>
-                      )}
                       {transaction.status !== "VOIDED" && (
                         <Button
                           variant="ghost"
@@ -527,10 +470,7 @@ export default function PosTransactionsPage() {
               </div>
 
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  CBMS: {detailsTarget.cbmsSynced ? "Synced" : "Pending"}
-                  {detailsTarget.cbmsRetryCount > 0 ? ` · ${detailsTarget.cbmsRetryCount} attempt(s)` : ""}
-                </span>
+                <span>IRD status tracked on the linked Sales invoice</span>
                 <span>{detailsTarget.isTaxInvoice ? "Tax invoice" : "Invoice"}</span>
               </div>
             </div>

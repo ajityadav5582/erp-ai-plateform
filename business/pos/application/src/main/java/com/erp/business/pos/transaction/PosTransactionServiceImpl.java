@@ -9,13 +9,15 @@ import com.erp.business.pos.domain.PosRegister;
 import com.erp.business.pos.domain.PosSession;
 import com.erp.business.pos.domain.PosSessionStatus;
 import com.erp.business.pos.domain.PosCheckoutIdempotency;
-import com.erp.business.pos.domain.PosKitchenTicket;
 import com.erp.business.pos.domain.PosSalesIntegrationJob;
 import com.erp.business.pos.domain.PosTransaction;
 import com.erp.business.pos.domain.PosTransactionLine;
+import com.erp.platform.identity.domain.Company;
+import com.erp.platform.identity.infrastructure.persistence.CompanyRepository;
 import com.erp.business.pos.domain.PosTransactionStatus;
 import com.erp.business.pos.pricing.PosPricingService;
 import com.erp.business.pos.pricing.PricedLine;
+import com.erp.business.pos.poscompanyconfig.PosCompanyConfigService;
 import com.erp.business.pos.register.exception.PosRegisterNotFoundException;
 import com.erp.business.pos.register.infrastructure.persistence.PosRegisterRepository;
 import com.erp.business.pos.session.exception.PosSessionNotFoundException;
@@ -32,7 +34,6 @@ import com.erp.business.pos.transaction.dto.UpdateLineRequest;
 import com.erp.business.pos.transaction.dto.VoidTransactionRequest;
 import com.erp.business.pos.transaction.exception.PosTransactionNotFoundException;
 import com.erp.business.pos.integration.PosSalesIntegrationJobRepository;
-import com.erp.business.pos.kitchen.PosKitchenTicketRepository;
 import com.erp.business.pos.transaction.infrastructure.persistence.PosCheckoutIdempotencyRepository;
 import com.erp.business.pos.transaction.infrastructure.persistence.PosTransactionRepository;
 import com.erp.business.pos.transaction.mapper.PosTransactionMapper;
@@ -79,11 +80,12 @@ public class PosTransactionServiceImpl implements PosTransactionService {
     private final PosTransactionRepository transactionRepository;
     private final PosCheckoutIdempotencyRepository idempotencyRepository;
     private final PosSalesIntegrationJobRepository integrationJobRepository;
-    private final PosKitchenTicketRepository kitchenTicketRepository;
     private final PosSessionRepository sessionRepository;
     private final PosRegisterRepository registerRepository;
     private final PosPricingService pricingService;
     private final ItemService itemService;
+    private final CompanyRepository companyRepository;
+    private final PosCompanyConfigService posCompanyConfigService;
     private final StockMovementService stockMovementService;
     private final PosTransactionMapper transactionMapper;
     private final DocumentNumberService documentNumberService;
@@ -92,23 +94,25 @@ public class PosTransactionServiceImpl implements PosTransactionService {
     public PosTransactionServiceImpl(PosTransactionRepository transactionRepository,
                                      PosCheckoutIdempotencyRepository idempotencyRepository,
                                      PosSalesIntegrationJobRepository integrationJobRepository,
-                                     PosKitchenTicketRepository kitchenTicketRepository,
                                      PosSessionRepository sessionRepository,
                                      PosRegisterRepository registerRepository,
                                      PosPricingService pricingService,
                                      ItemService itemService,
+                                     PosCompanyConfigService posCompanyConfigService,
                                      StockMovementService stockMovementService,
                                      PosTransactionMapper transactionMapper,
                                      DocumentNumberService documentNumberService,
+                                     CompanyRepository companyRepository,
                                      BusinessContextAccessor context) {
         this.transactionRepository = transactionRepository;
         this.idempotencyRepository = idempotencyRepository;
         this.integrationJobRepository = integrationJobRepository;
-        this.kitchenTicketRepository = kitchenTicketRepository;
         this.sessionRepository = sessionRepository;
         this.registerRepository = registerRepository;
         this.pricingService = pricingService;
         this.itemService = itemService;
+        this.companyRepository = companyRepository;
+        this.posCompanyConfigService = posCompanyConfigService;
         this.stockMovementService = stockMovementService;
         this.transactionMapper = transactionMapper;
         this.documentNumberService = documentNumberService;
@@ -182,16 +186,30 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 register.getWarehouseId(), register.getWarehouseCode(), register.getWarehouseName(),
                 context.getUserId(), context.getCurrentUserFullName(),
                 transactionDate, NepaliDateConverter.format(transactionDate),
-                session.getFiscalYearId(), register.getBranchId(), request.tableId(),
+                session.getFiscalYearId(), register.getBranchId(),
                 request.customerId(), null, request.customerName(), request.customerPanNumber(),
                 null, request.notes());
         transaction.assignScope(tenantId, companyId);
+
+        // IRD tax scheme: VAT-registered companies issue tax invoices; PAN-only
+        // companies issue Section 15 cash bills with zero VAT.
+        boolean vatApplicable = companyRepository.findById(companyId)
+                .map(c -> c.getTaxScheme().isVatApplicable())
+                .orElse(true);
+        transaction.setTaxInvoice(vatApplicable);
+
+        // Per-company payment method enablement (PosCompanyConfig).
+        if (request.paymentMethod() != null && !posCompanyConfigService.isPaymentMethodEnabled(
+                tenantId, companyId, request.paymentMethod().name())) {
+            throw new IllegalArgumentException(
+                    "Payment method '" + request.paymentMethod() + "' is not enabled for this company");
+        }
 
         // Persist first: the aggregate needs its id before it can own lines.
         PosTransaction saved = transactionRepository.save(transaction);
         int lineNumber = 1;
         for (CheckoutLineRequest lineRequest : request.lines()) {
-            saved.addLine(buildLine(lineNumber++, lineRequest));
+            saved.addLine(buildLine(lineNumber++, lineRequest, vatApplicable));
         }
 
         // Allocate the number, then deduct stock, then complete — the domain
@@ -219,18 +237,6 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         if (idempotencyRecord != null) {
             idempotencyRecord.complete(completed.getId());
             idempotencyRepository.save(idempotencyRecord);
-        }
-
-        // Link kitchen ticket for restaurant-style flows when a table is selected.
-        if (request.tableId() != null) {
-            PosKitchenTicket ticket = PosKitchenTicket.builder()
-                    .posTransactionId(completed.getId())
-                    .status("PENDING")
-                    .build();
-            ticket.assignScope(tenantId, companyId);
-            PosKitchenTicket savedTicket = kitchenTicketRepository.save(ticket);
-            completed.setKitchenTicketId(savedTicket.getId());
-            transactionRepository.save(completed);
         }
 
         // Durable integration outbox: one job per completed POS transaction.
@@ -267,15 +273,19 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 register.getWarehouseId(), register.getWarehouseCode(), register.getWarehouseName(),
                 context.getUserId(), context.getCurrentUserFullName(),
                 transactionDate, NepaliDateConverter.format(transactionDate),
-                session.getFiscalYearId(), register.getBranchId(), null,
+                session.getFiscalYearId(), register.getBranchId(),
                 request.customerId(), null, request.customerName(), request.customerPanNumber(),
                 null, request.notes());
         transaction.assignScope(tenantId, companyId);
 
+        boolean vatApplicable = companyRepository.findById(companyId)
+                .map(c -> c.getTaxScheme().isVatApplicable())
+                .orElse(true);
+
         PosTransaction saved = transactionRepository.save(transaction);
         int lineNumber = 1;
         for (CheckoutLineRequest lineRequest : request.lines()) {
-            saved.addLine(buildLine(lineNumber++, lineRequest));
+            saved.addLine(buildLine(lineNumber++, lineRequest, vatApplicable));
         }
 
         return transactionMapper.toResponse(transactionRepository.save(saved));
@@ -290,7 +300,10 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 .mapToInt(PosTransactionLine::getLineNumber)
                 .max()
                 .orElse(0) + 1;
-        transaction.addLine(buildLine(nextLineNumber, request));
+        boolean vatApplicable = companyRepository.findById(companyId)
+                .map(c -> c.getTaxScheme().isVatApplicable())
+                .orElse(true);
+        transaction.addLine(buildLine(nextLineNumber, request, vatApplicable));
         return transactionMapper.toResponse(transactionRepository.save(transaction));
     }
 
@@ -459,7 +472,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
      * <p>The sellable guard runs first: a RAW_MATERIAL, CONSUMABLE, or SEMI_FINISHED
      * item cannot be added to a customer receipt regardless of what the client sends.
      */
-    private PosTransactionLine buildLine(int lineNumber, CheckoutLineRequest request) {
+    private PosTransactionLine buildLine(int lineNumber, CheckoutLineRequest request, boolean vatApplicable) {
         ItemService.ItemResponse item = itemService.findById(request.itemId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Item not found with ID: " + request.itemId()));
@@ -474,7 +487,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                             + ") is not marked as sellable and cannot be added to a POS transaction.");
         }
 
-        PricedLine priced = pricingService.priceLine(item, request.quantity(), request.discountPercentage());
+        PricedLine priced = pricingService.priceLine(item, request.quantity(), request.discountPercentage(), vatApplicable);
         return PosTransactionLine.of(
                 lineNumber, priced.itemId(), priced.itemCode(), priced.itemName(), item.getBarcode(),
                 priced.uomCode(), priced.quantity(), priced.unitPrice(), priced.discountPercentage(),

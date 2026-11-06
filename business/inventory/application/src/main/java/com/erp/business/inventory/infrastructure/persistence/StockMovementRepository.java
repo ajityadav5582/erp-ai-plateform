@@ -73,7 +73,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
                 FROM stock_movements sm
                 JOIN items i ON i.id = sm.item_id AND i.tenant_id = sm.tenant_id AND i.company_id = sm.company_id
                 JOIN warehouses w ON w.id = sm.warehouse_id AND w.tenant_id = sm.tenant_id AND w.company_id = sm.company_id
-                JOIN units u ON u.id = sm.unit_id AND u.tenant_id = sm.tenant_id AND u.company_id = sm.company_id
+                JOIN inventory_units u ON u.id = sm.unit_id AND u.tenant_id = sm.tenant_id AND u.company_id = sm.company_id
                 WHERE sm.tenant_id = :tenantId
                   AND sm.company_id = :companyId
                   AND (:itemId IS NULL OR sm.item_id = :itemId)
@@ -157,7 +157,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
                 FROM stock_movements sm
                 JOIN items i ON i.id = sm.item_id AND i.tenant_id = sm.tenant_id AND i.company_id = sm.company_id
                 JOIN warehouses w ON w.id = sm.warehouse_id AND w.tenant_id = sm.tenant_id AND w.company_id = sm.company_id
-                JOIN units u ON u.id = sm.unit_id AND u.tenant_id = sm.tenant_id AND u.company_id = sm.company_id
+                JOIN inventory_units u ON u.id = sm.unit_id AND u.tenant_id = sm.tenant_id AND u.company_id = sm.company_id
                 WHERE sm.tenant_id = :tenantId
                   AND sm.company_id = :companyId
                   AND (:warehouseId IS NULL OR sm.warehouse_id = :warehouseId)

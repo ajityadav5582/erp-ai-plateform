@@ -36,6 +36,11 @@ public interface SupplierService {
         String getAddress();
         String getTaxNumber();
         Boolean getIsActive();
+        // VAT registration (Nepal)
+        String getVatRegistrationStatus();
+        String getVatRegistrationNumber();
+        java.time.LocalDate getVatEffectiveFrom();
+        java.time.LocalDate getVatEffectiveTo();
     }
 
     interface SupplierCreateRequest {

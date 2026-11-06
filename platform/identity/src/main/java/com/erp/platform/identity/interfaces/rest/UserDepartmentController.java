@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * @since 1.0.0
  */
 @RestController
-@RequestMapping("/api/identity/user-departments")
+@RequestMapping("/api/v1/identity/user-departments")
 public class UserDepartmentController {
 
     private final UserDepartmentService userDepartmentService;

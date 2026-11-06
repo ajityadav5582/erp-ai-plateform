@@ -17,6 +17,9 @@ import com.erp.business.sales.invoice.exception.SalesInvoiceNotFoundException;
 import com.erp.business.sales.invoice.infrastructure.persistence.SalesInvoiceRepository;
 import com.erp.business.sales.invoice.mapper.SalesInvoiceMapper;
 import com.erp.business.sales.invoice.mapper.TaxInvoiceMapper;
+import com.erp.business.inventory.interfaces.tax.TaxRateService;
+import com.erp.platform.identity.domain.Company;
+import com.erp.platform.identity.infrastructure.persistence.CompanyRepository;
 import com.erp.business.sales.salesorder.SalesOrderService;
 import com.erp.business.sales.salesorder.dto.SalesOrderResponse;
 import com.erp.platform.business.context.BusinessContextAccessor;
@@ -29,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -54,6 +58,9 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     private final TaxInvoiceMapper taxInvoiceMapper;
     private final DocumentNumberService documentNumberService;
     private final BusinessContextAccessor context;
+    private final CompanyRepository companyRepository;
+    private final TaxRateService taxRateService;
+    private final com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService;
 
     public SalesInvoiceServiceImpl(SalesInvoiceRepository invoiceRepository,
                                    SalesOrderService salesOrderService,
@@ -62,7 +69,10 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
                                    SalesInvoiceMapper invoiceMapper,
                                    TaxInvoiceMapper taxInvoiceMapper,
                                    DocumentNumberService documentNumberService,
-                                   BusinessContextAccessor context) {
+                                   BusinessContextAccessor context,
+                                   CompanyRepository companyRepository,
+                                   TaxRateService taxRateService,
+                                   com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService) {
         this.invoiceRepository = invoiceRepository;
         this.salesOrderService = salesOrderService;
         this.itemService = itemService;
@@ -71,6 +81,9 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         this.taxInvoiceMapper = taxInvoiceMapper;
         this.documentNumberService = documentNumberService;
         this.context = context;
+        this.companyRepository = companyRepository;
+        this.taxRateService = taxRateService;
+        this.irdOutboxService = irdOutboxService;
     }
 
     @Override
@@ -102,9 +115,13 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         String invoiceNumber = documentNumberService.nextNumber(
                 tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
 
-        // A tax invoice that prints the buyer's PAN is a B2B supply; without a PAN
-        // it is a simplified invoice to a consumer.
-        boolean isTaxInvoice = order.customerPanNumber() != null && !order.customerPanNumber().isBlank();
+        // A tax invoice requires a VAT-registered seller (company) and a buyer PAN.
+        // PAN-only companies issue simplified (non-tax) invoices.
+        boolean companyVatRegistered = companyRepository.findById(companyId)
+                .map(c -> c.isVatEffectiveAsOf(request.invoiceDate()))
+                .orElse(false);
+        boolean isTaxInvoice = companyVatRegistered
+                && order.customerPanNumber() != null && !order.customerPanNumber().isBlank();
 
         SalesInvoice invoice = SalesInvoice.draft(
                 invoiceNumber, order.id(), order.soNumber(),
@@ -124,6 +141,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     }
 
     @Override
+    @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_CREATE)
     public SalesInvoiceResponse createPosInvoice(Long tenantId, Long companyId, CreatePosInvoiceRequest request) {
         java.util.Optional<SalesInvoice> existing = invoiceRepository
                 .findByTenantIdAndCompanyIdAndPosTransactionId(tenantId, companyId, request.posTransactionId());
@@ -136,7 +154,11 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         String invoiceNumber = documentNumberService.nextNumber(
                 tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
 
-        boolean isTaxInvoice = request.customerPanNumber() != null && !request.customerPanNumber().isBlank();
+        boolean companyVatRegistered = companyRepository.findById(companyId)
+                .map(c -> c.isVatEffectiveAsOf(request.invoiceDate()))
+                .orElse(false);
+        boolean isTaxInvoice = companyVatRegistered
+                && request.customerPanNumber() != null && !request.customerPanNumber().isBlank();
 
         SalesInvoice invoice = SalesInvoice.draft(
                 invoiceNumber, null, null,
@@ -155,7 +177,28 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
 
         SalesInvoice saved = invoiceRepository.save(invoice);
         saved.issue(currentUser());
-        return invoiceMapper.toResponse(invoiceRepository.save(saved));
+        saved = invoiceRepository.save(saved);
+
+        // IRD CBMS outbox enqueue (POS-originated invoices are issued immediately)
+        com.erpai.integration.ird.port.FiscalBillCommand command = new com.erpai.integration.ird.port.FiscalBillCommand(
+                saved.getTenantId(),
+                saved.getCompanyId(),
+                saved.getInvoiceNumber(),
+                null,
+                null,
+                saved.getCustomerPanNumber(),
+                saved.getCustomerName() != null ? saved.getCustomerName() : "Cash Customer",
+                saved.getTotalAmount(),
+                saved.getTaxableAmount(),
+                saved.getVatAmount(),
+                saved.getExemptAmount(),
+                true,
+                java.time.LocalDate.now()
+        );
+        irdOutboxService.enqueueSalesBill(saved.getTenantId(), saved.getCompanyId(), saved.getId(), command,
+                com.erpai.integration.ird.outbox.entity.IrdSourceModule.SALES);
+
+        return invoiceMapper.toResponse(saved);
     }
 
     @Override
@@ -255,6 +298,27 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         }
 
         invoice.issue(currentUser());
+
+        // IRD CBMS outbox enqueue (only for issued invoices)
+        com.erpai.integration.ird.port.FiscalBillCommand command = new com.erpai.integration.ird.port.FiscalBillCommand(
+                invoice.getTenantId(),
+                invoice.getCompanyId(),
+                invoice.getInvoiceNumber(),
+                null,
+                null,
+                invoice.getCustomerPanNumber(),
+                invoice.getCustomerName() != null ? invoice.getCustomerName() : "Cash Customer",
+                invoice.getTotalAmount(),
+                invoice.getTaxableAmount(),
+                invoice.getVatAmount(),
+                invoice.getExemptAmount(),
+                true,
+                java.time.LocalDate.now()
+        );
+
+        irdOutboxService.enqueueSalesBill(invoice.getTenantId(), invoice.getCompanyId(), invoice.getId(), command,
+                com.erpai.integration.ird.outbox.entity.IrdSourceModule.SALES);
+
         return invoiceMapper.toResponse(invoiceRepository.save(invoice));
     }
 
@@ -323,10 +387,27 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Item not found with ID: " + request.itemId()));
         VatType vatType = request.vatType() != null ? request.vatType() : VatType.TAXABLE;
+        BigDecimal unitPrice = request.unitPrice();
+        BigDecimal vatRate = request.vatRate();
+        if (vatRate == null && vatType == VatType.TAXABLE) {
+            com.erp.business.inventory.interfaces.tax.TaxRateService.TaxRate tr =
+                    taxRateService.findActive(context.getTenantId() != null ? context.getTenantId() : 0L,
+                            context.getCompanyId() != null ? context.getCompanyId() : 0L,
+                            "VAT", java.time.LocalDate.now());
+            if (tr == null) {
+                throw new IllegalStateException("No active VAT tax rate configured");
+            }
+            vatRate = tr.rate();
+        }
+        if (unitPrice != null && Boolean.TRUE.equals(item.getIsVatInclusive())
+                && vatType == VatType.TAXABLE && vatRate != null && vatRate.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal divisor = BigDecimal.ONE.add(vatRate.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
+            unitPrice = unitPrice.divide(divisor, 4, RoundingMode.HALF_UP);
+        }
         return SalesInvoiceLine.create(
                 lineNumber, item.getId(), item.getSku(), item.getName(),
-                request.uomCode(), request.quantity(), request.unitPrice(),
-                request.discountPercentage(), vatType, request.vatRate(), request.description());
+                request.uomCode(), request.quantity(), unitPrice,
+                request.discountPercentage(), vatType, vatRate, request.description());
     }
 
     private String currentUser() {

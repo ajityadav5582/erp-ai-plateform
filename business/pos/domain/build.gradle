@@ -5,6 +5,7 @@ plugins {
 
 group = 'com.erp.business.pos'
 version = '1.0.0-SNAPSHOT'
+archivesBaseName = 'pos-domain'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21

@@ -38,14 +38,39 @@ public class PosPricingService {
      * @throws ItemNotPricedException if the item carries no selling price
      */
     public ResolvedPrice resolvePrice(ItemService.ItemResponse item) {
+        return resolvePrice(item, true);
+    }
+
+    /**
+     * Resolves the selling price and VAT treatment for an already-fetched item.
+     *
+     * @param vatApplicable when {@code false} (PAN-only / non-VAT-registered
+     *                     company) every line is forced to {@link PosVatType#EXEMPT}
+     *                     with a zero VAT rate, per Nepal IRD cash-bill rules.
+     * @throws ItemNotPricedException if the item carries no selling price
+     */
+    public ResolvedPrice resolvePrice(ItemService.ItemResponse item, boolean vatApplicable) {
         BigDecimal price = item.getSellingPrice();
         if (price == null) {
             throw new ItemNotPricedException(
                     "Item '" + item.getName() + "' has no selling price and cannot be sold at POS");
         }
         PosVatType vatType = toVatType(item.getTaxabilityType());
+        if (!vatApplicable) {
+            vatType = PosVatType.EXEMPT;
+        }
         BigDecimal vatRate = resolveVatRate(vatType, item.getVatRate());
-        return new ResolvedPrice(price.setScale(MONEY_SCALE, RoundingMode.HALF_UP), vatType, vatRate);
+
+        // VAT-inclusive pricing: when the catalogue price already contains VAT,
+        // convert it to the VAT-exclusive unit price so the line amount and VAT
+        // are not double-counted.
+        BigDecimal unitPrice = price;
+        if (Boolean.TRUE.equals(item.getIsVatInclusive()) && vatType == PosVatType.TAXABLE
+                && vatRate.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal divisor = BigDecimal.ONE.add(vatRate.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
+            unitPrice = price.divide(divisor, MONEY_SCALE, RoundingMode.HALF_UP);
+        }
+        return new ResolvedPrice(unitPrice.setScale(MONEY_SCALE, RoundingMode.HALF_UP), vatType, vatRate);
     }
 
     /**
@@ -53,7 +78,12 @@ public class PosPricingService {
      * compute the net line amount and VAT.
      */
     public PricedLine priceLine(ItemService.ItemResponse item, BigDecimal quantity, BigDecimal discountPercentage) {
-        ResolvedPrice price = resolvePrice(item);
+        return priceLine(item, quantity, discountPercentage, true);
+    }
+
+    public PricedLine priceLine(ItemService.ItemResponse item, BigDecimal quantity, BigDecimal discountPercentage,
+                               boolean vatApplicable) {
+        ResolvedPrice price = resolvePrice(item, vatApplicable);
         PosTransactionLine line = PosTransactionLine.of(
                 1, item.getId(), item.getSku(), item.getName(), item.getBarcode(), item.getUnitCode(),
                 quantity, price.unitPrice(), discountPercentage, price.vatType(), price.vatRate(), null);
@@ -69,12 +99,16 @@ public class PosPricingService {
      * once from the catalogue.
      */
     public PricePreview preview(List<PriceLineRequest> requests) {
+        return preview(requests, true);
+    }
+
+    public PricePreview preview(List<PriceLineRequest> requests, boolean vatApplicable) {
         List<PricedLine> lines = requests.stream()
                 .map(request -> {
                     ItemService.ItemResponse item = itemService.findById(request.itemId())
                             .orElseThrow(() -> new ItemNotPricedException(
                                     "Item not found with ID: " + request.itemId()));
-                    return priceLine(item, request.quantity(), request.discountPercentage());
+                    return priceLine(item, request.quantity(), request.discountPercentage(), vatApplicable);
                 })
                 .toList();
 

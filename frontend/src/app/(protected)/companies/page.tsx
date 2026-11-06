@@ -10,6 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { useCreateCompanyMutation, useGetCompaniesQuery, useUpdateCompanyMutation, type BusinessType, type Company, type CompanyType, type FiscalYearType } from "@/services/company.service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppSelector } from "@/store/hooks";
+import PosRestaurantSettingsTab from "@/components/companies/pos-restaurant-settings-tab";
 
 export default function CompaniesPage() {
   const router = useRouter();
@@ -27,16 +30,19 @@ export default function CompaniesPage() {
   const [vatRegistered, setVatRegistered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Company | null>(null);
+  const [activeTab, setActiveTab] = useState("general");
   const [editCompanyName, setEditCompanyName] = useState("");
   const [editCompanyType, setEditCompanyType] = useState<CompanyType | "">("");
   const [editBusinessType, setEditBusinessType] = useState<BusinessType | "">("");
   const [updateCompany, { isLoading: isUpdating }] = useUpdateCompanyMutation();
+  const tenantId = useAppSelector((s) => s.auth.tenantId);
 
   useEffect(() => {
     if (editing) {
       setEditCompanyName(editing.companyName);
       setEditCompanyType(editing.companyType ?? "");
       setEditBusinessType(editing.businessType ?? "");
+      setActiveTab("general");
     }
   }, [editing]);
 
@@ -214,68 +220,83 @@ export default function CompaniesPage() {
       </div>
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit company</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="editCompanyName">Company name</Label>
-              <Input id="editCompanyName" value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editCompanyType">Company type</Label>
-              <select id="editCompanyType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editCompanyType} onChange={(e) => setEditCompanyType(e.target.value as CompanyType | "")}>
-                <option value="">Select</option>
-                <option value="PRIVATE_LIMITED">Private limited</option>
-                <option value="PUBLIC_LIMITED">Public limited</option>
-                <option value="SOLE_PROPRIETORSHIP">Sole proprietorship</option>
-                <option value="NGO_INGO">NGO / INGO</option>
-                <option value="TRUST">Trust</option>
-                <option value="COOPERATIVE">Cooperative</option>
-                <option value="GOVERNMENT_ENTITY">Government entity</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editBusinessType">Business type</Label>
-              <select id="editBusinessType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editBusinessType} onChange={(e) => setEditBusinessType(e.target.value as BusinessType | "")}>
-                <option value="">Select</option>
-                <option value="RESTAURANT">Restaurant</option>
-                <option value="CAFE">Cafe</option>
-                <option value="HOTEL">Hotel</option>
-                <option value="SWEETS_RETAIL">Sweets retail</option>
-                <option value="GENERAL_RETAIL">General retail</option>
-                <option value="GROCERY">Grocery</option>
-                <option value="HARDWARE">Hardware</option>
-                <option value="SANITARY">Sanitary</option>
-                <option value="PHARMACY">Pharmacy</option>
-                <option value="CLOTHING">Clothing</option>
-                <option value="SERVICES">Services</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-            <Button
-              disabled={isUpdating}
-              onClick={async () => {
-                if (!editing) return;
-                try {
-                  await updateCompany({
-                    id: editing.id,
-                    data: {
-                      companyName: editCompanyName.trim() || undefined,
-                      companyType: editCompanyType ? (editCompanyType as CompanyType) : undefined,
-                      businessType: editBusinessType ? (editBusinessType as BusinessType) : undefined,
-                    },
-                  }).unwrap();
-                  setEditing(null);
-                } catch (cause) {
-                  setError(getApiErrorMessage(cause));
-                }
-              }}
-            >
-              {isUpdating ? "Saving…" : "Save"}
-            </Button>
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="general">General</TabsTrigger>
+              {(editBusinessType === "CAFE" || editBusinessType === "RESTAURANT") && (
+                <TabsTrigger value="pos">POS / Restaurant</TabsTrigger>
+              )}
+            </TabsList>
+            <TabsContent value="general" className="space-y-4 pt-4">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editCompanyName">Company name</Label>
+                  <Input id="editCompanyName" value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editCompanyType">Company type</Label>
+                  <select id="editCompanyType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editCompanyType} onChange={(e) => setEditCompanyType(e.target.value as CompanyType | "")}>
+                    <option value="">Select</option>
+                    <option value="PRIVATE_LIMITED">Private limited</option>
+                    <option value="PUBLIC_LIMITED">Public limited</option>
+                    <option value="SOLE_PROPRIETORSHIP">Sole proprietorship</option>
+                    <option value="NGO_INGO">NGO / INGO</option>
+                    <option value="TRUST">Trust</option>
+                    <option value="COOPERATIVE">Cooperative</option>
+                    <option value="GOVERNMENT_ENTITY">Government entity</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editBusinessType">Business type</Label>
+                  <select id="editBusinessType" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={editBusinessType} onChange={(e) => setEditBusinessType(e.target.value as BusinessType | "")}>
+                    <option value="">Select</option>
+                    <option value="RESTAURANT">Restaurant</option>
+                    <option value="CAFE">Cafe</option>
+                    <option value="HOTEL">Hotel</option>
+                    <option value="SWEETS_RETAIL">Sweets retail</option>
+                    <option value="GENERAL_RETAIL">General retail</option>
+                    <option value="GROCERY">Grocery</option>
+                    <option value="HARDWARE">Hardware</option>
+                    <option value="SANITARY">Sanitary</option>
+                    <option value="PHARMACY">Pharmacy</option>
+                    <option value="CLOTHING">Clothing</option>
+                    <option value="SERVICES">Services</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <Button
+                  disabled={isUpdating}
+                  onClick={async () => {
+                    if (!editing) return;
+                    try {
+                      await updateCompany({
+                        id: editing.id,
+                        data: {
+                          companyName: editCompanyName.trim() || undefined,
+                          companyType: editCompanyType ? (editCompanyType as CompanyType) : undefined,
+                          businessType: editBusinessType ? (editBusinessType as BusinessType) : undefined,
+                        },
+                      }).unwrap();
+                      setEditing(null);
+                    } catch (cause) {
+                      setError(getApiErrorMessage(cause));
+                    }
+                  }}
+                >
+                  {isUpdating ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </TabsContent>
+            {(editBusinessType === "CAFE" || editBusinessType === "RESTAURANT") && editing && (
+              <TabsContent value="pos" className="pt-4">
+                <PosRestaurantSettingsTab companyId={editing.id} tenantId={tenantId} />
+              </TabsContent>
+            )}
+          </Tabs>
         </DialogContent>
       </Dialog>
     </main>

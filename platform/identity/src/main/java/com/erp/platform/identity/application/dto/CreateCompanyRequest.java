@@ -16,7 +16,10 @@ public record CreateCompanyRequest(
         @NotBlank @Email @Size(max = 255) String email,
          @NotNull CompanyType companyType,
          @NotNull BusinessType businessType,
-         @NotNull FiscalYearType fiscalYearType,
-         @NotNull Boolean vatRegistered
-) {
+          @NotNull FiscalYearType fiscalYearType,
+          @NotNull Boolean vatRegistered,
+          @Size(max = 30) String vatRegistrationNumber,
+          java.time.LocalDate vatEffectiveFrom,
+          java.time.LocalDate vatEffectiveTo
+ ) {
 }

@@ -1,8 +1,12 @@
 package com.erp.business.pos.quickitem;
 
+import java.math.BigDecimal;
+
 import com.erp.business.inventory.interfaces.item.ItemService;
 import com.erp.business.pos.domain.PosQuickItem;
+import com.erp.business.pos.quickitem.dto.BatchLayoutRequest;
 import com.erp.business.pos.quickitem.dto.CreateQuickItemRequest;
+import com.erp.business.pos.quickitem.dto.PosQuickItemResolvedDto;
 import com.erp.business.pos.quickitem.dto.PosQuickItemResponse;
 import com.erp.business.pos.quickitem.dto.ReorderQuickItemsRequest;
 import com.erp.business.pos.quickitem.dto.UpdateQuickItemRequest;
@@ -174,6 +178,98 @@ public class PosQuickItemServiceImpl implements PosQuickItemService {
                                                        Pageable pageable) {
         return quickItemRepository.search(tenantId, companyId, term, pageable)
                 .map(quickItemMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission(PosQuickItemPermissions.POS_QUICK_ITEM_VIEW)
+    public List<PosQuickItemResolvedDto> resolveTilesForTerminal(Long tenantId, Long companyId,
+                                                                  Long registerId, String tabName,
+                                                                  Integer pageNumber) {
+        List<PosQuickItem> tiles = quickItemRepository.findTilesForTerminal(
+                tenantId, companyId, tabName, pageNumber, registerId);
+
+        // Override: register-specific tile replaces company-default at same coordinate.
+        java.util.Map<String, PosQuickItem> bySlot = new java.util.HashMap<>();
+        for (PosQuickItem t : tiles) {
+            String key = t.getGridRow() + "-" + t.getGridCol();
+            PosQuickItem existing = bySlot.get(key);
+            if (existing == null || (existing.getRegisterId() == null && t.getRegisterId() != null)) {
+                bySlot.put(key, t);
+            }
+        }
+
+        List<PosQuickItemResolvedDto> result = new java.util.ArrayList<>();
+        for (PosQuickItem t : bySlot.values()) {
+            BigDecimal effectivePrice = t.getDefaultPrice();
+            BigDecimal vatRate = null;
+            if (effectivePrice == null && t.getItemId() != null) {
+                ItemService.ItemResponse item = itemService.findById(t.getItemId()).orElse(null);
+                if (item != null) {
+                    effectivePrice = item.getSellingPrice();
+                    vatRate = item.getVatRate();
+                }
+            }
+            String scope = (t.getRegisterId() == null) ? "COMPANY" : "REGISTER";
+            result.add(new PosQuickItemResolvedDto(
+                    t.getGridRow(),
+                    t.getGridCol(),
+                    scope,
+                    t.getId(),
+                    t.getItemType(),
+                    t.getItemId(),
+                    t.getItemCode(),
+                    t.getItemName(),
+                    t.getUomCode(),
+                    effectivePrice,
+                    vatRate,
+                    t.isTaxInclusive(),
+                    t.getHotkey(),
+                    t.getDisplayColor(),
+                    t.getDisplayIcon(),
+                    t.getParentId()
+            ));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional
+    @RequiresPermission(PosQuickItemPermissions.POS_QUICK_ITEM_UPDATE)
+    public void batchUpdateLayout(Long tenantId, Long companyId, BatchLayoutRequest request) {
+        // Phase 1: verify all IDs belong to tenant/company.
+        List<PosQuickItem> tiles = new java.util.ArrayList<>();
+        for (BatchLayoutRequest.SlotPlacement slot : request.slots()) {
+            PosQuickItem tile = quickItemRepository.findByTenantIdAndCompanyIdAndId(
+                    tenantId, companyId, slot.id())
+                    .orElseThrow(() -> new PosQuickItemNotFoundException(
+                            "Quick item not found with ID: " + slot.id()));
+            // Boundary validation
+            if (slot.gridRow() < 0 || slot.gridRow() > 2) {
+                throw new IllegalArgumentException("gridRow out of bounds: " + slot.gridRow());
+            }
+            if (slot.gridCol() < 0 || slot.gridCol() > 5) {
+                throw new IllegalArgumentException("gridCol out of bounds: " + slot.gridCol());
+            }
+            tiles.add(tile);
+        }
+
+        // Phase 2: shift to temporary negative coordinates to avoid unique collisions.
+        for (PosQuickItem tile : tiles) {
+            tile.reposition(-1 - tile.getGridRow(), tile.getGridCol(), tile.getSortOrder());
+        }
+        quickItemRepository.saveAllAndFlush(tiles);
+
+        // Phase 3: apply final positions.
+        for (int i = 0; i < tiles.size(); i++) {
+            PosQuickItem tile = tiles.get(i);
+            BatchLayoutRequest.SlotPlacement slot = request.slots().get(i);
+            tile.reposition(slot.gridRow(), slot.gridCol(),
+                    slot.gridRow() * 6 + slot.gridCol());
+            // update tab/page if needed
+            tile.assignTab(request.tabName(), request.pageNumber());
+        }
+        quickItemRepository.saveAll(tiles);
     }
 
     // -----------------------------------------------------------------------

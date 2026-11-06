@@ -21,6 +21,26 @@ public class SupplierUpdateRequest {
     private String taxId;
     private Integer paymentTermsDays;
     private String currency;
+    private com.erp.business.inventory.domain.Supplier.VatRegistrationStatus vatRegistrationStatus;
+    private String vatRegistrationNumber;
+    private java.time.LocalDate vatEffectiveFrom;
+    private java.time.LocalDate vatEffectiveTo;
+
+    public com.erp.business.inventory.domain.Supplier.VatRegistrationStatus vatRegistrationStatus() { return vatRegistrationStatus; }
+    @JsonSetter("vatRegistrationStatus")
+    public void setVatRegistrationStatus(com.erp.business.inventory.domain.Supplier.VatRegistrationStatus v) { this.vatRegistrationStatus = v; }
+
+    public String vatRegistrationNumber() { return vatRegistrationNumber; }
+    @JsonSetter("vatRegistrationNumber")
+    public void setVatRegistrationNumber(String v) { this.vatRegistrationNumber = v; }
+
+    public java.time.LocalDate vatEffectiveFrom() { return vatEffectiveFrom; }
+    @JsonSetter("vatEffectiveFrom")
+    public void setVatEffectiveFrom(java.time.LocalDate v) { this.vatEffectiveFrom = v; }
+
+    public java.time.LocalDate vatEffectiveTo() { return vatEffectiveTo; }
+    @JsonSetter("vatEffectiveTo")
+    public void setVatEffectiveTo(java.time.LocalDate v) { this.vatEffectiveTo = v; }
 
     public SupplierUpdateRequest() {
     }

@@ -4,6 +4,8 @@ import com.erp.business.procurement.goodsreceipt.domain.GoodsReceiptLine;
 import com.erp.platform.data.entity.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -109,6 +111,17 @@ public class PurchaseInvoiceLine extends TenantScopedEntity<Long> {
     @Builder.Default
     private BigDecimal taxRate = BigDecimal.ZERO;
 
+    @Column(name = "taxable_amount", precision = 19, scale = 4)
+    private BigDecimal taxableAmount;
+
+    @Column(name = "tax_amount", precision = 19, scale = 4)
+    private BigDecimal taxAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_category", nullable = false, length = 20)
+    @Builder.Default
+    private PurchaseTaxCategory taxCategory = PurchaseTaxCategory.UNCLASSIFIED;
+
     @NotNull(message = "Line amount is required")
     @Column(name = "line_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal lineAmount;
@@ -190,6 +203,60 @@ public class PurchaseInvoiceLine extends TenantScopedEntity<Long> {
     private static void validatePercentage(BigDecimal value, String label) {
         if (value.signum() < 0 || value.compareTo(ONE_HUNDRED) > 0) {
             throw new IllegalArgumentException(label + " percentage must be between 0 and 100");
+        }
+    }
+
+    /**
+     * Calculates and stores tax fields for this line without modifying bill().
+     */
+    public void calculateTax(PurchaseTaxCategory category, BigDecimal unitPrice, BigDecimal quantity,
+                            BigDecimal taxRate, boolean vatInclusive) {
+        calculateTax(category, unitPrice, quantity, taxRate, vatInclusive, BigDecimal.ZERO);
+    }
+
+    public void calculateTax(PurchaseTaxCategory category, BigDecimal unitPrice, BigDecimal quantity,
+                            BigDecimal taxRate, boolean vatInclusive, BigDecimal discountPercentage) {
+        if (category == null) {
+            throw new IllegalArgumentException("Tax category is required");
+        }
+        if (category == PurchaseTaxCategory.UNCLASSIFIED) {
+            throw new IllegalArgumentException("UNCLASSIFIED tax category is not allowed for new calculations");
+        }
+        if (unitPrice == null || unitPrice.signum() < 0) {
+            throw new IllegalArgumentException("Unit price cannot be negative");
+        }
+        if (quantity == null || quantity.signum() <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero");
+        }
+        BigDecimal rate = taxRate == null ? BigDecimal.ZERO : taxRate;
+        if (rate.signum() < 0 || rate.compareTo(ONE_HUNDRED) > 0) {
+            throw new IllegalArgumentException("Tax rate percentage must be between 0 and 100");
+        }
+        BigDecimal discount = discountPercentage == null ? BigDecimal.ZERO : discountPercentage;
+        if (discount.signum() < 0 || discount.compareTo(ONE_HUNDRED) > 0) {
+            throw new IllegalArgumentException("Discount percentage must be between 0 and 100");
+        }
+
+        this.taxCategory = category;
+
+        BigDecimal gross = quantity.multiply(unitPrice).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal discountFactor = ONE_HUNDRED.subtract(discount).divide(ONE_HUNDRED, 10, RoundingMode.HALF_UP);
+        BigDecimal discountedGross = gross.multiply(discountFactor).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        if (category == PurchaseTaxCategory.TAXABLE) {
+            if (vatInclusive) {
+                BigDecimal divisor = ONE_HUNDRED.add(rate);
+                this.taxableAmount = discountedGross.multiply(ONE_HUNDRED).divide(divisor, MONEY_SCALE, RoundingMode.HALF_UP);
+                this.taxAmount = discountedGross.subtract(this.taxableAmount).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            } else {
+                this.taxableAmount = discountedGross;
+                this.taxAmount = discountedGross.multiply(rate).divide(ONE_HUNDRED, MONEY_SCALE, RoundingMode.HALF_UP);
+            }
+            this.taxRate = rate.setScale(2, RoundingMode.HALF_UP);
+        } else {
+            this.taxableAmount = discountedGross;
+            this.taxRate = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            this.taxAmount = BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         }
     }
 }

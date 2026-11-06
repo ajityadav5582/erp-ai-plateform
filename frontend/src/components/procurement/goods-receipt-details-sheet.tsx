@@ -86,7 +86,7 @@ export function GoodsReceiptDetailsSheet({
       await retryStockPost(receipt.id).unwrap();
       toast.success("Stock posted successfully");
       refetch();
-    } catch (e) {
+    } catch {
       toast.error("Retry failed");
     }
   };

@@ -24,7 +24,7 @@ export const VAT_TYPES = ["TAXABLE", "EXEMPT", "ZERO_RATED", "EXPORT"] as const;
 export type VatType = (typeof VAT_TYPES)[number];
 
 export const VAT_TYPE_LABELS: Record<VatType, string> = {
-  TAXABLE: "Taxable (13%)",
+  TAXABLE: "Taxable",
   EXEMPT: "Exempt",
   ZERO_RATED: "Zero-rated",
   EXPORT: "Export",

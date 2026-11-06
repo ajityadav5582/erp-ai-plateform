@@ -144,6 +144,7 @@ public class HttpItemService implements ItemService {
             @Override public Boolean getIsSellable() { return dto.isSellable(); }
             @Override public BigDecimal getSellingPrice() { return dto.sellingPrice(); }
             @Override public BigDecimal getVatRate() { return dto.vatRate(); }
+            @Override public Boolean getIsVatInclusive() { return dto.isVatInclusive(); }
         };
     }
 
@@ -166,7 +167,8 @@ public class HttpItemService implements ItemService {
             @JsonProperty("isPurchasable") Boolean isPurchasable,
             @JsonProperty("isSellable") Boolean isSellable,
             BigDecimal sellingPrice,
-            BigDecimal vatRate
+            BigDecimal vatRate,
+            @JsonProperty("isVatInclusive") Boolean isVatInclusive
     ) {
     }
 }

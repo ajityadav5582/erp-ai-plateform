@@ -48,11 +48,28 @@ public class SupplierServiceImpl implements SupplierService {
             );
         }
 
+        com.erp.business.inventory.domain.Supplier.VatRegistrationStatus status =
+                request.vatRegistrationStatus() != null ? request.vatRegistrationStatus()
+                        : com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.UNKNOWN;
+
+        if (status == com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.VAT_REGISTERED
+                && (request.vatRegistrationNumber() == null || request.vatRegistrationNumber().isBlank())) {
+            throw new IllegalArgumentException("VAT registration number is required for VAT-registered suppliers");
+        }
+        if (request.vatEffectiveFrom() != null && request.vatEffectiveTo() != null
+                && request.vatEffectiveTo().isBefore(request.vatEffectiveFrom())) {
+            throw new IllegalArgumentException("VAT effective-to date cannot precede effective-from date");
+        }
+
         Supplier supplier = Supplier.create(
                 tenantId, companyId, name, code, request.type(),
                 request.email(), request.phone(), request.address(),
                 request.taxId(), request.paymentTermsDays(), request.currency()
         );
+        supplier.setVatRegistrationStatus(status);
+        supplier.setVatRegistrationNumber(request.vatRegistrationNumber());
+        supplier.setVatEffectiveFrom(request.vatEffectiveFrom());
+        supplier.setVatEffectiveTo(request.vatEffectiveTo());
 
         Supplier saved = supplierRepository.save(supplier);
         return supplierMapper.toResponse(saved);
@@ -115,6 +132,27 @@ public class SupplierServiceImpl implements SupplierService {
                 request.email(), request.phone(), request.address(),
                 request.taxId(), request.paymentTermsDays(), request.currency()
         );
+
+        if (request.vatRegistrationStatus() != null) {
+            if (request.vatRegistrationStatus() == com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.VAT_REGISTERED
+                    && (request.vatRegistrationNumber() == null || request.vatRegistrationNumber().isBlank())
+                    && (supplier.getVatRegistrationNumber() == null || supplier.getVatRegistrationNumber().isBlank())) {
+                throw new IllegalArgumentException("VAT registration number is required for VAT-registered suppliers");
+            }
+            supplier.setVatRegistrationStatus(request.vatRegistrationStatus());
+        }
+        if (request.vatRegistrationNumber() != null) {
+            supplier.setVatRegistrationNumber(request.vatRegistrationNumber());
+        }
+        if (request.vatEffectiveFrom() != null) {
+            supplier.setVatEffectiveFrom(request.vatEffectiveFrom());
+        }
+        if (request.vatEffectiveTo() != null) {
+            if (supplier.getVatEffectiveFrom() != null && request.vatEffectiveTo().isBefore(supplier.getVatEffectiveFrom())) {
+                throw new IllegalArgumentException("VAT effective-to date cannot precede effective-from date");
+            }
+            supplier.setVatEffectiveTo(request.vatEffectiveTo());
+        }
 
         return supplierMapper.toResponse(supplierRepository.save(supplier));
     }

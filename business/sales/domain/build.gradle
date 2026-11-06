@@ -5,6 +5,7 @@ plugins {
 
 group = 'com.erp.business.sales'
 version = '1.0.0-SNAPSHOT'
+archivesBaseName = 'sales-domain'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -40,6 +41,18 @@ dependencies {
     api "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+
+    // Tests
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+    }
 }
 
 tasks.withType(JavaCompile) {

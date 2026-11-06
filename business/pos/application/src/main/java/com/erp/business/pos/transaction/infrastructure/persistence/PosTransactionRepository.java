@@ -58,4 +58,24 @@ public interface PosTransactionRepository extends JpaRepository<PosTransaction, 
 
     /** Every transaction still awaiting a CBMS push, for the status endpoint. */
     List<PosTransaction> findByTenantIdAndCompanyIdAndCbmsSyncedFalse(Long tenantId, Long companyId);
+
+    @Query(value = "SELECT COALESCE(SUM(total_amount),0), COALESCE(SUM(taxable_amount),0), COALESCE(SUM(vat_amount),0), " +
+            "COALESCE(SUM(CASE WHEN payment_method='CASH' THEN total_amount ELSE 0 END),0), " +
+            "COALESCE(SUM(CASE WHEN payment_method='QR' THEN total_amount ELSE 0 END),0), " +
+            "COALESCE(SUM(CASE WHEN payment_method='CARD' THEN total_amount ELSE 0 END),0), " +
+            "MIN(transaction_number), MAX(transaction_number), COUNT(*) " +
+            "FROM pos_transactions WHERE session_id = :sessionId", nativeQuery = true)
+    Object[] aggregateBySession(@Param("sessionId") Long sessionId);
+
+    @Query(value = "SELECT transaction_number, transaction_date, customer_name, customer_pan_number, " +
+            "total_amount, exempt_amount, 0, taxable_amount, vat_amount, status " +
+            "FROM pos_transactions WHERE company_id = :companyId AND status IN ('COMPLETED','CREDIT_NOTE') " +
+            "ORDER BY transaction_date", nativeQuery = true)
+    List<Object[]> findSalesBook(@Param("companyId") Long companyId);
+
+    @Query(value = "SELECT transaction_number, transaction_date, customer_name, customer_pan_number, " +
+            "total_amount, taxable_amount, vat_amount, void_reason, cbms_synced " +
+            "FROM pos_transactions WHERE company_id = :companyId AND status = 'CREDIT_NOTE' " +
+            "ORDER BY transaction_date", nativeQuery = true)
+    List<Object[]> findCreditNotes(@Param("companyId") Long companyId);
 }

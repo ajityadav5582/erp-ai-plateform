@@ -5,43 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
-
-/**
- * Company aggregate root for multi-company management within a tenant.
- *
- * <p>Represents a distinct legal/business entity owned by a Tenant. A single
- * Tenant can own multiple Companies (e.g. different brands, subsidiaries, or
- * trading names). A Company is the operational unit that users are assigned to
- * for day-to-day business operations (sales, finance, inventory, etc.).
- *
- * <p><strong>Tenant vs Company:</strong>
- * <ul>
- *   <li>A <b>Tenant</b> is the top-level SaaS account — the organization that
- *       subscribes to the platform and owns all data.</li>
- *   <li>A <b>Company</b> is a distinct legal/business entity within that tenant.
- *       One tenant can have many companies, but a company belongs to exactly
- *       one tenant.</li>
- * </ul>
- *
- * <p>The aggregate follows Clean Architecture and DDD principles:
- * <ul>
- *   <li>Extends {@link OptimisticLock} for optimistic locking support</li>
- *   <li>Encapsulates all company business logic and invariants</li>
- *   <li>Does not expose mutable state directly (no setters for business fields)</li>
- *   <li>Provides domain behavior methods for state transitions</li>
- * </ul>
- *
- * <p><strong>Business Rules:</strong>
- * <ul>
- *   <li>Company code must be unique within a tenant</li>
- *   <li>Company name must be unique within a tenant</li>
- *   <li>A company belongs to exactly one tenant</li>
- *   <li>Only active companies can have new assignments (users, branches, etc.)</li>
- * </ul>
- *
- * @since 1.0.0
- */
 @Entity
 @Table(name = "companies")
 @Getter
@@ -52,30 +17,15 @@ public class Company extends OptimisticLock<Long> {
 
     private static final long serialVersionUID = 1L;
 
-    /** Internal business identifier required by the existing companies table schema. */
     @Column(name = "company_id", nullable = false, unique = true, updatable = false)
     private UUID companyId;
 
-    /**
-     * The tenant this company belongs to.
-     * A company cannot belong to multiple tenants.
-     */
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    /**
-     * Unique company code within the tenant.
-     * Used for display, reporting, and integration.
-     * Must be unique within the tenant scope.
-     */
     @Column(name = "company_code", nullable = false, length = 50)
     private String companyCode;
 
-    /**
-     * Unique company name within the tenant.
-     * Human-readable name for the company.
-     * Must be unique within the tenant scope.
-     */
     @Column(name = "company_name", nullable = false, length = 200)
     private String companyName;
 
@@ -85,37 +35,18 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "city", length = 100)
     private String city;
 
-    /**
-     * Legal name of the company.
-     * Used for legal documents, invoices, and official communications.
-     */
     @Column(name = "legal_name", length = 200)
     private String legalName;
 
-    /**
-     * Primary email address for the company.
-     * Used for notifications and communications.
-     */
     @Column(name = "email", length = 255)
     private String email;
 
-    /**
-     * Primary phone number for the company.
-     * Used for communications and emergency contacts.
-     */
     @Column(name = "phone", length = 50)
     private String phone;
 
-    /**
-     * Website URL for the company.
-     * Optional field for reference and branding.
-     */
     @Column(name = "website", length = 200)
     private String website;
 
-    /**
-     * Street address of the company.
-     */
     @Column(name = "address", length = 500)
     private String address;
 
@@ -123,11 +54,6 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "company_type", length = 40)
     private CompanyType companyType;
 
-    /**
-     * Operational business category of the company (restaurant, cafe, ...).
-     * Distinct from {@link #companyType}, which describes the legal structure.
-     * Used to configure module-specific behaviour such as the POS interface.
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "business_type", length = 40)
     private BusinessType businessType;
@@ -139,10 +65,29 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "vat_registered")
     private Boolean vatRegistered;
 
+    /** VAT registration number issued by IRD (separate from PAN). */
+    @Column(name = "vat_registration_number", length = 30)
+    private String vatRegistrationNumber;
+
+    /** Effective start date of VAT registration. */
+    @Column(name = "vat_effective_from")
+    private LocalDate vatEffectiveFrom;
+
+    /** Effective end date of VAT registration (null if still active). */
+    @Column(name = "vat_effective_to")
+    private LocalDate vatEffectiveTo;
+
     /**
-     * Current status of the company.
-     * Determines whether the company is operational.
+     * Authoritative IRD tax scheme for this company. Replaces the legacy
+     * {@code vatRegistered} boolean; kept in sync with it during the
+     * transition. Nullable for backward compatibility with rows created
+     * before V46.
      */
+    @Getter(AccessLevel.NONE)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_scheme", length = 20)
+    private TaxScheme taxScheme;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private CompanyStatus status;
@@ -239,7 +184,65 @@ public class Company extends OptimisticLock<Long> {
     public void updateVatRegistered(Boolean vatRegistered) {
         if (vatRegistered != null) {
             this.vatRegistered = vatRegistered;
+            // Keep the authoritative tax scheme in sync during transition.
+            this.taxScheme = vatRegistered ? TaxScheme.VAT_REGISTERED : TaxScheme.PAN_ONLY;
         }
+    }
+
+    public void updateVatRegistration(String vatRegistrationNumber, LocalDate effectiveFrom, LocalDate effectiveTo) {
+        if (vatRegistrationNumber != null) {
+            this.vatRegistrationNumber = vatRegistrationNumber.trim();
+        }
+        if (effectiveFrom != null) {
+            this.vatEffectiveFrom = effectiveFrom;
+        }
+        if (effectiveTo != null) {
+            this.vatEffectiveTo = effectiveTo;
+        }
+    }
+
+    public void updateTaxScheme(TaxScheme taxScheme) {
+        if (taxScheme != null) {
+            this.taxScheme = taxScheme;
+            this.vatRegistered = taxScheme.isVatApplicable();
+        }
+    }
+
+    /**
+     * Authoritative IRD tax scheme. Falls back to the legacy {@code vatRegistered}
+     * boolean for rows created before V46 (where {@code tax_scheme} is null).
+     */
+    public TaxScheme getTaxScheme() {
+        if (this.taxScheme != null) {
+            return this.taxScheme;
+        }
+        return Boolean.TRUE.equals(this.vatRegistered)
+                ? TaxScheme.VAT_REGISTERED
+                : TaxScheme.PAN_ONLY;
+    }
+
+    /**
+     * Derived convenience accessor. Prefer {@link #getTaxScheme()} in new code.
+     */
+    public boolean isVatRegistered() {
+        return getTaxScheme().isVatApplicable();
+    }
+
+    /**
+     * Checks whether VAT registration is effective as of the given date.
+     */
+    public boolean isVatEffectiveAsOf(LocalDate asOf) {
+        if (!getTaxScheme().isVatApplicable()) {
+            return false;
+        }
+        LocalDate check = (asOf == null) ? LocalDate.now() : asOf;
+        if (vatEffectiveFrom != null && check.isBefore(vatEffectiveFrom)) {
+            return false;
+        }
+        if (vatEffectiveTo != null && check.isAfter(vatEffectiveTo)) {
+            return false;
+        }
+        return true;
     }
 
     // ==================== Factory Methods ====================

@@ -5,6 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -48,8 +49,11 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @ComponentScan(basePackages = {
         "com.erp.business.sales",
         "com.erp.business.sales.interfaces.rest",
-        "com.erp.platform.shared"
-})
+        "com.erp.platform.shared",
+        "com.erp.platform.business"
+}, excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = com.erp.platform.shared.numbering.DocumentNumberService.class))
 
 @EntityScan(basePackages = {
         "com.erp.business.sales.customer.domain",
@@ -59,7 +63,9 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.sales.invoice.domain",
         "com.erp.business.sales.receipt.domain",
         "com.erp.business.sales.salesreturn.domain",
-        "com.erp.business.sales.shared.domain"
+        "com.erp.business.sales.shared.domain",
+        "com.erpai.integration.ird.domain",
+        "com.erpai.integration.ird.outbox.entity"
 })
 @EnableJpaRepositories(basePackages = {
         "com.erp.business.sales.customer.infrastructure.persistence",
@@ -69,7 +75,9 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.sales.invoice.infrastructure.persistence",
         "com.erp.business.sales.receipt.infrastructure.persistence",
         "com.erp.business.sales.salesreturn.infrastructure.persistence",
-        "com.erp.business.sales.shared.infrastructure.persistence"
+        "com.erp.business.sales.shared.infrastructure.persistence",
+        "com.erpai.integration.ird.infrastructure.persistence",
+        "com.erpai.integration.ird.outbox.repository"
 })
 @Import({AuditingConfig.class, PermissionAspect.class, DefaultSecurityContext.class,
         SecurityExceptionHandler.class})

@@ -39,6 +39,8 @@ public interface SalesReturnService {
      */
     SalesReturnResponse postReturn(Long tenantId, Long companyId, Long id);
 
+    SalesReturnResponse approveSalesReturn(Long tenantId, Long companyId, Long id);
+
     SalesReturnResponse cancelReturn(Long tenantId, Long companyId, Long id,
                                      ReturnDecisionRequest request);
 }

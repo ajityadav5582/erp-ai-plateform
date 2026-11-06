@@ -129,6 +129,24 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
     @Column(name = "supplier_name", nullable = false, length = 255)
     private String supplierName;
 
+    /** Snapshot of supplier VAT registration status at invoice creation time. */
+    @Column(name = "supplier_vat_registration_status", length = 20)
+    private String supplierVatRegistrationStatus;
+
+    /** Snapshot of supplier VAT registration number at invoice creation time. */
+    @Column(name = "supplier_vat_registration_number", length = 64)
+    private String supplierVatRegistrationNumber;
+
+    /** Snapshot of supplier tax ID (PAN) at invoice creation time. */
+    @Column(name = "supplier_tax_id", length = 64)
+    private String supplierTaxId;
+
+    public void setSupplierVatSnapshot(String status, String vatNumber, String taxId) {
+        this.supplierVatRegistrationStatus = status;
+        this.supplierVatRegistrationNumber = vatNumber;
+        this.supplierTaxId = taxId;
+    }
+
     @Column(name = "currency", nullable = false, length = 3)
     @Builder.Default
     private String currency = "NPR";

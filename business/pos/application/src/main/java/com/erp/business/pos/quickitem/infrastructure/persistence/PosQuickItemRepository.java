@@ -48,4 +48,41 @@ public interface PosQuickItemRepository extends JpaRepository<PosQuickItem, Long
                               @Param("companyId") Long companyId,
                               @Param("term") String term,
                               Pageable pageable);
+
+    // -----------------------------------------------------------------------
+    // Tab / page aware queries
+    // -----------------------------------------------------------------------
+
+    @Query("SELECT DISTINCT p.tabName FROM PosQuickItem p "
+            + "WHERE p.tenantId = :tenantId AND p.companyId = :companyId AND p.isActive = true "
+            + "ORDER BY p.tabName ASC")
+    List<String> findDistinctTabNames(@Param("tenantId") Long tenantId,
+                                      @Param("companyId") Long companyId);
+
+    @Query("SELECT p FROM PosQuickItem p WHERE p.tenantId = :tenantId AND p.companyId = :companyId "
+            + "AND p.tabName = :tabName AND p.pageNumber = :pageNumber AND p.isActive = true "
+            + "AND (p.registerId = :registerId OR p.registerId IS NULL)")
+    List<PosQuickItem> findTilesForTerminal(@Param("tenantId") Long tenantId,
+                                            @Param("companyId") Long companyId,
+                                            @Param("tabName") String tabName,
+                                            @Param("pageNumber") Integer pageNumber,
+                                            @Param("registerId") Long registerId);
+
+    @Query("SELECT COALESCE(MAX(p.pageNumber), 1) FROM PosQuickItem p "
+            + "WHERE p.tenantId = :tenantId AND p.companyId = :companyId "
+            + "AND p.tabName = :tabName AND p.isActive = true")
+    Integer findMaxPageNumber(@Param("tenantId") Long tenantId,
+                              @Param("companyId") Long companyId,
+                              @Param("tabName") String tabName);
+
+    @Query("SELECT COUNT(p) > 0 FROM PosQuickItem p WHERE p.tenantId = :tenantId "
+            + "AND p.companyId = :companyId AND p.tabName = :tabName "
+            + "AND p.pageNumber = :pageNumber AND p.gridRow = :gridRow "
+            + "AND p.gridCol = :gridCol AND p.isActive = true")
+    boolean isSlotOccupied(@Param("tenantId") Long tenantId,
+                           @Param("companyId") Long companyId,
+                           @Param("tabName") String tabName,
+                           @Param("pageNumber") Integer pageNumber,
+                           @Param("gridRow") Integer gridRow,
+                           @Param("gridCol") Integer gridCol);
 }

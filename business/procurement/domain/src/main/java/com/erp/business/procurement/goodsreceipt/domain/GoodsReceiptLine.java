@@ -1,6 +1,7 @@
 package com.erp.business.procurement.goodsreceipt.domain;
 
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrderLine;
+import com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory;
 import com.erp.platform.data.entity.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -121,6 +122,10 @@ public class GoodsReceiptLine extends TenantScopedEntity<Long> {
     @NotNull(message = "Line amount is required")
     @Column(name = "line_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal lineAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_category", length = 20)
+    private com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory taxCategory;
 
     /**
      * The warehouse this line's quantity physically landed in.

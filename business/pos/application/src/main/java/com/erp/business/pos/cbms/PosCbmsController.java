@@ -5,6 +5,7 @@ import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.business.pos.shared.security.PosTransactionPermissions;
 import com.erp.business.pos.transaction.infrastructure.persistence.PosTransactionRepository;
 import com.erp.platform.security.annotation.RequiresPermission;
+import com.erpai.integration.ird.config.IrdProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,9 +29,9 @@ import java.util.Map;
 public class PosCbmsController {
 
     private final PosCbmsSyncWorker syncWorker;
-    private final PosCbmsClient cbmsClient;
     private final PosTransactionRepository transactionRepository;
     private final BusinessContextAccessor context;
+    private final IrdProperties irdProperties;
 
     @PostMapping("/transactions/{id}/sync")
     @RequiresPermission(PosTransactionPermissions.POS_TRANSACTION_VIEW)
@@ -52,7 +53,7 @@ public class PosCbmsController {
 
         return ResponseEntity.ok(Map.of(
                 "pendingTransactions", pending,
-                "enabled", cbmsClient.isEnabled()
+                "enabled", irdProperties.isEnabled()
         ));
     }
 }

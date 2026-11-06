@@ -9,7 +9,7 @@ spring:
   jpa:
     generate-ddl: ${SPRING_JPA_GENERATE_DDL:true}
     hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     show-sql: false
     properties:
       hibernate:

@@ -115,7 +115,6 @@ export interface CheckoutLineRequest {
 
 export interface CheckoutRequest {
   sessionId: number;
-  tableId?: number;
   customerId?: number;
   customerName?: string;
   customerPanNumber?: string;

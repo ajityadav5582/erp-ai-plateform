@@ -44,6 +44,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @ComponentScan(basePackages = {
         "com.erp.business.inventory",
         "com.erp.platform.shared",
+        "com.erp.platform.business",
         "com.erp.business.inventory.interfaces.rest"
 })
 

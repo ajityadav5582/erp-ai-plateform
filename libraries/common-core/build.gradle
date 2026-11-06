@@ -53,8 +53,9 @@ dependencies {
     api 'jakarta.persistence:jakarta.persistence-api'
     api 'org.hibernate.orm:hibernate-core'
 
-    // Swagger/OpenAPI annotations
-    api 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
+ // Swagger/OpenAPI annotations + UI
+ api 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
+ api 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
 
     // Utilities
     api "org.apache.commons:commons-lang3:${commonsLangVersion}"

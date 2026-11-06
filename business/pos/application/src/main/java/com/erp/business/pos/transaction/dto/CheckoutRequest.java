@@ -52,8 +52,6 @@ public record CheckoutRequest(
 
         String paymentReference,
 
-        String notes,
-
-        Long tableId
+        String notes
 ) {
 }

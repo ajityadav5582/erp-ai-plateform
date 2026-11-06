@@ -57,6 +57,22 @@ public class Supplier extends TenantScopedEntity<Long> {
     @Column(name = "tax_id", length = 64)
     private String taxId;
 
+    public enum VatRegistrationStatus { PAN_ONLY, VAT_REGISTERED, UNKNOWN }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vat_registration_status", length = 20)
+    @Builder.Default
+    private VatRegistrationStatus vatRegistrationStatus = VatRegistrationStatus.UNKNOWN;
+
+    @Column(name = "vat_registration_number", length = 64)
+    private String vatRegistrationNumber;
+
+    @Column(name = "vat_effective_from")
+    private java.time.LocalDate vatEffectiveFrom;
+
+    @Column(name = "vat_effective_to")
+    private java.time.LocalDate vatEffectiveTo;
+
     @Column(name = "payment_terms_days")
     private Integer paymentTermsDays;
 

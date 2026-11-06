@@ -170,7 +170,11 @@ export function NavigationProgress({ className }: { className?: string }) {
 
   const setPhaseSafely = React.useCallback((next: Phase) => {
     phaseRef.current = next;
-    setPhase(next);
+    // React 19 forbids scheduling state updates during the insertion-effect
+    // phase (e.g. when this runs synchronously from a patched
+    // `history.pushState` during commit). Defer the update to the next
+    // macrotask so it always lands in a safe phase.
+    setTimeout(() => setPhase(next), 0);
   }, []);
 
   /** Cancels every pending timer so a superseded navigation cannot resurrect. */
@@ -258,7 +262,8 @@ export function NavigationProgress({ className }: { className?: string }) {
       ...args: Parameters<History["pushState"]>
     ) {
       const result = originalPushState.apply(this, args);
-      finish();
+      // Defer so state updates never run during the insertion-effect phase.
+      setTimeout(finish, 0);
       return result;
     };
 
@@ -267,7 +272,7 @@ export function NavigationProgress({ className }: { className?: string }) {
       ...args: Parameters<History["replaceState"]>
     ) {
       const result = originalReplaceState.apply(this, args);
-      finish();
+      setTimeout(finish, 0);
       return result;
     };
 
