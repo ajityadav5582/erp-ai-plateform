@@ -44,7 +44,7 @@ import lombok.ToString;
  */
 @Entity
 @Table(
-        name = "units",
+        name = "inventory_units",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_company_unit_code",

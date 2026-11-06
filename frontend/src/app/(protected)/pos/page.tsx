@@ -10,11 +10,13 @@ import {
   ReceiptText,
   Store,
   UploadCloud,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGetMyOpenPosSessionsQuery } from "@/services/pos-session.service";
 import { useGetPosTransactionsQuery } from "@/services/pos-transaction.service";
 import { useGetCbmsStatusQuery } from "@/services/pos-cbms.service";
+import { usePosCapabilities } from "@/config/pos-capabilities";
 import { formatPosCurrency, formatPosDateTime } from "@/lib/pos-format";
 
 const quickLinks = [
@@ -33,6 +35,7 @@ const quickLinks = [
  * endpoints the terminal already uses, so it adds no new backend surface.
  */
 export default function PosDashboardPage() {
+  const capabilities = usePosCapabilities();
   const { data: openSessions, isLoading: sessionsLoading } = useGetMyOpenPosSessionsQuery();
   const { data: cbms, isLoading: cbmsLoading } = useGetCbmsStatusQuery();
   const { data: recent, isLoading: recentLoading } = useGetPosTransactionsQuery({
@@ -171,6 +174,16 @@ export default function PosDashboardPage() {
               <p className="text-xs text-muted-foreground">{description}</p>
             </Link>
           ))}
+          {capabilities.orderTypes && capabilities.serviceSelection && (
+            <Link
+              href="/pos/restaurant"
+              className="rounded-lg border bg-card p-4 transition-colors hover:bg-accent"
+            >
+              <UtensilsCrossed className="h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-sm font-medium">Restaurant Terminal</p>
+              <p className="text-xs text-muted-foreground">Tables & kitchen</p>
+            </Link>
+          )}
         </div>
       </section>
     </div>

@@ -1,0 +1,1 @@
+ALTER TABLE pos_kitchen_orders ADD COLUMN IF NOT EXISTS waiter VARCHAR(100);

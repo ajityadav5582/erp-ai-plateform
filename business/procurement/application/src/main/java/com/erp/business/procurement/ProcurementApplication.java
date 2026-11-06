@@ -46,6 +46,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
 @ComponentScan(basePackages = {
         "com.erp.business.procurement",
         "com.erp.platform.shared",
+        "com.erp.platform.business",
         "com.erp.business.procurement.interfaces.rest"
 })
 

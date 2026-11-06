@@ -29,6 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@org.springframework.core.annotation.Order(1)
 public class SecurityConfig {
 
     private final PlatformJwtAuthenticationFilter platformJwtAuthenticationFilter;

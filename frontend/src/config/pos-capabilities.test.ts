@@ -19,8 +19,6 @@ const BUSINESS_TYPES: BusinessType[] = [
 const CAPABILITY_KEYS: (keyof ReturnType<typeof getPosCapabilities>)[] = [
   "barcodeScanning",
   "productGrid",
-  "tableManagement",
-  "kitchenTickets",
   "orderTypes",
   "productVariants",
   "batchTracking",
@@ -43,18 +41,14 @@ export function runPosCapabilityTests(): void {
   }
 
   // Profile-specific expectations
-  assert(getPosCapabilities("RESTAURANT").tableManagement, "RESTAURANT should enable tableManagement");
-  assert(getPosCapabilities("RESTAURANT").kitchenTickets, "RESTAURANT should enable kitchenTickets");
   assert(!getPosCapabilities("RESTAURANT").barcodeScanning, "RESTAURANT should disable barcodeScanning");
 
-  assert(getPosCapabilities("CAFE").tableManagement, "CAFE should enable tableManagement");
   assert(getPosCapabilities("HOTEL").serviceSelection, "HOTEL should enable serviceSelection");
 
   assert(getPosCapabilities("SWEETS_RETAIL").barcodeScanning, "SWEETS_RETAIL should enable barcodeScanning");
   assert(getPosCapabilities("SWEETS_RETAIL").batchTracking, "SWEETS_RETAIL should enable batchTracking");
 
   assert(getPosCapabilities("GENERAL_RETAIL").barcodeScanning, "GENERAL_RETAIL should enable barcodeScanning");
-  assert(!getPosCapabilities("GENERAL_RETAIL").tableManagement, "GENERAL_RETAIL should disable tableManagement");
 
   assert(getPosCapabilities("GROCERY").batchTracking, "GROCERY should enable batchTracking");
   assert(getPosCapabilities("PHARMACY").batchTracking, "PHARMACY should enable batchTracking");

@@ -138,6 +138,7 @@ public class ItemServiceAdapter implements ItemService {
             @Override public Long getReservedStock() { return null; }
             @Override public java.math.BigDecimal getSellingPrice() { return internal.sellingPrice(); }
             @Override public java.math.BigDecimal getVatRate() { return internal.vatRate(); }
+            @Override public Boolean getIsVatInclusive() { return internal.isVatInclusive(); }
             @Override public Boolean getIsPurchasable() { return internal.isPurchasable(); }
             @Override public Boolean getIsSellable() { return internal.isSellable(); }
             @Override public Boolean getIsComponent() { return internal.isComponent(); }

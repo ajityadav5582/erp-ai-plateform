@@ -27,7 +27,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(
-        name = "document_sequences",
+        name = "pos_document_sequences",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_document_sequences_scope",
                 columnNames = {"tenant_id", "company_id", "document_type", "period_key"}

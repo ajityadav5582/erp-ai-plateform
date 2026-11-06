@@ -9,8 +9,6 @@ import { useCompanyContext } from "./company-context";
 export interface PosCapabilities {
   barcodeScanning: boolean;
   productGrid: boolean;
-  tableManagement: boolean;
-  kitchenTickets: boolean;
   orderTypes: boolean;
   productVariants: boolean;
   batchTracking: boolean;
@@ -20,8 +18,6 @@ export interface PosCapabilities {
 const DEFAULT_CAPABILITIES: PosCapabilities = {
   barcodeScanning: true,
   productGrid: true,
-  tableManagement: false,
-  kitchenTickets: false,
   orderTypes: false,
   productVariants: false,
   batchTracking: false,
@@ -32,8 +28,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   RESTAURANT: {
     barcodeScanning: false,
     productGrid: true,
-    tableManagement: true,
-    kitchenTickets: true,
     orderTypes: true,
     productVariants: true,
     batchTracking: false,
@@ -42,8 +36,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   CAFE: {
     barcodeScanning: false,
     productGrid: true,
-    tableManagement: true,
-    kitchenTickets: true,
     orderTypes: true,
     productVariants: true,
     batchTracking: false,
@@ -52,8 +44,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   HOTEL: {
     barcodeScanning: false,
     productGrid: true,
-    tableManagement: true,
-    kitchenTickets: true,
     orderTypes: true,
     productVariants: true,
     batchTracking: false,
@@ -62,8 +52,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   SWEETS_RETAIL: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: true,
@@ -72,8 +60,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   GENERAL_RETAIL: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: false,
@@ -82,8 +68,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   GROCERY: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: true,
@@ -92,8 +76,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   HARDWARE: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: false,
@@ -102,8 +84,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   SANITARY: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: false,
@@ -112,8 +92,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   PHARMACY: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: true,
@@ -122,8 +100,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   CLOTHING: {
     barcodeScanning: true,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: false,
     productVariants: true,
     batchTracking: false,
@@ -132,8 +108,6 @@ const CAPABILITIES_BY_BUSINESS_TYPE: Record<BusinessType, PosCapabilities> = {
   SERVICES: {
     barcodeScanning: false,
     productGrid: true,
-    tableManagement: false,
-    kitchenTickets: false,
     orderTypes: true,
     productVariants: false,
     batchTracking: false,

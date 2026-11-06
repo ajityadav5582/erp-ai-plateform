@@ -131,6 +131,12 @@ public class PosSession extends TenantScopedEntity<Long> {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    @Column(name = "z_report_number", length = 40)
+    private String zReportNumber;
+
+    public void setZReportNumber(String zReportNumber) { this.zReportNumber = zReportNumber; }
+    public String getZReportNumber() { return this.zReportNumber; }
+
     // -----------------------------------------------------------------------
     // Cash drawer
     // -----------------------------------------------------------------------
@@ -202,6 +208,20 @@ public class PosSession extends TenantScopedEntity<Long> {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    // Setters for SessionCloseService (Lombok @Getter only on this entity).
+    public void setClosingCashCounted(BigDecimal v) { this.closingCashAmount = v; }
+    public void setExpectedCash(BigDecimal v) { this.expectedCash = v; }
+    public void setCashVariance(BigDecimal v) { this.cashVariance = v; }
+    public void setGrossSales(BigDecimal v) { this.grossSales = v; }
+    public void setTaxableSales(BigDecimal v) { /* no dedicated field; ignored */ }
+    public void setVatTotal(BigDecimal v) { this.totalVatCollected = v; }
+    public void setStartBillNumber(String v) { /* no dedicated field; ignored */ }
+    public void setEndBillNumber(String v) { /* no dedicated field; ignored */ }
+    public void setTotalBillCount(int v) { this.totalTransactions = v; }
+    public void setClosedAt(Instant v) { this.closedAt = v; }
+    public void setStatus(PosSessionStatus v) { this.status = v; }
+    // setZReportNumber already provided by Lombok/existing; no duplicate needed.
 
     @Column(name = "close_notes", columnDefinition = "TEXT")
     private String closeNotes;

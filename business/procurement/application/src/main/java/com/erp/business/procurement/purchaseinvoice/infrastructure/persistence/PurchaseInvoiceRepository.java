@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -66,4 +67,29 @@ public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice
      */
     boolean existsByTenantIdAndCompanyIdAndSupplierIdAndInvoiceNumber(
             Long tenantId, Long companyId, Long supplierId, String invoiceNumber);
+
+    @Query(value = "SELECT pi.id, pi.invoice_date, pi.invoice_number, pi.supplier_name, s.tax_id, "
+            + "pi.total_amount, pi.subtotal_amount, pi.tax_amount "
+            + "FROM purchase_invoices pi LEFT JOIN suppliers s "
+            + "ON s.id = pi.supplier_id AND s.tenant_id = pi.tenant_id "
+            + "WHERE pi.tenant_id = :tenantId AND pi.company_id = :companyId "
+            + "AND (:fiscalYearId IS NULL OR pi.fiscal_year_id = :fiscalYearId) "
+            + "AND (:supplierId IS NULL OR pi.supplier_id = :supplierId) "
+            + "AND (:fromDate IS NULL OR pi.invoice_date >= :fromDate) "
+            + "AND (:toDate IS NULL OR pi.invoice_date <= :toDate)",
+            countQuery = "SELECT COUNT(*) FROM purchase_invoices pi "
+                    + "WHERE pi.tenant_id = :tenantId AND pi.company_id = :companyId "
+                    + "AND (:fiscalYearId IS NULL OR pi.fiscal_year_id = :fiscalYearId) "
+                    + "AND (:supplierId IS NULL OR pi.supplier_id = :supplierId) "
+                    + "AND (:fromDate IS NULL OR pi.invoice_date >= :fromDate) "
+                    + "AND (:toDate IS NULL OR pi.invoice_date <= :toDate)",
+            nativeQuery = true)
+    org.springframework.data.domain.Page<Object[]> findPurchaseBook(
+            @Param("tenantId") Long tenantId,
+            @Param("companyId") Long companyId,
+            @Param("fiscalYearId") Long fiscalYearId,
+            @Param("supplierId") Long supplierId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            org.springframework.data.domain.Pageable pageable);
 }

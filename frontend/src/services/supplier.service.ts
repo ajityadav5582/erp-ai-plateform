@@ -25,6 +25,30 @@ export function formatSupplierType(type: string | null | undefined): string {
 }
 
 /**
+ * Mirrors the backend `Supplier.VatRegistrationStatus` enum.
+ */
+export const VAT_REGISTRATION_STATUSES = [
+  "VAT_REGISTERED",
+  "PAN_ONLY",
+  "UNKNOWN",
+] as const;
+
+export type VatRegistrationStatus = (typeof VAT_REGISTRATION_STATUSES)[number];
+
+export const VAT_REGISTRATION_STATUS_LABELS: Record<VatRegistrationStatus, string> = {
+  VAT_REGISTERED: "VAT Registered",
+  PAN_ONLY: "PAN Only",
+  UNKNOWN: "Unknown",
+};
+
+export function formatVatRegistrationStatus(
+  status: string | null | undefined
+): string {
+  if (!status) return "—";
+  return VAT_REGISTRATION_STATUS_LABELS[status as VatRegistrationStatus] ?? status;
+}
+
+/**
  * Projection of `SupplierResponse` used by the paginated list endpoint. The
  * backend returns the full record here too, so this type is intentionally a
  * structural subset that the list table relies on.
@@ -42,6 +66,10 @@ export interface SupplierListResponse {
   taxId: string | null;
   paymentTermsDays: number | null;
   currency: string | null;
+  vatRegistrationStatus: VatRegistrationStatus | null;
+  vatRegistrationNumber: string | null;
+  vatEffectiveFrom: string | null;
+  vatEffectiveTo: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +92,10 @@ export interface CreateSupplierRequest {
   taxId?: string;
   paymentTermsDays?: number;
   currency?: string;
+  vatRegistrationStatus?: VatRegistrationStatus;
+  vatRegistrationNumber?: string;
+  vatEffectiveFrom?: string;
+  vatEffectiveTo?: string;
 }
 
 /**
@@ -81,6 +113,10 @@ export interface UpdateSupplierRequest {
   taxId?: string | null;
   paymentTermsDays?: number | null;
   currency?: string | null;
+  vatRegistrationStatus?: VatRegistrationStatus | null;
+  vatRegistrationNumber?: string | null;
+  vatEffectiveFrom?: string | null;
+  vatEffectiveTo?: string | null;
 }
 
 /**

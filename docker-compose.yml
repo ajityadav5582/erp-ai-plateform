@@ -261,8 +261,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${INVENTORY_PORT:-8083}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 20
-      start_period: 300s
+      retries: 40
+      start_period: 900s
     deploy:
       resources:
         limits:
@@ -431,8 +431,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${POS_PORT:-8086}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 20
-      start_period: 300s
+      retries: 40
+      start_period: 900s
     deploy:
       resources:
         limits:

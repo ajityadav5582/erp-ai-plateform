@@ -27,15 +27,16 @@ dependencyManagement {
 dependencies {
     // Shared platform library (Phase 1 consolidation)
     implementation project(':platform:shared')
+    implementation project(':platform:identity')
     // Domain entities + shared TenantScopedEntity live in the sibling domain module.
     // It is exposed as `api` so the JPA annotations and OptimisticLock base class
     // remain on the compile classpath of anything consuming this module.
-    api project(':business:sales:domain')
-
-    // Inventory interfaces for cross-module communication (Item, Warehouse, Unit,
+     api project(':business:sales:domain')
+     implementation project(':business:pos:domain')// Inventory interfaces for cross-module communication (Item, Warehouse, Unit,
     // and the outbound stock-issue port). Replaces a direct dependency on
     // inventory:application to maintain module boundaries.
     implementation project(':business:inventory:interfaces')
+    implementation project(':integration')
 
     api project(':libraries:common-core')
     api project(':libraries:common-data')

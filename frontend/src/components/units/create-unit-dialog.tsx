@@ -131,8 +131,9 @@ export function CreateUnitDialog({ open, onOpenChange }: CreateUnitDialogProps) 
       toast.success(`Unit "${result.name}" created successfully!`, {
         description: `Code: ${result.code}`,
       });
-      // Close the dialog immediately so the form disappears without waiting
-      // for the list refetch triggered by cache invalidation.
+      // Let the cache-invalidation refetch settle before unmounting, so the
+      // browser does not report the in-flight GET as "canceled".
+      await new Promise((resolve) => setTimeout(resolve, 300));
       onOpenChange(false);
       form.reset();
     } catch (err) {

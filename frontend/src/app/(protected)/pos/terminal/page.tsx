@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import RestaurantPosTerminalPage from "@/app/(protected)/pos/restaurant/page";
 import { Loader2, ParkingMeter, Play, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -9,8 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePosCart, type CartLine } from "@/hooks/use-pos-cart";
 import { useSelectedCompany } from "@/config/company-context";
 import { usePosCapabilities } from "@/config/pos-capabilities";
-import { useGetPosTablesQuery } from "@/services/pos-table.service";
-import { useCreatePosKitchenTicketMutation } from "@/services/pos-kitchen-ticket.service";
 import { useLazyScanPosItemQuery } from "@/services/pos-scan.service";
 import { useGetMyOpenPosSessionsQuery } from "@/services/pos-session.service";
 import {
@@ -24,9 +23,9 @@ import {
 import { getApiErrorMessage } from "@/services/error-handler";
 import { SessionGate } from "@/components/pos/terminal/session-gate";
 import { ScanField } from "@/components/pos/terminal/scan-field";
-import { QuickItemGrid } from "@/components/pos/terminal/quick-item-grid";
+import { QuickItemsTerminal } from "@/components/pos/terminal/quick-items-terminal";
 import { CartPanel } from "@/components/pos/terminal/cart-panel";
-import { PaymentDialog } from "@/components/pos/terminal/payment-dialog";
+import { SettlementDialog } from "@/components/pos/terminal/settlement-dialog";
 import { ReceiptDialog } from "@/components/pos/terminal/receipt-dialog";
 import type { PosQuickItem } from "@/services/pos-quick-item.service";
 import { formatPosCurrency as currency } from "@/lib/pos-format";
@@ -44,16 +43,16 @@ import { formatPosCurrency as currency } from "@/lib/pos-format";
  * and checkout re-prices again before persisting.
  */
 export default function PosTerminalPage() {
+  const selectedCompany = useSelectedCompany();
+  const capabilities = usePosCapabilities();
+  const isRestaurantType =
+    selectedCompany?.businessType === "RESTAURANT" ||
+    selectedCompany?.businessType === "CAFE";
   const isMobile = useIsMobile();
   const { data: openSessions, isLoading: isLoadingSessions } = useGetMyOpenPosSessionsQuery();
   const session = openSessions?.[0] ?? null;
 
   const cart = usePosCart();
-  const selectedCompany = useSelectedCompany();
-  const capabilities = usePosCapabilities();
-  const { data: posTables = [] } = useGetPosTablesQuery(undefined, { skip: !capabilities.tableManagement });
-  const [selectedTableId, setSelectedTableId] = React.useState<number | null>(null);
-  const [createKitchenTicket] = useCreatePosKitchenTicketMutation();
   const previousCompanyIdRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     if (
@@ -141,7 +140,6 @@ export default function PosTerminalPage() {
       const transaction = await checkout({
         request: {
           sessionId: session.id,
-          tableId: selectedTableId ?? undefined,
           lines: cart.lines.map((line) => ({
             itemId: line.itemId,
             quantity: line.quantity,
@@ -156,9 +154,6 @@ export default function PosTerminalPage() {
       setIsPaymentOpen(false);
       setIsCartOpen(false);
       setOrderNotes("");
-      if (capabilities.kitchenTickets) {
-        void createKitchenTicket(transaction.id);
-      }
       setReceiptId(transaction.id);
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Checkout failed.");
@@ -273,6 +268,10 @@ export default function PosTerminalPage() {
     </>
   );
 
+  if (isRestaurantType) {
+    return <RestaurantPosTerminalPage />;
+  }
+
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row">
       {/* Main column: session bar, scan, quick grid */}
@@ -292,27 +291,6 @@ export default function PosTerminalPage() {
           </div>
         </header>
 
-        {capabilities.tableManagement && posTables.length > 0 && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="pos-table">
-              Table
-            </label>
-            <select
-              id="pos-table"
-              value={selectedTableId ?? ""}
-              onChange={(event) => setSelectedTableId(event.target.value ? Number(event.target.value) : null)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">No table</option>
-              {posTables.map((table) => (
-                <option key={table.id} value={table.id}>
-                  {table.tableName} ({table.status})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {capabilities.barcodeScanning && (
           <ScanField
             onScan={(code) => void handleScan(code)}
@@ -322,7 +300,7 @@ export default function PosTerminalPage() {
         )}
 
         {capabilities.productGrid && (
-          <QuickItemGrid
+          <QuickItemsTerminal
             registerId={session.registerId}
             onSelect={handleQuickItem}
             disabled={scanState.isLoading}
@@ -353,7 +331,7 @@ export default function PosTerminalPage() {
                   <span className="text-sm text-muted-foreground">
                     {transaction.lines.length} item(s) · {currency(transaction.totalAmount)}
                   </span>
-                  <Button size="sm" variant="secondary" onClick={() => handleResume(transaction.id)}>
+                  <Button size="sm" variant="secondary" onClick={() => void handleResume(transaction.id)}>
                     <Play className="mr-1 h-3 w-3" />
                     Resume
                   </Button>
@@ -416,7 +394,7 @@ export default function PosTerminalPage() {
         </>
       )}
 
-      <PaymentDialog
+      <SettlementDialog
         open={isPaymentOpen}
         onOpenChange={setIsPaymentOpen}
         total={cart.preview.total}

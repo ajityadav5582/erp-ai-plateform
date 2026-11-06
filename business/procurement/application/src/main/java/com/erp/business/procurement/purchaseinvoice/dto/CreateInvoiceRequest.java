@@ -78,7 +78,9 @@ public record CreateInvoiceRequest(
             BigDecimal taxRate,
 
             @Size(max = 500)
-            String description
-    ) {
+            String description,
+
+            com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory taxCategory
+     ) {
     }
 }

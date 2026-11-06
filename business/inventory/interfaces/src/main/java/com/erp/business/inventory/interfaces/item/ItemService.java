@@ -141,6 +141,7 @@ public interface ItemService {
         // a selling price without coupling to Inventory internals.
         default BigDecimal getSellingPrice() { return null; }
         default BigDecimal getVatRate() { return null; }
+        default Boolean getIsVatInclusive() { return null; }
     }
 
     /**

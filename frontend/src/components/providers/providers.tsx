@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Provider } from "react-redux";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import { store } from "@/store";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -18,6 +19,12 @@ import { Toaster } from "sonner";
  * - Sonner Toaster (for toast notifications)
  */
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Single QueryClient instance for the (few) components that still use
+  // @tanstack/react-query directly (POS/restaurant settings, VAT reports, ...).
+  // Created once per app lifetime via useState so it is not recreated on
+  // every render.
+  const [queryClient] = React.useState(() => new QueryClient());
+
   // Wire RTK Query's online/focus listeners once so
   // `refetchOnReconnect: true` (see `services/api.ts`) actually
   // re-fetches subscribed queries after a network reconnect —
@@ -29,23 +36,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <Provider store={store}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <AuthProvider>
-          {children}
-          <Toaster
-            position="top-right"
-            richColors
-            closeButton
-            duration={4000}
-            theme="system"
-          />
-        </AuthProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            {children}
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              duration={4000}
+              theme="system"
+            />
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     </Provider>
   );
 }

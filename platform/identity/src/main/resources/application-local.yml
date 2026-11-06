@@ -22,9 +22,6 @@ spring:
         format_sql: false
   flyway:
     enabled: false
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: false
 
 logging:
   level:

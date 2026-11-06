@@ -31,6 +31,9 @@ dependencies {
 
     // Inventory public contracts (item lookup, outbound stock-issue port).
     implementation project(':business:inventory:interfaces')
+    implementation project(':integration')
+    // Identity public contracts (Company lookup for tax scheme / business type).
+    implementation project(':platform:identity')
 
     api project(':libraries:common-core')
     api project(':libraries:common-data')
@@ -39,6 +42,7 @@ dependencies {
     implementation project(':libraries:common-nepali-date')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -62,6 +66,17 @@ dependencies {
     implementation "org.apache.commons:commons-lang3:${commonsLangVersion}"
     implementation "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Testing
+    testImplementation project(':libraries:common-testing')
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -80,6 +95,7 @@ bootRun {
         'DB_USERNAME': 'erpai',
         'DB_PASSWORD': 'erpai_dev_password',
         'SPRING_PROFILES_ACTIVE': 'local',
-        'JWT_SECRET': 'jwt-secret-key-change-me-in-production-32b'
+        'JWT_SECRET': 'jwt-secret-key-change-me-in-production-32b',
+        'INVENTORY_SERVICE_URI': 'http://localhost:8083'
     ]
 }

@@ -33,5 +33,10 @@ public enum PosTransactionStatus {
      * If it was {@link #COMPLETED}, the stock deduction has been reversed.
      * Terminal state — immutable.
      */
-    VOIDED
+    VOIDED,
+
+    /**
+     * Credit note issued for a sales return.
+     */
+    CREDIT_NOTE
 }

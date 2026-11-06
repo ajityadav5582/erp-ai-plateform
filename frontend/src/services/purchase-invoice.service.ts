@@ -52,6 +52,7 @@ export interface PurchaseInvoiceLine {
   taxRate: number;
   lineAmount: number;
   lineTaxAmount: number;
+  taxableAmount: number | null;
   description: string | null;
 }
 
@@ -74,6 +75,9 @@ export interface PurchaseInvoice {
   supplierId: number;
   supplierCode: string;
   supplierName: string;
+  supplierVatRegistrationStatus: string | null;
+  supplierVatRegistrationNumber: string | null;
+  supplierTaxId: string | null;
   currency: string;
   status: PurchaseInvoiceStatus;
   subtotalAmount: number;

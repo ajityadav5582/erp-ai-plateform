@@ -17,7 +17,10 @@ public record UpdateCompanyRequest(
         @Size(max = 500) String address,
         CompanyType companyType,
         BusinessType businessType,
-        FiscalYearType fiscalYearType,
-        Boolean vatRegistered
-) {
+         FiscalYearType fiscalYearType,
+         Boolean vatRegistered,
+         @Size(max = 30) String vatRegistrationNumber,
+         java.time.LocalDate vatEffectiveFrom,
+         java.time.LocalDate vatEffectiveTo
+ ) {
 }

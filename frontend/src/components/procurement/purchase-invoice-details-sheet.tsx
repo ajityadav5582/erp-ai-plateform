@@ -165,6 +165,18 @@ export function PurchaseInvoiceDetailsSheet({
                   />
                   <DetailRow label="Goods receipt" value={invoice.grnNumber} />
                   <DetailRow
+                    label="Supplier VAT status"
+                    value={invoice.supplierVatRegistrationStatus ?? "—"}
+                  />
+                  <DetailRow
+                    label="Supplier VAT number"
+                    value={invoice.supplierVatRegistrationNumber ?? "—"}
+                  />
+                  <DetailRow
+                    label="Supplier Tax ID"
+                    value={invoice.supplierTaxId ?? "—"}
+                  />
+                  <DetailRow
                     label="Recorded"
                     value={formatTimestamp(invoice.createdAt)}
                   />
@@ -225,6 +237,7 @@ export function PurchaseInvoiceDetailsSheet({
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Disc %</TableHead>
                         <TableHead className="text-right">Tax %</TableHead>
+                        <TableHead className="text-right">Taxable</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -253,6 +266,11 @@ export function PurchaseInvoiceDetailsSheet({
                           </TableCell>
                           <TableCell className="text-right">
                             {formatPercentage(line.taxRate)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {line.taxableAmount != null
+                              ? formatAmount(line.taxableAmount)
+                              : "—"}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {formatAmount(line.lineAmount)}

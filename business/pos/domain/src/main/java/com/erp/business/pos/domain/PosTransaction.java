@@ -134,15 +134,6 @@ public class PosTransaction extends TenantScopedEntity<Long> {
     @Column(name = "branch_id")
     private Long branchId;
 
-    @Column(name = "table_id")
-    private Long tableId;
-
-    @Column(name = "kitchen_ticket_id")
-    private Long kitchenTicketId;
-
-    public void setKitchenTicketId(Long kitchenTicketId) {
-        this.kitchenTicketId = kitchenTicketId;
-    }
 
     // -----------------------------------------------------------------------
     // Transaction date (both calendars)
@@ -273,6 +264,16 @@ public class PosTransaction extends TenantScopedEntity<Long> {
     @Column(name = "voided_at")
     private Instant voidedAt;
 
+    @Column(name = "print_count")
+    @Builder.Default
+    private Integer printCount = 1;
+
+    @Column(name = "last_printed_at")
+    private Instant lastPrintedAt;
+
+    @Column(name = "last_printed_by")
+    private Long lastPrintedBy;
+
     @Column(name = "voided_by", length = 255)
     private String voidedBy;
 
@@ -288,6 +289,19 @@ public class PosTransaction extends TenantScopedEntity<Long> {
             columnDefinition = "boolean default true")
     @Builder.Default
     private boolean isTaxInvoice = true;
+
+    public void setPrintCount(int printCount) { this.printCount = printCount; }
+    public void setLastPrintedAt(java.time.Instant t) { this.lastPrintedAt = t; }
+    public void setLastPrintedBy(Long u) { this.lastPrintedBy = u; }
+
+    /**
+     * Sets whether this transaction is a VAT tax invoice (vs. a Section 15
+     * cash bill). Driven by the company's {@code TaxScheme}; defaults to
+     * {@code true} for backward compatibility.
+     */
+    public void setTaxInvoice(boolean taxInvoice) {
+        this.isTaxInvoice = taxInvoice;
+    }
 
     /**
      * Whether this transaction has been successfully pushed to Nepal IRD CBMS.
@@ -371,7 +385,7 @@ public class PosTransaction extends TenantScopedEntity<Long> {
             Long warehouseId, String warehouseCode, String warehouseName,
             String cashierId, String cashierName,
             LocalDate transactionDate, String transactionDateNp,
-             Long fiscalYearId, Long branchId, Long tableId,
+             Long fiscalYearId, Long branchId,
              Long customerId, String customerCode, String customerName, String customerPanNumber,
              String currency, String notes) {
 
@@ -397,7 +411,6 @@ public class PosTransaction extends TenantScopedEntity<Long> {
                 .transactionDateNp(transactionDateNp)
                 .fiscalYearId(fiscalYearId)
                 .branchId(branchId)
-                .tableId(tableId)
                 .customerId(customerId)
                 .customerCode(customerCode)
                 .customerName(effectiveCustomerName)

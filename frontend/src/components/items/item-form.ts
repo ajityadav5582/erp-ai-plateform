@@ -3,7 +3,6 @@ import {
   EXCISE_TYPES,
   ITEM_TYPES,
   TAXABILITY_TYPES,
-  DEFAULT_VAT_RATE,
   type CreateItemRequest,
   type UpdateItemRequest,
   type Item,
@@ -122,13 +121,12 @@ export const itemFormSchema = z
       });
     }
 
-    // A taxable supply with no explicit rate defaults to the standard 13% rate;
-    // make that visible instead of letting the server decide silently.
+    // VAT rate must be provided for taxable items.
     if (values.taxabilityType === "TAXABLE" && vatRate === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["vatRate"],
-        message: `VAT rate is required for taxable items (standard rate is ${DEFAULT_VAT_RATE}%)`,
+        message: "VAT rate is required for taxable items",
       });
     }
 
@@ -165,7 +163,7 @@ export const itemFormDefaults: ItemFormValues = {
   uomId: "",
   itemType: "GOODS",
   taxabilityType: "TAXABLE",
-  vatRate: String(DEFAULT_VAT_RATE),
+    vatRate: "",
   exciseType: "NONE",
   exciseRate: "",
   exciseAmount: "",

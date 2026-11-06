@@ -9,6 +9,9 @@ import com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceLine;
 import com.erp.business.procurement.purchaseinvoice.dto.CreateInvoiceRequest;
 import com.erp.business.procurement.purchaseinvoice.dto.PurchaseInvoiceResponse;
 import com.erp.business.procurement.purchaseinvoice.infrastructure.persistence.PurchaseInvoiceRepository;
+import com.erp.business.inventory.interfaces.item.ItemService;
+import com.erp.business.inventory.interfaces.supplier.SupplierService;
+import com.erp.business.inventory.interfaces.tax.TaxRateService;
 import com.erp.business.procurement.shared.security.ProcurementPermissions;
 import com.erp.platform.common.exception.ResourceNotFoundException;
 import com.erp.platform.common.exception.ValidationException;
@@ -48,6 +51,9 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
 
     private final PurchaseInvoiceRepository invoiceRepository;
     private final GoodsReceiptRepository receiptRepository;
+    private final ItemService itemService;
+    private final SupplierService supplierService;
+    private final TaxRateService taxRateService;
 
     @Override
     @Transactional
@@ -97,6 +103,16 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
                 request.notes());
         invoice.assignScope(tenantId, companyId);
 
+        // Snapshot supplier VAT registration details at invoice creation time.
+        // Historical invoices must preserve the supplier's VAT profile as it was
+        // when the invoice was created, even if the supplier profile changes later.
+        supplierService.findById(receipt.getSupplierId()).ifPresent(supplier -> {
+            invoice.setSupplierVatSnapshot(
+                    supplier.getVatRegistrationStatus(),
+                    supplier.getVatRegistrationNumber(),
+                    supplier.getTaxNumber());
+        });
+
         int lineNumber = 1;
         List<Long> billedLines = new ArrayList<>();
         for (CreateInvoiceRequest.Line requested : request.lines()) {
@@ -135,17 +151,51 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
 
         GoodsReceiptLine receiptLine = findReceiptLine(receipt, requested.goodsReceiptLineId());
 
+        ItemService.ItemResponse item = itemService.findById(receiptLine.getItemId()).orElse(null);
+
         BigDecimal quantity = requested.quantity() != null
                 ? requested.quantity() : receiptLine.getReceivedQuantity();
         BigDecimal unitPrice = requested.unitPrice() != null
                 ? requested.unitPrice() : receiptLine.getUnitPrice();
-        BigDecimal taxRate = requested.taxRate() != null
-                ? requested.taxRate() : BigDecimal.ZERO;
+        com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory category = requested.taxCategory();
+        if (category == null && receiptLine.getTaxCategory() != null) {
+            category = receiptLine.getTaxCategory();
+        }
+        if (category == null && item != null && item.getTaxabilityType() != null) {
+            category = switch (item.getTaxabilityType().toUpperCase()) {
+                case "EXEMPT" -> com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory.EXEMPT;
+                case "ZERO_RATED" -> com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory.ZERO_RATED;
+                default -> com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory.TAXABLE;
+            };
+        }
+        if (category == null) {
+            throw new com.erp.platform.common.exception.ValidationException(
+                    "Tax category is required for purchase invoice line");
+        }
+        if (category == com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory.UNCLASSIFIED) {
+            throw new com.erp.platform.common.exception.ValidationException(
+                    "Tax category is required for purchase invoice line");
+        }
+
+        BigDecimal taxRate = BigDecimal.ZERO;
+        if (category == com.erp.business.procurement.purchaseinvoice.domain.PurchaseTaxCategory.TAXABLE) {
+            com.erp.business.inventory.interfaces.tax.TaxRateService.TaxRate tr =
+                    taxRateService.findActive(invoice.getTenantId(), invoice.getCompanyId(), "VAT", invoice.getInvoiceDate());
+            if (tr == null) {
+                throw new com.erp.platform.common.exception.ValidationException(
+                        "No active VAT tax rate configured for company " + invoice.getCompanyId());
+            }
+            taxRate = tr.rate();
+        }
 
         try {
-            return PurchaseInvoiceLine.bill(
+            PurchaseInvoiceLine line = PurchaseInvoiceLine.bill(
                     lineNumber, receiptLine, quantity, unitPrice,
-                    requested.discountPercentage(), taxRate, requested.description());
+                    requested.discountPercentage(), BigDecimal.ZERO, requested.description());
+            line.calculateTax(category, unitPrice, quantity, taxRate,
+                    item != null && Boolean.TRUE.equals(item.getIsVatInclusive()),
+                    requested.discountPercentage() != null ? requested.discountPercentage() : BigDecimal.ZERO);
+            return line;
         } catch (IllegalArgumentException ex) {
             throw new ValidationException(
                     "Line " + lineNumber + " of invoice " + invoice.getInvoiceNumber()

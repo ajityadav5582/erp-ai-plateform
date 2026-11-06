@@ -178,7 +178,7 @@ services:
     container_name: erpai-kafka
     restart: unless-stopped
     environment:
-      CLUSTER_ID: erpai-kafka-cluster-001
+      CLUSTER_ID: ZwsREertS8SOVbrnNVuZxw
       KAFKA_NODE_ID: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9098
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST_ADVERTISED:PLAINTEXT

@@ -8,6 +8,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -21,12 +22,22 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = {"com.erp.business.pos", "com.erp.platform.shared"})
+@ComponentScan(basePackages = {"com.erp.business.pos", "com.erp.platform.shared", "com.erp.platform.business"},
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = com.erp.platform.shared.numbering.DocumentNumberService.class))
 @EntityScan(basePackages = {
         "com.erp.business.pos.domain",
-        "com.erp.business.pos.shared.domain"
+        "com.erp.business.pos.shared.domain",
+        "com.erp.business.pos.restaurant.domain",
+        "com.erp.business.pos.audit",
+        "com.erp.business.pos.service.sequence",
+        "com.erp.platform.identity.domain",
+        "com.erpai.integration.ird.domain",
+        "com.erpai.integration.ird.outbox.entity",
+        "com.erpai.integration.ird.adapter.out.persistence"
 })
-@EnableJpaRepositories(basePackages = "com.erp.business.pos")
+@EnableJpaRepositories(basePackages = {"com.erp.business.pos", "com.erp.platform.identity.infrastructure.persistence", "com.erpai.integration.ird.infrastructure.persistence", "com.erpai.integration.ird.adapter.out.persistence", "com.erpai.integration.ird.outbox.repository"})
 @Import({AuditingConfig.class, PermissionAspect.class, DefaultSecurityContext.class,
         SecurityExceptionHandler.class})
 public class PosApplication {

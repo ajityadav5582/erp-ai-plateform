@@ -34,6 +34,8 @@ import {
   ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
 } from "@/config/company-context";
 import { useGetCompaniesQuery, useGetCompanyFiscalYearsQuery } from "@/services/company.service";
+import { api } from "@/services/api";
+import { useAppDispatch } from "@/store/hooks";
 import type { BusinessType } from "@/services/company.service";
 import { useGetProcurementMenuQuery, getProcurementIcon } from "@/services/procurement-menu.service";
 import { useGetSalesMenuQuery, getSalesIcon } from "@/services/sales-menu.service";
@@ -131,6 +133,17 @@ const navigation: NavItem[] = [
         icon: ({ className }) => (
           <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        ),
+      },
+      {
+        title: "POS Company Settings",
+        href: "/administrations/company-settings/pos",
+        requiredPermission: undefined,
+        icon: ({ className }) => (
+          <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
         ),
       },
@@ -678,6 +691,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const isAuthPage = pathname === "/login" ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
@@ -746,7 +760,12 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
     const company = contextCompanies.find((item) => item.id === activeFiscalSelection.companyId);
     const fiscalYear = contextFiscalYears.find((item) => item.id === activeFiscalSelection.fiscalYearId);
     if (!company || !fiscalYear) return;
-    if (company.companyName === activeFiscalSelection.companyName && fiscalYear.name === activeFiscalSelection.fiscalYearName) return;
+    if (
+      company.companyName === activeFiscalSelection.companyName &&
+      fiscalYear.name === activeFiscalSelection.fiscalYearName &&
+      (activeFiscalSelection.businessType ?? null) === (company.businessType ?? null)
+    )
+      return;
 
     const resolvedSelection = {
       ...activeFiscalSelection,
@@ -757,6 +776,18 @@ export function AppLayout({ children, breadcrumbs, className, noShell }: AppLayo
     setActiveFiscalSelection(resolvedSelection);
     window.localStorage.setItem(ACTIVE_FISCAL_SELECTION_STORAGE_KEY, JSON.stringify(resolvedSelection));
   }, [activeFiscalSelection, contextCompanies, contextFiscalYears]);
+
+  // RTK Query caches by endpoint + params, not by the X-Company-Id header, so
+  // switching companies would otherwise show the previous company's data until
+  // a manual refresh. Reset the cache whenever the active company changes.
+  const prevCompanyIdRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    const companyId = activeFiscalSelection?.companyId ?? null;
+    if (companyId !== null && prevCompanyIdRef.current !== null && prevCompanyIdRef.current !== companyId) {
+      dispatch(api.util.resetApiState());
+    }
+    prevCompanyIdRef.current = companyId;
+  }, [activeFiscalSelection?.companyId, dispatch]);
 
   if (noShell || isAuthPage) {
     return <>{children}</>;

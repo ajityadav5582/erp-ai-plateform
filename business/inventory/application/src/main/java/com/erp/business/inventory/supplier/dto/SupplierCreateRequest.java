@@ -20,6 +20,10 @@ public record SupplierCreateRequest(
         String address,
         String taxId,
         Integer paymentTermsDays,
-        String currency
+        String currency,
+        com.erp.business.inventory.domain.Supplier.VatRegistrationStatus vatRegistrationStatus,
+        String vatRegistrationNumber,
+        java.time.LocalDate vatEffectiveFrom,
+        java.time.LocalDate vatEffectiveTo
 ) {
 }

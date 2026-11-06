@@ -3,10 +3,12 @@ package com.erp.business.pos.domain;
 import com.erp.platform.data.entity.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -33,6 +35,7 @@ import java.util.Objects;
  * @since 1.0.0
  */
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "pos_quick_items",
         indexes = {
@@ -41,7 +44,9 @@ import java.util.Objects;
                 @Index(name = "idx_pos_quick_items_register",
                         columnList = "tenant_id, company_id, register_id, sort_order"),
                 @Index(name = "idx_pos_quick_items_item",
-                        columnList = "tenant_id, company_id, item_id")
+                        columnList = "tenant_id, company_id, item_id"),
+                @Index(name = "idx_pos_quick_items_tab_page",
+                        columnList = "tenant_id, company_id, tab_name, page_number, is_active")
         }
 )
 @Getter
@@ -62,23 +67,22 @@ public class PosQuickItem extends TenantScopedEntity<Long> {
     private Long registerId;
 
     // -----------------------------------------------------------------------
-    // Item reference
+    // Item reference (nullable for folder tiles)
     // -----------------------------------------------------------------------
 
-    @NotNull(message = "Item id is required")
-    @Column(name = "item_id", nullable = false)
+    @Column(name = "item_id")
     private Long itemId;
 
-    @NotBlank(message = "Item code snapshot is required")
-    @Column(name = "item_code", nullable = false, length = 100)
+    @Size(max = 100)
+    @Column(name = "item_code", length = 100)
     private String itemCode;
 
-    @NotBlank(message = "Item name snapshot is required")
-    @Column(name = "item_name", nullable = false, length = 255)
+    @Size(max = 255)
+    @Column(name = "item_name", length = 255)
     private String itemName;
 
-    @NotBlank(message = "Unit of measure code is required")
-    @Column(name = "uom_code", nullable = false, length = 32)
+    @Size(max = 32)
+    @Column(name = "uom_code", length = 32)
     private String uomCode;
 
     /**
@@ -120,6 +124,35 @@ public class PosQuickItem extends TenantScopedEntity<Long> {
     private boolean isActive = true;
 
     // -----------------------------------------------------------------------
+    // New UI features
+    // -----------------------------------------------------------------------
+
+    @Column(name = "tab_name", nullable = false, length = 100, columnDefinition = "VARCHAR(100) DEFAULT 'All Items'")
+    @Builder.Default
+    private String tabName = "All Items";
+
+    @Column(name = "page_number", nullable = false, columnDefinition = "INTEGER DEFAULT 1")
+    @Builder.Default
+    private int pageNumber = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_type", nullable = false, length = 20, columnDefinition = "VARCHAR(20) DEFAULT 'PRODUCT'")
+    @Builder.Default
+    private QuickItemType itemType = QuickItemType.PRODUCT;
+
+    @Column(name = "parent_id")
+    private Long parentId;
+
+    @Column(name = "is_tax_inclusive", nullable = false,
+            columnDefinition = "boolean default true")
+    @Builder.Default
+    private boolean isTaxInclusive = true;
+
+    @Size(max = 16)
+    @Column(name = "hotkey", length = 16)
+    private String hotkey;
+
+    // -----------------------------------------------------------------------
     // Factory method
     // -----------------------------------------------------------------------
 
@@ -149,41 +182,14 @@ public class PosQuickItem extends TenantScopedEntity<Long> {
 
     /**
      * Updates the tile's item reference, presentation and placement.
-     *
-     * <p>The item snapshot fields are refreshed from the catalogue by the
-     * caller, so a re-pointed tile never carries a stale code or name. The
-     * register scope is fixed at creation — moving a tile between registers is
-     * a delete + create, keeping each register's grid history coherent.
-     *
-     * @param itemId       new item id (required)
-     * @param itemCode     new item code snapshot
-     * @param itemName     new item name snapshot
-     * @param uomCode      new unit-of-measure code snapshot
-     * @param defaultPrice override price shown on the tile, or {@code null} to
-     *                     always fetch the current price
-     * @param gridRow      grid row (0-based)
-     * @param gridCol      grid column (0-based)
-     * @param displayColor CSS hex colour, or {@code null} for the theme default
-     * @param displayIcon  icon name, or {@code null}
-     * @param sortOrder    ordering within the grid
      */
     public void updateDetails(Long itemId, String itemCode, String itemName, String uomCode,
                               BigDecimal defaultPrice, int gridRow, int gridCol,
                               String displayColor, String displayIcon, int sortOrder) {
-        Objects.requireNonNull(itemId, "Item id is required");
-        if (itemCode == null || itemCode.isBlank()) {
-            throw new IllegalArgumentException("Item code is required");
-        }
-        if (itemName == null || itemName.isBlank()) {
-            throw new IllegalArgumentException("Item name is required");
-        }
-        if (uomCode == null || uomCode.isBlank()) {
-            throw new IllegalArgumentException("Unit of measure code is required");
-        }
         this.itemId = itemId;
-        this.itemCode = itemCode.trim();
-        this.itemName = itemName.trim();
-        this.uomCode = uomCode.trim();
+        if (itemCode != null) this.itemCode = itemCode.trim();
+        if (itemName != null) this.itemName = itemName.trim();
+        if (uomCode != null) this.uomCode = uomCode.trim();
         this.defaultPrice = defaultPrice;
         this.gridRow = gridRow;
         this.gridCol = gridCol;
@@ -193,12 +199,7 @@ public class PosQuickItem extends TenantScopedEntity<Long> {
     }
 
     /**
-     * Moves the tile to a new grid position. Called by the reorder use case,
-     * which persists a whole dragged layout in one batch.
-     *
-     * @param gridRow   new grid row (0-based)
-     * @param gridCol   new grid column (0-based)
-     * @param sortOrder new ordering within the grid
+     * Moves the tile to a new grid position.
      */
     public void reposition(int gridRow, int gridCol, int sortOrder) {
         this.gridRow = gridRow;
@@ -214,5 +215,11 @@ public class PosQuickItem extends TenantScopedEntity<Long> {
     /** Re-activates a deactivated quick item tile. */
     public void activate() {
         this.isActive = true;
+    }
+
+    /** Assigns the tab and page this tile belongs to. */
+    public void assignTab(String tabName, int pageNumber) {
+        this.tabName = (tabName == null || tabName.isBlank()) ? "All Items" : tabName.trim();
+        this.pageNumber = pageNumber < 1 ? 1 : pageNumber;
     }
 }

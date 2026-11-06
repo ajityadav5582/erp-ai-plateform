@@ -124,15 +124,6 @@ spring:
                 statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
                 methods: GET,POST,PUT,DELETE,PATCH
 
-        # ------------------------------------------------------------------
-        # Health check passthrough (for load balancers / monitoring).
-        # ------------------------------------------------------------------
-        - id: health-check
-          uri: ${IDENTITY_SERVICE_URI:http://identity-service:8082}
-          predicates:
-            - Path=/actuator/health
-          filters:
-            - StripPrefix=0
 
 management:
   endpoints:
@@ -165,6 +156,20 @@ erp:
   # If you need to know which services must be routed, read
   # GatewayRouteCoverageTest: it derives the required routes from docker-compose.yml
   # and fails the build when one is absent, so there is no list to keep in sync.
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Inventory
+        url: /v3/api-docs/inventory
+      - name: Procurement
+        url: /v3/api-docs/procurement
+      - name: Sales
+        url: /v3/api-docs/sales
+      - name: POS
+        url: /v3/api-docs/pos
+      - name: Identity
+        url: /v3/api-docs/identity
 
 logging:
   level:

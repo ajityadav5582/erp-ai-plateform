@@ -102,7 +102,6 @@ public class SalesInvoice extends TenantScopedEntity<Long> {
     @Column(name = "branch_id")
     private Long branchId;
 
-    @NotNull(message = "Sales order is required")
     @Column(name = "sales_order_id")
     private Long salesOrderId;
 
@@ -113,8 +112,7 @@ public class SalesInvoice extends TenantScopedEntity<Long> {
         this.posTransactionId = posTransactionId;
     }
 
-    @NotBlank(message = "Sales order number is required")
-    @Column(name = "so_number", nullable = false, length = 40)
+    @Column(name = "so_number", length = 40)
     private String soNumber;
 
     /** The delivery this invoice bills, when raised from one. Optional. */
@@ -124,8 +122,7 @@ public class SalesInvoice extends TenantScopedEntity<Long> {
     @Column(name = "delivery_number", length = 40)
     private String deliveryNumber;
 
-    @NotNull(message = "Customer is required")
-    @Column(name = "customer_id", nullable = false)
+    @Column(name = "customer_id")
     private Long customerId;
 
     @Column(name = "customer_code", nullable = false, length = 64)
