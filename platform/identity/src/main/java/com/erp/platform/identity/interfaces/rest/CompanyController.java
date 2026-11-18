@@ -23,6 +23,17 @@ public class CompanyController {
     private final CompanyRepository companyRepository;
     private final CurrentTenantProvider currentTenantProvider;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<CompanyResponse> getCompany(@PathVariable Long id) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
+        if (!tenantId.equals(company.getTenantId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Company does not belong to this tenant");
+        }
+        return ResponseEntity.ok(CompanyResponse.from(company));
+    }
+
     @GetMapping
     public List<CompanyResponse> listCompanies() {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
@@ -85,6 +96,8 @@ public class CompanyController {
         company.updateFiscalYearType(request.fiscalYearType());
         company.updateVatRegistered(request.vatRegistered());
         company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
+        company.updateWardNo(request.wardNo());
+        company.updateToleStreet(request.toleStreet());
         return ResponseEntity.ok(CompanyResponse.from(companyRepository.save(company)));
     }
 }

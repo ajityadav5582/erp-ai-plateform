@@ -39,6 +39,7 @@ for MIGRATION_DIR in $MIGRATION_DIRS; do
         -user="$DB_USER" \
         -password="$DB_PASSWORD" \
         -locations="filesystem:$MIGRATION_DIR" \
+        -baselineOnMigrate=true \
         migrate
     
     echo "Migrations completed for $SERVICE_NAME."

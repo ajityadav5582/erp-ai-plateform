@@ -1,18 +1,13 @@
 package com.erp.platform.identity.application;
 
 import com.erp.platform.identity.application.dto.CreateProvinceRequest;
-import com.erp.platform.identity.application.dto.DistrictListResponse;
-import com.erp.platform.identity.application.dto.DistrictResponse;
 import com.erp.platform.identity.application.dto.ProvinceListResponse;
 import com.erp.platform.identity.application.dto.ProvinceResponse;
 import com.erp.platform.identity.application.dto.UpdateProvinceRequest;
 import com.erp.platform.identity.application.mapper.ProvinceMapper;
-import com.erp.platform.identity.domain.District;
-import com.erp.platform.identity.domain.DistrictStatus;
 import com.erp.platform.identity.domain.Province;
 import com.erp.platform.identity.domain.ProvinceStatus;
 import com.erp.platform.identity.domain.exception.ProvinceNotFoundException;
-import com.erp.platform.identity.infrastructure.persistence.DistrictRepository;
 import com.erp.platform.identity.infrastructure.persistence.ProvinceRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,12 +26,10 @@ import java.util.List;
 public class ProvinceServiceImpl implements ProvinceService {
 
     private final ProvinceRepository provinceRepository;
-    private final DistrictRepository districtRepository;
     private final ProvinceMapper provinceMapper;
 
-    public ProvinceServiceImpl(ProvinceRepository provinceRepository, DistrictRepository districtRepository, ProvinceMapper provinceMapper) {
+    public ProvinceServiceImpl(ProvinceRepository provinceRepository, ProvinceMapper provinceMapper) {
         this.provinceRepository = provinceRepository;
-        this.districtRepository = districtRepository;
         this.provinceMapper = provinceMapper;
     }
 

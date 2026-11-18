@@ -6,12 +6,20 @@ export interface Company {
   companyName: string;
   panNumber: string | null;
   city: string | null;
+  legalName: string | null;
+  website: string | null;
+  address: string | null;
   phone: string;
   email: string;
   companyType: CompanyType | null;
   businessType: BusinessType | null;
   fiscalYearType: FiscalYearType | null;
   vatRegistered: boolean | null;
+  vatRegistrationNumber: string | null;
+  vatEffectiveFrom: string | null;
+  vatEffectiveTo: string | null;
+  wardNo: string | null;
+  toleStreet: string | null;
   status: "ACTIVE" | "INACTIVE";
 }
 
@@ -61,10 +69,15 @@ export interface UpdateCompanyRequest {
   legalName?: string;
   website?: string;
   address?: string;
+  wardNo?: string;
+  toleStreet?: string;
   companyType?: CompanyType;
   businessType?: BusinessType;
   fiscalYearType?: FiscalYearType;
   vatRegistered?: boolean;
+  vatRegistrationNumber?: string;
+  vatEffectiveFrom?: string;
+  vatEffectiveTo?: string;
 }
 
 export interface CompanyFiscalYear {
@@ -108,6 +121,10 @@ export const companyApi = api.injectEndpoints({
       query: () => ({ url: "/identity/companies", method: "GET" }),
       providesTags: ["Company"],
     }),
+    getCompany: build.query<Company, number>({
+      query: (id) => ({ url: `/identity/companies/${id}`, method: "GET" }),
+      providesTags: (_result, _error, id) => [{ type: "Company", id }],
+    }),
     createCompany: build.mutation<Company, CreateCompanyRequest>({
       query: (data) => ({ url: "/identity/companies", method: "POST", data }),
       invalidatesTags: ["Company"],
@@ -136,6 +153,7 @@ export const companyApi = api.injectEndpoints({
 
 export const {
   useGetCompaniesQuery,
+  useGetCompanyQuery,
   useCreateCompanyMutation,
   useUpdateCompanyMutation,
   useGetMasterFiscalYearsQuery,

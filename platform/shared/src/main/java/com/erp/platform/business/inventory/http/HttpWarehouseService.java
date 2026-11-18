@@ -85,7 +85,17 @@ public class HttpWarehouseService implements WarehouseService {
 
     @Override
     public List<WarehouseResponse> findAllActive() {
-        return List.of();
+        try {
+            List<WarehouseResponseDto> dtos = restClient.get()
+                    .uri(ACTIVE_PATH)
+                    .headers(this::forwardRequestContext)
+                    .retrieve()
+                    .body(new org.springframework.core.ParameterizedTypeReference<>() {});
+            return dtos != null ? dtos.stream().map(dto -> (WarehouseResponse) dto).toList() : List.of();
+        } catch (Exception ex) {
+            throw new InventoryClientException(
+                    "Inventory warehouse call failed: GET " + ACTIVE_PATH, ex);
+        }
     }
 
     @Override
@@ -123,6 +133,33 @@ public class HttpWarehouseService implements WarehouseService {
         } catch (Exception ex) {
             throw new InventoryClientException(
                     "Inventory warehouse call failed: GET " + LIST_PATH, ex);
+        }
+    }
+
+    @Override
+    public WarehouseResponse createWarehouse(Long tenantId, Long companyId, WarehouseCreateRequest request) {
+        String path = "/api/v1/inventory/warehouses";
+        try {
+            WarehouseCreateRequestDto dto = new WarehouseCreateRequestDto(
+                    request.getCode(),
+                    request.getName(),
+                    request.getDescription(),
+                    request.getAddress(),
+                    request.getWarehouseType(),
+                    request.getIsActive(),
+                    request.getIsDefault(),
+                    request.getBranchId()
+            );
+            WarehouseResponseDto response = restClient.post()
+                    .uri(path)
+                    .headers(this::forwardRequestContext)
+                    .body(dto)
+                    .retrieve()
+                    .body(WarehouseResponseDto.class);
+            return response;
+        } catch (Exception ex) {
+            throw new InventoryClientException(
+                    "Inventory warehouse call failed: POST " + path, ex);
         }
     }
 
@@ -214,6 +251,21 @@ public class HttpWarehouseService implements WarehouseService {
             int totalPages,
             boolean first,
             boolean last
+    ) {
+    }
+
+    /**
+     * DTO for sending warehouse creation request to Inventory.
+     */
+    record WarehouseCreateRequestDto(
+            String code,
+            String name,
+            String description,
+            String address,
+            String warehouseType,
+            Boolean isActive,
+            Boolean isDefault,
+            Long branchId
     ) {
     }
 }

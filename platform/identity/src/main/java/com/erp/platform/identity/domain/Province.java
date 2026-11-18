@@ -18,7 +18,7 @@ import lombok.*;
  * @since 1.0.0
  */
 @Entity
-@Table(name = "provinces")
+@Table(name = "master_provinces")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)

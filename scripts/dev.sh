@@ -42,6 +42,7 @@ docker run --rm --network host \
     -user="$DB_USER" \
     -password="$DB_PASS" \
     -locations="filesystem:/flyway/sql/platform" \
+    -baselineOnMigrate=true \
     migrate
 
 echo "=== Building all modules ==="

@@ -117,7 +117,6 @@ include "integration:external:interfaces"
 
 // Libraries - Common
 include "libraries:common-core"
-include "libraries:common-business-context"
 include "libraries:common-data"
 include "libraries:common-events"
 include "libraries:common-security"

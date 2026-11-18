@@ -209,6 +209,7 @@ export default function CompaniesPage() {
                     <span className="mt-3 inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">{company.status}</span>
                     <div className="mt-4 flex gap-2">
                       <Button className="flex-1" variant="outline" onClick={() => router.push(`/companies/${company.id}/fiscal-years`)}>Select company</Button>
+                      <Button variant="secondary" onClick={() => router.push(`/companies/${company.id}/settings`)}>Settings</Button>
                       <Button variant="secondary" onClick={() => setEditing(company)}>Edit</Button>
                     </div>
                   </div>

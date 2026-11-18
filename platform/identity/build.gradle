@@ -34,6 +34,8 @@ dependencies {
 
     // Platform modules
     implementation project(':platform:tenant')
+    implementation project(':platform:shared')
+    implementation project(':business:inventory:interfaces')
 
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'

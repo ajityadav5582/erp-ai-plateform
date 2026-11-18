@@ -12,8 +12,11 @@ public record CompanyResponse(
         String companyName,
         String panNumber,
         String city,
+        String legalName,
         String phone,
         String email,
+        String website,
+        String address,
          CompanyType companyType,
          BusinessType businessType,
          FiscalYearType fiscalYearType,
@@ -21,6 +24,8 @@ public record CompanyResponse(
          String vatRegistrationNumber,
          java.time.LocalDate vatEffectiveFrom,
          java.time.LocalDate vatEffectiveTo,
+         String wardNo,
+         String toleStreet,
          CompanyStatus status
  ) {
     public static CompanyResponse from(Company company) {
@@ -30,8 +35,11 @@ public record CompanyResponse(
                 company.getCompanyName(),
                 company.getPanNumber(),
                 company.getCity(),
+                company.getLegalName(),
                 company.getPhone(),
                 company.getEmail(),
+                company.getWebsite(),
+                company.getAddress(),
                  company.getCompanyType(),
                  company.getBusinessType(),
                  company.getFiscalYearType(),
@@ -39,6 +47,8 @@ public record CompanyResponse(
                  company.getVatRegistrationNumber(),
                  company.getVatEffectiveFrom(),
                  company.getVatEffectiveTo(),
+                 company.getWardNo(),
+                 company.getToleStreet(),
                  company.getStatus()
         );
     }

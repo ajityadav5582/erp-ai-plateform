@@ -26,7 +26,7 @@ import org.springframework.http.HttpStatus;
  *
  * @since 1.0.0
  */
-public abstract class BranchOperationException extends BaseApiException {
+public class BranchOperationException extends BaseApiException {
 
     private static final long serialVersionUID = 1L;
 
@@ -35,7 +35,7 @@ public abstract class BranchOperationException extends BaseApiException {
      *
      * @param message the human-readable message
      */
-    protected BranchOperationException(String message) {
+    public BranchOperationException(String message) {
         this(HttpStatus.CONFLICT, "BRANCH_OPERATION_CONFLICT", message, null);
     }
 
@@ -45,7 +45,7 @@ public abstract class BranchOperationException extends BaseApiException {
      * @param message the human-readable message
      * @param cause   the root cause
      */
-    protected BranchOperationException(String message, Throwable cause) {
+    public BranchOperationException(String message, Throwable cause) {
         this(HttpStatus.CONFLICT, "BRANCH_OPERATION_CONFLICT", message, cause);
     }
 
@@ -57,7 +57,7 @@ public abstract class BranchOperationException extends BaseApiException {
      * @param message   the human-readable message
      * @param cause     the root cause, may be null
      */
-    protected BranchOperationException(HttpStatus status, String errorCode, String message, Throwable cause) {
+    public BranchOperationException(HttpStatus status, String errorCode, String message, Throwable cause) {
         super(status, errorCode, message, cause);
     }
 }

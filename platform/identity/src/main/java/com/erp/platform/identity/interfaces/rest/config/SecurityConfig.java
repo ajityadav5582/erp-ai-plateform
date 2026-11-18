@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/identity/onboarding").permitAll()
                         // Actuator endpoints
                         .requestMatchers("/actuator/**").permitAll()
+                        // Swagger UI & OpenAPI documentation
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

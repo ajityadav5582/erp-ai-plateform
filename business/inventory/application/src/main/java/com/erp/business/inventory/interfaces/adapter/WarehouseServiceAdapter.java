@@ -1,6 +1,8 @@
 package com.erp.business.inventory.interfaces.adapter;
 
+import com.erp.business.inventory.domain.WarehouseType;
 import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
+import com.erp.business.inventory.warehouse.dto.CreateWarehouseRequest;
 import com.erp.business.inventory.warehouse.dto.WarehouseResponse;
 import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.dto.PageRequest;
@@ -86,6 +88,20 @@ public class WarehouseServiceAdapter implements WarehouseService {
         PageResponse.Pagination pagination = PageResponse.Pagination.of(
                 page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
         return PageResponse.of(content, pagination);
+    }
+
+    @Override
+    public WarehouseService.WarehouseResponse createWarehouse(Long tenantId, Long companyId, WarehouseService.WarehouseCreateRequest request) {
+        CreateWarehouseRequest internalRequest = new CreateWarehouseRequest(
+                request.getCode(),
+                request.getName(),
+                WarehouseType.valueOf(request.getWarehouseType()),
+                request.getBranchId(),
+                request.getAddress(),
+                null  // phone - not provided in interface request
+        );
+        com.erp.business.inventory.warehouse.dto.WarehouseResponse internal = internalWarehouseService.createWarehouse(tenantId, companyId, internalRequest);
+        return mapToInterface(internal);
     }
 
     private WarehouseService.WarehouseResponse mapToInterface(com.erp.business.inventory.warehouse.dto.WarehouseResponse internal) {

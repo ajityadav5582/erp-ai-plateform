@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,7 +32,7 @@ import {
 const schema = z.object({
   sellerPan: z.string().length(9, "Seller PAN must be 9 digits").regex(/^\d+$/, "Seller PAN must be numeric"),
   apiUsername: z.string().min(1, "API username is required"),
-  apiPassword: z.string().min(4, "API password must be at least 4 characters"),
+  apiPassword: z.string().refine((v) => v === "" || v.length >= 4, "API password must be at least 4 characters"),
   isLiveEnvironment: z.boolean(),
   isCbmsActive: z.boolean(),
 });
@@ -54,9 +55,10 @@ interface IrdCompanyConfig {
 }
 
 export default function CompanyIrdSettingsPage() {
+  const searchParams = useSearchParams();
   const selection = readActiveFiscalSelection();
-  const companyId = selection?.companyId ?? 0;
-  const companyName = selection?.companyName ?? "Active Company";
+  const companyId = Number(searchParams.get("companyId")) || selection?.companyId || 0;
+  const companyName = searchParams.get("companyName") || selection?.companyName || "Active Company";
   const tenantId = useAppSelector((s) => s.auth.tenantId);
 
   const [showPassword, setShowPassword] = useState(false);
@@ -73,13 +75,19 @@ export default function CompanyIrdSettingsPage() {
     },
   });
 
-  const { data: config, isLoading, refetch } = useQuery<IrdCompanyConfig>({
+  const { data: config, isLoading, refetch } = useQuery<IrdCompanyConfig | null>({
     queryKey: ["ird-company-config", companyId, tenantId],
     queryFn: async () => {
-      const res = await axiosInstance.get(`/ird/company-config?tenantId=${tenantId}&companyId=${companyId}`);
-      return res.data as IrdCompanyConfig;
+      try {
+        const res = await axiosInstance.get(`/ird/company-config?tenantId=${tenantId}&companyId=${companyId}`);
+        return res.data as IrdCompanyConfig;
+      } catch (e: unknown) {
+        const err = e as { response?: { status?: number } };
+        if (err?.response?.status === 404) return null;
+        throw e;
+      }
     },
-    enabled: companyId > 0,
+    enabled: companyId > 0 && !!tenantId,
   });
 
   useEffect(() => {
@@ -96,7 +104,7 @@ export default function CompanyIrdSettingsPage() {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      const res = await axiosInstance.post(`/api/v1/integration/ird/companies/${companyId}/test`);
+      const res = await axiosInstance.post(`/ird/company-config/verify?tenantId=${tenantId}&companyId=${companyId}`);
       return res.data;
     },
     onSuccess: () => {
@@ -113,12 +121,11 @@ export default function CompanyIrdSettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      const res = await axiosInstance.put(`/api/v1/integration/ird/companies/${companyId}`, {
+      const res = await axiosInstance.put(`/ird/company-config?tenantId=${tenantId}&companyId=${companyId}`, {
         sellerPan: values.sellerPan,
         apiUsername: values.apiUsername,
         apiPassword: values.apiPassword,
         environment: values.isLiveEnvironment ? "PRODUCTION" : "SANDBOX",
-        cbmsActive: values.isCbmsActive,
       });
       return res.data;
     },
@@ -131,10 +138,27 @@ export default function CompanyIrdSettingsPage() {
     },
   });
 
+  const activationMutation = useMutation({
+    mutationFn: async (active: boolean) => {
+      const action = active ? "activate-cbms" : "deactivate-cbms";
+      const res = await axiosInstance.post(`/ird/company-config/${action}?tenantId=${tenantId}&companyId=${companyId}`);
+      return res.data as IrdCompanyConfig;
+    },
+    onSuccess: () => refetch(),
+    onError: (err: unknown) => {
+      toast.error("Unable to change CBMS activation", { description: getApiErrorMessage(err) });
+      refetch();
+    },
+  });
+
   const verificationStatus = config?.verificationStatus ?? "NOT_CONFIGURED";
   const isVerified = verificationStatus === "VERIFIED";
 
   const onSubmit = (values: FormValues) => {
+    if (!config && !values.apiPassword) {
+      form.setError("apiPassword", { message: "CBMS API password is required for initial setup." });
+      return;
+    }
     saveMutation.mutate(values);
   };
 
@@ -288,8 +312,11 @@ export default function CompanyIrdSettingsPage() {
                           <span>
                             <Switch
                               checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!isVerified}
+                              onCheckedChange={(v) => {
+                                field.onChange(v);
+                                activationMutation.mutate(v);
+                              }}
+                              disabled={!isVerified || activationMutation.isPending}
                             />
                           </span>
                         </TooltipTrigger>

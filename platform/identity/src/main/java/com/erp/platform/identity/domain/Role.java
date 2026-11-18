@@ -53,10 +53,22 @@ public class Role {
     private String roleCode;
 
     /**
+     * Flyway-legacy column kept in sync for DB-level inspection/compatibility.
+     */
+    @Column(name = "role_code", length = 100)
+    private String roleCodeLegacy;
+
+    /**
      * Display name of the role.
      */
     @Column(name = "name", nullable = false, length = 150)
     private String roleName;
+
+    /**
+     * Flyway-legacy column kept in sync for DB-level inspection/compatibility.
+     */
+    @Column(name = "role_name", length = 150)
+    private String roleNameLegacy;
 
     /**
      * Detailed description of the role's purpose and scope.
@@ -118,10 +130,14 @@ public class Role {
 
     /**
      * Factory method to create a platform system role.
+     *
+     * @param tenantId the tenant that anchors this system role (may be null for
+     *                 pre-V33 schemas where tenant_id is nullable)
      */
-    public static Role createSystem(String roleCode, String roleName, String description) {
+    public static Role createSystem(Long tenantId, String roleCode, String roleName, String description) {
         validateRoleCode(roleCode);
         return Role.builder()
+                .tenantId(tenantId)
                 .roleCode(roleCode.trim().toUpperCase())
                 .roleName(roleName.trim())
                 .description(description != null ? description.trim() : null)
@@ -129,6 +145,13 @@ public class Role {
                 .status(Status.ACTIVE)
                 .permissions(new HashSet<>())
                 .build();
+    }
+
+    @PrePersist
+    @PreUpdate
+    protected void syncLegacyColumns() {
+        this.roleCodeLegacy = this.roleCode;
+        this.roleNameLegacy = this.roleName;
     }
 
     public Long getId() {

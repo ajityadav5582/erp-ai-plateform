@@ -15,6 +15,8 @@ public record UpdateCompanyRequest(
         @Size(max = 200) String legalName,
         @Size(max = 200) String website,
         @Size(max = 500) String address,
+        @Size(max = 20) String wardNo,
+        @Size(max = 200) String toleStreet,
         CompanyType companyType,
         BusinessType businessType,
          FiscalYearType fiscalYearType,

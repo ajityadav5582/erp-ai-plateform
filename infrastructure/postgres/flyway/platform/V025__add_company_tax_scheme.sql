@@ -1,0 +1,5 @@
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_scheme VARCHAR(20);
+
+UPDATE companies
+SET tax_scheme = CASE WHEN vat_registered IS TRUE THEN 'VAT_REGISTERED' ELSE 'PAN_ONLY' END
+WHERE tax_scheme IS NULL;

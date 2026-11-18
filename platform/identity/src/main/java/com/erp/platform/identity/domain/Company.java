@@ -50,6 +50,12 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "address", length = 500)
     private String address;
 
+    @Column(name = "ward_no", length = 20)
+    private String wardNo;
+
+    @Column(name = "tole_street", length = 200)
+    private String toleStreet;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "company_type", length = 40)
     private CompanyType companyType;
@@ -160,6 +166,18 @@ public class Company extends OptimisticLock<Long> {
     public void updateCity(String city) {
         if (city != null && !city.isBlank()) {
             this.city = city.trim();
+        }
+    }
+
+    public void updateWardNo(String wardNo) {
+        if (wardNo != null) {
+            this.wardNo = wardNo.trim();
+        }
+    }
+
+    public void updateToleStreet(String toleStreet) {
+        if (toleStreet != null) {
+            this.toleStreet = toleStreet.trim();
         }
     }
 

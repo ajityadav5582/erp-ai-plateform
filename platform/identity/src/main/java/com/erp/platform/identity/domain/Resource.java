@@ -48,15 +48,6 @@ public enum Resource {
     /** User to department assignments. */
     USER_DEPARTMENT,
 
-    /** Geographic province/state definitions. */
-    PROVINCE,
-
-    /** Geographic district definitions. */
-    DISTRICT,
-
-    /** Municipal or local level geographic units. */
-    LOCAL_LEVEL,
-
     /** Resource master catalog definition. */
     RESOURCE,
 
