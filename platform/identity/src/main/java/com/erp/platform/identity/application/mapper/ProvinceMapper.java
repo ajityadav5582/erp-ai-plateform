@@ -41,7 +41,7 @@ public class ProvinceMapper {
      */
     public ProvinceResponse toResponse(Province province) {
         return new ProvinceResponse(
-                province.getId(),
+                province.getId() != null ? province.getId().longValue() : null,
                 province.getProvinceCode(),
                 province.getProvinceName(),
                 province.getNepaliName(),
@@ -49,9 +49,9 @@ public class ProvinceMapper {
                 province.getStatus(),
                 toLocalDateTime(province.getCreatedAt()),
                 toLocalDateTime(province.getUpdatedAt()),
-                province.getCreatedBy(),
-                province.getUpdatedBy(),
-                province.getVersion()
+                null,
+                null,
+                province.getVersion() != null ? province.getVersion().intValue() : 0
         );
     }
 
@@ -63,7 +63,7 @@ public class ProvinceMapper {
      */
     public ProvinceListResponse toListResponse(Province province) {
         return new ProvinceListResponse(
-                province.getId(),
+                province.getId() != null ? province.getId().longValue() : null,
                 province.getProvinceCode(),
                 province.getProvinceName(),
                 province.getNepaliName(),

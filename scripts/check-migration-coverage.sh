@@ -4,7 +4,7 @@
 set -euo pipefail
 
 FLYWAY_DIR="infrastructure/postgres/flyway/platform"
-ENTITY_TABLES=$(grep -rhoE '@Table\([^)]*name\s*=\s*"[^"]+"' --include='*.java' . \
+ENTITY_TABLES=$(grep -rhoE '@Table\(\s*name\s*=\s*"[^"]+"' --include='*.java' . \
   | sed -E 's/.*name\s*=\s*"([^"]+)".*/\1/' | sort -u)
 
 MISSING=0

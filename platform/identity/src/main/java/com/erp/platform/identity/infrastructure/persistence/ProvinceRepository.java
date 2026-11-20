@@ -5,7 +5,6 @@ import com.erp.platform.identity.domain.ProvinceStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +16,7 @@ import java.util.Optional;
  *
  * @since 1.0.0
  */
-public interface ProvinceRepository extends JpaRepository<Province, Long> {
+public interface ProvinceRepository extends JpaRepository<Province, Short> {
 
     /**
      * Finds a province by its unique province code.

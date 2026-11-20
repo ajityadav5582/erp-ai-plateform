@@ -49,7 +49,8 @@ public class ProvinceServiceImpl implements ProvinceService {
     @Override
     @Transactional(readOnly = true)
     public ProvinceResponse getProvinceById(Long id) {
-        Province province = provinceRepository.findById(id)
+        Short shortId = id != null ? id.shortValue() : null;
+        Province province = provinceRepository.findById(shortId)
             .orElseThrow(() -> new ProvinceNotFoundException("Province not found with ID: " + id));
         return provinceMapper.toResponse(province);
     }
@@ -81,7 +82,8 @@ public class ProvinceServiceImpl implements ProvinceService {
 
     @Override
     public ProvinceResponse updateProvince(Long id, UpdateProvinceRequest request) {
-        Province province = provinceRepository.findById(id)
+        Short shortId = id != null ? id.shortValue() : null;
+        Province province = provinceRepository.findById(shortId)
             .orElseThrow(() -> new ProvinceNotFoundException("Province not found with ID: " + id));
 
         if (request.provinceCode() != null
@@ -95,6 +97,7 @@ public class ProvinceServiceImpl implements ProvinceService {
         Province updated = province.toBuilder()
             .provinceCode(request.provinceCode() != null ? request.provinceCode() : province.getProvinceCode())
             .provinceName(request.provinceName() != null ? request.provinceName() : province.getProvinceName())
+            .name(request.provinceName() != null ? request.provinceName() : province.getName())
             .nepaliName(request.nepaliName() != null ? request.nepaliName() : province.getNepaliName())
             .countryCode(request.countryCode() != null ? request.countryCode() : province.getCountryCode())
             .build();
@@ -105,7 +108,8 @@ public class ProvinceServiceImpl implements ProvinceService {
 
     @Override
     public ProvinceResponse activateProvince(Long id) {
-        Province province = provinceRepository.findById(id)
+        Short shortId = id != null ? id.shortValue() : null;
+        Province province = provinceRepository.findById(shortId)
             .orElseThrow(() -> new ProvinceNotFoundException("Province not found with ID: " + id));
         province.activate();
         Province savedProvince = provinceRepository.save(province);
@@ -114,7 +118,8 @@ public class ProvinceServiceImpl implements ProvinceService {
 
     @Override
     public ProvinceResponse deactivateProvince(Long id) {
-        Province province = provinceRepository.findById(id)
+        Short shortId = id != null ? id.shortValue() : null;
+        Province province = provinceRepository.findById(shortId)
             .orElseThrow(() -> new ProvinceNotFoundException("Province not found with ID: " + id));
         province.deactivate();
         Province savedProvince = provinceRepository.save(province);
@@ -123,7 +128,8 @@ public class ProvinceServiceImpl implements ProvinceService {
 
     @Override
     public void deleteProvince(Long id) {
-        Province province = provinceRepository.findById(id)
+        Short shortId = id != null ? id.shortValue() : null;
+        Province province = provinceRepository.findById(shortId)
             .orElseThrow(() -> new ProvinceNotFoundException("Province not found with ID: " + id));
         provinceRepository.delete(province);
     }

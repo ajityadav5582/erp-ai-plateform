@@ -22,7 +22,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = {"com.erp.business.pos", "com.erp.platform.shared", "com.erp.platform.business"},
+@ComponentScan(basePackages = {"com.erp.business.pos", "com.erp.platform.shared", "com.erp.platform.business", "com.erpai.integration"},
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = com.erp.platform.shared.numbering.DocumentNumberService.class))
@@ -39,7 +39,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 })
 @EnableJpaRepositories(basePackages = {"com.erp.business.pos", "com.erp.platform.identity.infrastructure.persistence", "com.erpai.integration.ird.infrastructure.persistence", "com.erpai.integration.ird.adapter.out.persistence", "com.erpai.integration.ird.outbox.repository"})
 @Import({AuditingConfig.class, PermissionAspect.class, DefaultSecurityContext.class,
-        SecurityExceptionHandler.class})
+        SecurityExceptionHandler.class, com.erp.platform.common.openapi.OpenApiConfig.class})
 public class PosApplication {
 
     public static void main(String[] args) {

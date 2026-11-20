@@ -14,12 +14,18 @@ public record CreateCompanyRequest(
         @NotBlank @Size(max = 100) String city,
         @NotBlank @Size(max = 50) String phone,
         @NotBlank @Email @Size(max = 255) String email,
-         @NotNull CompanyType companyType,
-         @NotNull BusinessType businessType,
-          @NotNull FiscalYearType fiscalYearType,
-          @NotNull Boolean vatRegistered,
-          @Size(max = 30) String vatRegistrationNumber,
-          java.time.LocalDate vatEffectiveFrom,
-          java.time.LocalDate vatEffectiveTo
- ) {
+        @NotNull CompanyType companyType,
+        @NotNull BusinessType businessType,
+        @NotNull FiscalYearType fiscalYearType,
+        @NotNull Boolean vatRegistered,
+        @Size(max = 30) String vatRegistrationNumber,
+        java.time.LocalDate vatEffectiveFrom,
+        java.time.LocalDate vatEffectiveTo,
+        @Size(max = 500) String address,
+        @Size(max = 20) String wardNo,
+        @Size(max = 200) String toleStreet,
+        Short provinceId,
+        Short districtId,
+        Short localLevelId
+) {
 }

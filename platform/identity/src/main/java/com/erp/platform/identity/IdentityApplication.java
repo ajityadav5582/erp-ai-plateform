@@ -28,7 +28,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 })
 @Import({
         com.erp.platform.data.audit.AuditingConfig.class,
-        SecurityExceptionHandler.class})
+        SecurityExceptionHandler.class,
+        com.erp.platform.shared.config.InventoryClientConfiguration.class,
+        com.erp.platform.common.openapi.OpenApiConfig.class})
 @EnableConfigurationProperties({
         com.erp.platform.identity.application.security.JwtProperties.class,
         com.erp.platform.identity.application.security.PasswordResetProperties.class

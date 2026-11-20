@@ -309,6 +309,19 @@ public class PurchaseOrder extends TenantScopedEntity<Long> {
                 null, null);
     }
 
+    /**
+     * Creates a draft purchase order raised directly without an upstream requisition.
+     */
+    public static PurchaseOrder directDraft(String poNumber, LocalDate orderDate,
+                                            Long supplierId, String supplierCode,
+                                            String supplierName, String currency,
+                                            Long fiscalYearId, Long branchId,
+                                            String reference, String notes) {
+        return build(poNumber, orderDate, supplierId, supplierCode, supplierName,
+                currency, fiscalYearId, branchId, null,
+                reference, notes);
+    }
+
     private static PurchaseOrder build(String poNumber, LocalDate orderDate, Long supplierId,
                                        String supplierCode, String supplierName, String currency,
                                        Long fiscalYearId, Long branchId, Long sourceRequisitionId,

@@ -46,6 +46,15 @@ public class ProcurementMenuController {
     public ResponseEntity<ProcurementMenuResponse> getMenu() {
         List<MenuItem> items = new ArrayList<>();
 
+        // Overview / Dashboard
+        items.add(new MenuItem(
+                "Overview",
+                "/procurement",
+                "layout-dashboard",
+                PurchaseRequisitionPermissions.VIEW,
+                "Procurement overview and key metrics"
+        ));
+
         // Purchase Requisitions
         items.add(new MenuItem(
                 "Purchase Requisitions",
@@ -80,6 +89,15 @@ public class ProcurementMenuController {
                 "file-invoice",
                 ProcurementPermissions.PURCHASE_INVOICE_VIEW,
                 "View and manage purchase invoices"
+        ));
+
+        // Purchase Returns
+        items.add(new MenuItem(
+                "Purchase Returns",
+                "/purchase-returns",
+                "rotate-ccw",
+                ProcurementPermissions.PURCHASE_INVOICE_VIEW,
+                "Manage purchase returns and debit notes"
         ));
 
         // Supplier Payments

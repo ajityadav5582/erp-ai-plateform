@@ -36,6 +36,7 @@ public class BranchMapper {
         branch.updateDetails(
                 null, null,
                 request.address(), request.wardNo());
+        branch.updateGeography(request.provinceId(), request.districtId(), request.localLevelId());
         return branch;
     }
 
@@ -54,6 +55,11 @@ public class BranchMapper {
                 branch.getBranchName(),
                 branch.getAddress(),
                 branch.getWardNo(),
+                branch.isHeadOffice(),
+                branch.getProvinceId(),
+                branch.getDistrictId(),
+                branch.getLocalLevelId(),
+                branch.getDefaultWarehouseId(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt()),
                 toLocalDateTime(branch.getUpdatedAt()),
@@ -75,6 +81,9 @@ public class BranchMapper {
                 branch.getCompanyId(),
                 branch.getBranchCode(),
                 branch.getBranchName(),
+                branch.isHeadOffice(),
+                branch.getAddress(),
+                branch.getWardNo(),
                 branch.getStatus(),
                 toLocalDateTime(branch.getCreatedAt())
         );

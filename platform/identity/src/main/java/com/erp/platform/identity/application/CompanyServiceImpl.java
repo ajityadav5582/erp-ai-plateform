@@ -46,7 +46,7 @@ public class CompanyServiceImpl implements CompanyService {
             BranchRepository branchRepository,
             UserRepository userRepository,
             UserBranchRepository userBranchRepository,
-            WarehouseService warehouseService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) WarehouseService warehouseService,
             CurrentTenantProvider currentTenantProvider) {
         this.companyRepository = companyRepository;
         this.branchRepository = branchRepository;
@@ -90,57 +90,92 @@ public class CompanyServiceImpl implements CompanyService {
                 request.fiscalYearType(),
                 request.vatRegistered());
         company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
+        company.updateLocation(request.provinceId(), request.districtId(), request.localLevelId(), request.wardNo(), request.toleStreet());
+        if (request.address() != null && !request.address().isBlank()) {
+            company.updateDetails(null, null, null, null, request.address());
+        }
 
         Company savedCompany = companyRepository.save(company);
         log.info("Created company {} (id={}) for tenant {}", savedCompany.getCompanyName(), savedCompany.getId(), resolvedTenantId);
 
         // ==================== BOOTSTRAP: Head Office Branch ====================
         Branch headOffice = Branch.create(resolvedTenantId, savedCompany.getId(), "HO", "Head Office");
-        headOffice.updateDetails(null, "Head Office", savedCompany.getAddress(), null);
-        headOffice.activate();
+        String branchAddress = savedCompany.getAddress() != null && !savedCompany.getAddress().isBlank()
+                ? savedCompany.getAddress()
+                : (savedCompany.getToleStreet() != null && !savedCompany.getToleStreet().isBlank()
+                        ? savedCompany.getToleStreet()
+                        : savedCompany.getCity());
+        headOffice.updateDetails(null, "Head Office", branchAddress, savedCompany.getWardNo());
+        headOffice.markAsHeadOffice();
+        headOffice.updateGeography(savedCompany.getProvinceId(), savedCompany.getDistrictId(), savedCompany.getLocalLevelId());
         Branch savedBranch = branchRepository.save(headOffice);
         log.info("Created head office branch {} (id={}) for company {}", savedBranch.getBranchName(), savedBranch.getId(), savedCompany.getId());
 
         // ==================== BOOTSTRAP: Main Store Warehouse ====================
-        WarehouseService.WarehouseCreateRequest warehouseRequest =
-                new WarehouseService.WarehouseCreateRequest() {
-                    @Override
-                    public String getCode() { return "WH-MAIN"; }
-                    @Override
-                    public String getName() { return "Main Store"; }
-                    @Override
-                    public String getDescription() { return savedCompany.getAddress(); }
-                    @Override
-                    public String getAddress() { return savedCompany.getAddress(); }
-                    @Override
-                    public String getWarehouseType() { return "GENERAL"; }
-                    @Override
-                    public Boolean getIsActive() { return true; }
-                    @Override
-                    public Boolean getIsDefault() { return true; }
-                    @Override
-                    public Long getBranchId() { return savedBranch.getId(); }
-                };
+        if (warehouseService != null) {
+            try {
+            WarehouseService.WarehouseCreateRequest warehouseRequest =
+                    new WarehouseService.WarehouseCreateRequest() {
+                        @Override
+                        public String getCode() { return "WH-MAIN"; }
+                        @Override
+                        public String getName() { return "Main Store"; }
+                        @Override
+                        public String getDescription() { return branchAddress; }
+                        @Override
+                        public String getAddress() { return branchAddress; }
+                        @Override
+                        public String getWarehouseType() { return "GENERAL"; }
+                        @Override
+                        public Boolean getIsActive() { return true; }
+                        @Override
+                        public Boolean getIsDefault() { return true; }
+                        @Override
+                        public Long getBranchId() { return savedBranch.getId(); }
+                    };
 
-        WarehouseService.WarehouseResponse warehouse = warehouseService.createWarehouse(
-                resolvedTenantId, savedCompany.getId(), warehouseRequest);
-        log.info("Created main store warehouse {} (id={}) for branch {}", warehouse.getCode(), warehouse.getId(), savedBranch.getId());
-
-        // ==================== BOOTSTRAP: UserBranch Assignment ====================
-        User creator = userRepository.findByIdAndTenantId(resolvedCreatorUserId, resolvedTenantId)
-                .orElseThrow(() -> new IllegalStateException("Creator user not found: " + resolvedCreatorUserId));
-
-        if (creator.getBranchId() == null) {
-            creator.updateBranch(savedBranch.getId());
-            userRepository.save(creator);
-            log.info("Set creator user {} branch to {}", creator.getId(), savedBranch.getId());
+            WarehouseService.WarehouseResponse warehouse = warehouseService.createWarehouse(
+                    resolvedTenantId, savedCompany.getId(), warehouseRequest);
+            if (warehouse != null && warehouse.getId() != null) {
+                savedBranch.assignDefaultWarehouse(warehouse.getId());
+                branchRepository.save(savedBranch);
+                log.info("Created main store warehouse {} (id={}) for branch {}", warehouse.getCode(), warehouse.getId(), savedBranch.getId());
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to provision default warehouse for company {}: {}", savedCompany.getId(), ex.getMessage(), ex);
+        }
+        } else {
+            log.warn("WarehouseService is not available; skipped warehouse bootstrap for company {}", savedCompany.getId());
         }
 
-        UserBranch userBranch = UserBranch.assign(
-                UUID.randomUUID(), resolvedCreatorUserId, savedBranch.getId(), resolvedTenantId,
-                "system", Instant.now(), true);
-        userBranchRepository.save(userBranch);
-        log.info("Created primary user-branch assignment for user {} on branch {}", resolvedCreatorUserId, savedBranch.getId());
+        // ==================== BOOTSTRAP: UserBranch Assignment ====================
+        if (resolvedCreatorUserId != null) {
+            userRepository.findByIdAndTenantId(resolvedCreatorUserId, resolvedTenantId).ifPresent(creator -> {
+                boolean userUpdated = false;
+                if (creator.getBranchId() == null) {
+                    creator.updateBranch(savedBranch.getId());
+                    userUpdated = true;
+                    log.info("Set creator user {} branch to {}", creator.getId(), savedBranch.getId());
+                }
+                if (creator.getCompanyId() == null) {
+                    creator.updateCompany(savedCompany.getId());
+                    userUpdated = true;
+                    log.info("Set creator user {} company to {}", creator.getId(), savedCompany.getId());
+                }
+                if (userUpdated) {
+                    userRepository.save(creator);
+                }
+
+                if (!userBranchRepository.existsByTenantIdAndCompanyIdAndUserIdAndBranchId(
+                        resolvedTenantId, savedCompany.getId(), resolvedCreatorUserId, savedBranch.getId())) {
+                    UserBranch userBranch = UserBranch.assign(
+                            UUID.randomUUID(), resolvedCreatorUserId, savedBranch.getId(), resolvedTenantId,
+                            savedCompany.getId(), "system", Instant.now(), true);
+                    userBranchRepository.save(userBranch);
+                    log.info("Created primary user-branch assignment for user {} on branch {}", resolvedCreatorUserId, savedBranch.getId());
+                }
+            });
+        }
 
         return CompanyResponse.from(savedCompany);
     }

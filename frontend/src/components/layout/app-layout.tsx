@@ -137,7 +137,7 @@ const navigation: NavItem[] = [
         ),
       },
       {
-        title: "POS Company Settings",
+        title: "POS Company Setting",
         href: "/administrations/company-settings/pos",
         requiredPermission: undefined,
         icon: ({ className }) => (
@@ -392,6 +392,12 @@ const navigation: NavItem[] = [
     ),
     children: [
       {
+        title: "Overview",
+        href: "/procurement",
+        requiredPermission: "PR_VIEW",
+        icon: getProcurementIcon("layout-dashboard"),
+      },
+      {
         title: "Purchase Requisitions",
         href: "/purchase-requisitions",
         requiredPermission: "PR_VIEW",
@@ -414,6 +420,12 @@ const navigation: NavItem[] = [
         href: "/purchase-invoices",
         requiredPermission: "PURCHASE_INVOICE_VIEW",
         icon: getProcurementIcon("file-invoice"),
+      },
+      {
+        title: "Purchase Returns",
+        href: "/purchase-returns",
+        requiredPermission: "PURCHASE_INVOICE_VIEW",
+        icon: getProcurementIcon("rotate-ccw"),
       },
       {
         title: "Supplier Payments",
@@ -563,9 +575,25 @@ const AppSidebar = React.memo(function AppSidebar({
     });
   }, [hasPermission]);
 
+  const isRestaurantOrHospitality = React.useMemo(() => {
+    const bt = selection?.businessType;
+    return bt === "RESTAURANT" || bt === "CAFE" || bt === "HOTEL";
+  }, [selection?.businessType]);
+
   // Build dynamic navigation with procurement menu from backend
   const dynamicNavigation = React.useMemo(() => {
     return filteredNavigation.map((item) => {
+      if (item.title === "Administrations" || item.title === "Administration") {
+        return {
+          ...item,
+          children: item.children?.filter((child) => {
+            if (child.href === "/administrations/company-settings/pos") {
+              return isRestaurantOrHospitality;
+            }
+            return true;
+          }),
+        };
+      }
       if (item.title === "Procurement" && procurementMenu?.items) {
         return {
           ...item,
@@ -601,7 +629,7 @@ const AppSidebar = React.memo(function AppSidebar({
       }
       return item;
     });
-  }, [filteredNavigation, procurementMenu, salesMenu, posMenu]);
+  }, [filteredNavigation, procurementMenu, salesMenu, posMenu, isRestaurantOrHospitality]);
 
   return (
     <Sidebar collapsible="icon" variant="inset">

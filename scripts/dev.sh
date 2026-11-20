@@ -37,7 +37,7 @@ docker exec erpai-postgres psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $D
 echo "=== Running Flyway migrations ==="
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
     -user="$DB_USER" \
     -password="$DB_PASS" \

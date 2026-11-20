@@ -34,6 +34,7 @@ export interface DistrictResponse {
 }
 
 export interface LocalLevelListResponse {
+  id?: number;
   municipalityId: string;
   name: string;
   nepaliName: string | null;

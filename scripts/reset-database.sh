@@ -45,7 +45,7 @@ SQL
 echo "Applying identity Flyway migrations..."
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway/identity:/flyway/sql/identity:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
     -user="$DB_USER" \
     -password="$DB_PASS" \
@@ -57,12 +57,12 @@ docker run --rm --network host \
 echo "Applying platform Flyway migrations..."
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
     -user="$DB_USER" \
     -password="$DB_PASS" \
     -baselineOnMigrate=true \
-    -baselineVersion=1 \
+    -baselineVersion=0 \
     -validateMigrationNaming=true \
     -locations="filesystem:/flyway/sql/platform" \
     migrate
@@ -70,12 +70,12 @@ docker run --rm --network host \
 echo "Applying inventory Flyway migrations..."
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
     -user="$DB_USER" \
     -password="$DB_PASS" \
     -baselineOnMigrate=true \
-    -baselineVersion=1 \
+    -baselineVersion=0 \
     -table=inventory_flyway_schema_history \
     -validateMigrationNaming=true \
     -locations="filesystem:/flyway/sql/inventory" \

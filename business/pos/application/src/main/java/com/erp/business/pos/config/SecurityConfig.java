@@ -30,7 +30,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-@Order(0)
+@Order(1)
 public class SecurityConfig {
 
     private final PlatformJwtAuthenticationFilter platformJwtAuthenticationFilter;
@@ -44,7 +44,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                 // IRD Tax Auditor read-only gate: auditors may only issue GET.
                 .requestMatchers(req -> isAuditor() && !HttpMethod.GET.matches(req.getMethod()))
                     .denyAll()

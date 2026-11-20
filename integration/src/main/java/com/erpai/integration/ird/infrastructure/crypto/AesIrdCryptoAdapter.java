@@ -1,6 +1,7 @@
 package com.erpai.integration.ird.infrastructure.crypto;
 
 import com.erpai.integration.ird.port.out.IrdCryptoPort;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -13,6 +14,7 @@ import java.util.Base64;
  * Uses a fixed dev key; replace with a KMS-backed key in production.
  */
 @Component
+@ConditionalOnMissingBean(IrdCryptoPort.class)
 public class AesIrdCryptoAdapter implements IrdCryptoPort {
 
     private static final String ALGORITHM = "AES";

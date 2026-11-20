@@ -19,12 +19,12 @@ public class DistrictController {
     private final DistrictRepository districtRepository;
 
     @GetMapping("/by-province")
-    public List<DistrictListResponse> listByProvince(@RequestParam Long provinceId) {
+    public List<DistrictListResponse> listByProvince(@RequestParam Short provinceId) {
         return districtRepository.findByProvinceIdOrderByName(provinceId).stream()
                 .map(d -> new DistrictListResponse(
-                        d.getId(),
+                        d.getId() != null ? d.getId().longValue() : null,
                         0L,
-                        d.getProvinceId(),
+                        d.getProvinceId() != null ? d.getProvinceId().longValue() : null,
                         d.getName(),
                         d.getName(),
                         d.getNepaliName(),

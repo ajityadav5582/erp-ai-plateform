@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Request DTO for creating a new branch.
  *
- * <p>A branch carries a free-text address and an optional ward number.
+ * <p>A branch carries a free-text address, an optional ward number, and administrative geography.
  *
  * @since 1.0.0
  */
@@ -23,6 +23,10 @@ public record CreateBranchRequest(
     String address,
 
     @Size(max = 50, message = "Ward number must not exceed 50 characters")
-    String wardNo
+    String wardNo,
+
+    Short provinceId,
+    Short districtId,
+    Short localLevelId
 ) {
 }

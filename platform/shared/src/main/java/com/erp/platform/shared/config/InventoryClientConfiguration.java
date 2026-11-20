@@ -20,29 +20,43 @@ public class InventoryClientConfiguration {
     @Bean
     @ConditionalOnMissingBean(ItemService.class)
     public ItemService itemService(
-            @Value("${inventory.service-uri:http://inventory-service:8083}") String inventoryUri) {
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
         return new com.erp.platform.business.inventory.http.HttpItemService(inventoryRestClient(inventoryUri));
     }
 
     @Bean
     @ConditionalOnMissingBean(UnitService.class)
     public UnitService unitService(
-            @Value("${inventory.service-uri:http://inventory-service:8083}") String inventoryUri) {
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
         return new com.erp.platform.business.inventory.http.HttpUnitService(inventoryRestClient(inventoryUri));
     }
 
     @Bean
     @ConditionalOnMissingBean(StockMovementService.class)
     public StockMovementService stockMovementService(
-            @Value("${inventory.service-uri:http://inventory-service:8083}") String inventoryUri) {
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
         return new com.erp.platform.business.inventory.http.HttpStockMovementService(inventoryRestClient(inventoryUri));
     }
 
     @Bean
     @ConditionalOnMissingBean(WarehouseService.class)
     public WarehouseService warehouseService(
-            @Value("${inventory.service-uri:http://inventory-service:8083}") String inventoryUri) {
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
         return new com.erp.platform.business.inventory.http.HttpWarehouseService(inventoryRestClient(inventoryUri));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(com.erp.business.inventory.interfaces.supplier.SupplierService.class)
+    public com.erp.business.inventory.interfaces.supplier.SupplierService supplierService(
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
+        return new com.erp.platform.business.inventory.http.HttpSupplierService(inventoryRestClient(inventoryUri));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(com.erp.business.inventory.interfaces.tax.TaxRateService.class)
+    public com.erp.business.inventory.interfaces.tax.TaxRateService taxRateService(
+            @Value("${inventory.service-uri:${INVENTORY_SERVICE_URI:http://localhost:8083}}") String inventoryUri) {
+        return new com.erp.platform.business.inventory.http.HttpTaxRateService(inventoryRestClient(inventoryUri));
     }
 
     private RestClient inventoryRestClient(String inventoryUri) {

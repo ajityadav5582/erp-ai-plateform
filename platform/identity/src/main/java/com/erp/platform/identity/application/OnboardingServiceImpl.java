@@ -70,8 +70,8 @@ public class OnboardingServiceImpl implements OnboardingService {
         // Step 2: Create the initial account for this internal tenant.
         User owner = createTenantOwner(tenant.getId(), request);
 
-        Role ownerRole = roleRepository.findByTenantIdAndRoleCodeAndRoleType(
-                        null, TENANT_ADMIN_ROLE_CODE, RoleType.SYSTEM)
+        Role ownerRole = roleRepository.findByTenantIdIsNullAndRoleCodeAndRoleType(
+                        TENANT_ADMIN_ROLE_CODE, RoleType.SYSTEM)
                 .orElseThrow(() -> new IllegalStateException(
                         "Platform SYSTEM TENANT_ADMIN role is not initialized"));
 
@@ -105,6 +105,9 @@ public class OnboardingServiceImpl implements OnboardingService {
                 IsolationStrategy.SCHEMA_PER_TENANT
         );
 
+        if (tenant.getTenantId() == null) {
+            tenant.setTenantId(java.util.UUID.randomUUID());
+        }
         tenant.activate(Instant.now());
         Tenant savedTenant = tenantRepository.save(tenant);
 

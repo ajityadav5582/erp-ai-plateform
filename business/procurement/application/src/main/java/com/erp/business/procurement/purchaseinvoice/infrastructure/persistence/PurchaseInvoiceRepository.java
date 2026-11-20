@@ -23,6 +23,13 @@ public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice
     Optional<PurchaseInvoice> findByTenantIdAndCompanyIdAndId(
             Long tenantId, Long companyId, Long id);
 
+    @Query("SELECT i FROM PurchaseInvoice i LEFT JOIN FETCH i.lines "
+         + "WHERE i.tenantId = :tenantId AND i.companyId = :companyId AND i.id = :id")
+    Optional<PurchaseInvoice> findWithLinesByTenantIdAndCompanyIdAndId(
+            @Param("tenantId") Long tenantId,
+            @Param("companyId") Long companyId,
+            @Param("id") Long id);
+
     /**
      * Loads an invoice under a pessimistic write lock.
      *

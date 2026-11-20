@@ -1,5 +1,6 @@
 package com.erp.platform.identity.interfaces.rest;
 
+import com.erp.platform.identity.application.CompanyService;
 import com.erp.platform.identity.application.CurrentTenantProvider;
 import com.erp.platform.identity.application.dto.CompanyResponse;
 import com.erp.platform.identity.application.dto.CreateCompanyRequest;
@@ -21,6 +22,7 @@ import java.util.List;
 public class CompanyController {
 
     private final CompanyRepository companyRepository;
+    private final CompanyService companyService;
     private final CurrentTenantProvider currentTenantProvider;
 
     @GetMapping("/{id}")
@@ -46,31 +48,11 @@ public class CompanyController {
     @ResponseStatus(HttpStatus.CREATED)
     public CompanyResponse createCompany(@Valid @RequestBody CreateCompanyRequest request) {
         Long tenantId = currentTenantProvider.getCurrentTenantId();
-        if (companyRepository.existsByTenantIdAndPanNumberIgnoreCase(tenantId, request.panNumber().trim())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A company with this PAN number already exists");
+        try {
+            return companyService.createCompany(tenantId, null, request);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
         }
-        if (companyRepository.existsByTenantIdAndCompanyNameIgnoreCase(tenantId, request.companyName().trim())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A company with this name already exists");
-        }
-        String companyCode = "PAN-" + request.panNumber().trim().toUpperCase().replaceAll("[^A-Z0-9]", "");
-        if (companyCode.length() > 50) {
-            companyCode = companyCode.substring(0, 50);
-        }
-        Company company = Company.create(
-                tenantId,
-                companyCode,
-                request.companyName(),
-                request.panNumber(),
-                request.city(),
-                request.phone(),
-                request.email(),
-                 request.companyType(),
-                 request.businessType(),
-                 request.fiscalYearType(),
-                  request.vatRegistered()
-         );
-         company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
-        return CompanyResponse.from(companyRepository.save(company));
     }
 
     @PutMapping("/{id}")
@@ -98,6 +80,7 @@ public class CompanyController {
         company.updateVatRegistration(request.vatRegistrationNumber(), request.vatEffectiveFrom(), request.vatEffectiveTo());
         company.updateWardNo(request.wardNo());
         company.updateToleStreet(request.toleStreet());
+        company.updateLocation(request.provinceId(), request.districtId(), request.localLevelId(), request.wardNo(), request.toleStreet());
         return ResponseEntity.ok(CompanyResponse.from(companyRepository.save(company)));
     }
 }

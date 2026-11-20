@@ -20,6 +20,9 @@ export interface Company {
   vatEffectiveTo: string | null;
   wardNo: string | null;
   toleStreet: string | null;
+  provinceId?: number | null;
+  districtId?: number | null;
+  localLevelId?: number | null;
   status: "ACTIVE" | "INACTIVE";
 }
 
@@ -58,6 +61,15 @@ export interface CreateCompanyRequest {
   businessType: BusinessType;
   fiscalYearType: FiscalYearType;
   vatRegistered: boolean;
+  vatRegistrationNumber?: string;
+  vatEffectiveFrom?: string;
+  vatEffectiveTo?: string;
+  address?: string;
+  wardNo?: string;
+  toleStreet?: string;
+  provinceId?: number;
+  districtId?: number;
+  localLevelId?: number;
 }
 
 export interface UpdateCompanyRequest {
@@ -71,6 +83,9 @@ export interface UpdateCompanyRequest {
   address?: string;
   wardNo?: string;
   toleStreet?: string;
+  provinceId?: number;
+  districtId?: number;
+  localLevelId?: number;
   companyType?: CompanyType;
   businessType?: BusinessType;
   fiscalYearType?: FiscalYearType;

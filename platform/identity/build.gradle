@@ -33,7 +33,7 @@ dependencies {
     implementation project(':libraries:common-security')
 
     // Platform modules
-    implementation project(':platform:tenant')
+    // implementation project(':platform:tenant')
     implementation project(':platform:shared')
     implementation project(':business:inventory:interfaces')
 
@@ -71,10 +71,12 @@ dependencies {
     implementation "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
-    // Testing
-    testImplementation project(':libraries:common-testing')
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  // Testing
+  testImplementation project(':libraries:common-testing')
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'org.testcontainers:postgresql'
+  testImplementation 'org.testcontainers:junit-jupiter'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.withType(JavaCompile).configureEach {

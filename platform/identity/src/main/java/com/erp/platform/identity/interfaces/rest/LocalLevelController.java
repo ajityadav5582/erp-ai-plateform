@@ -19,13 +19,13 @@ public class LocalLevelController {
     private final LocalLevelRepository localLevelRepository;
 
     @GetMapping("/by-district")
-    public List<LocalLevelListResponse> listByDistrict(@RequestParam Long districtId) {
+    public List<LocalLevelListResponse> listByDistrict(@RequestParam Short districtId) {
         return localLevelRepository.findByDistrictIdOrderByName(districtId).stream()
                 .map(l -> new LocalLevelListResponse(
                         String.valueOf(l.getId()),
                         l.getName(),
                         l.getNepaliName(),
-                        l.getDistrictId(),
+                        l.getDistrictId() != null ? l.getDistrictId().longValue() : null,
                         String.valueOf(l.getLocalLevelTypeId())
                 ))
                 .toList();

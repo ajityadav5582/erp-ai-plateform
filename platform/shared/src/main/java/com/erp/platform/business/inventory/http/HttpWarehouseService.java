@@ -1,6 +1,8 @@
 package com.erp.platform.business.inventory.http;
 
 import com.erp.platform.business.inventory.InventoryClientException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
 import com.erp.platform.common.dto.PageRequest;
@@ -143,16 +145,22 @@ public class HttpWarehouseService implements WarehouseService {
             WarehouseCreateRequestDto dto = new WarehouseCreateRequestDto(
                     request.getCode(),
                     request.getName(),
-                    request.getDescription(),
+                    request.getWarehouseType() != null ? request.getWarehouseType() : "GENERAL",
+                    request.getBranchId(),
                     request.getAddress(),
-                    request.getWarehouseType(),
-                    request.getIsActive(),
-                    request.getIsDefault(),
-                    request.getBranchId()
+                    null
             );
             WarehouseResponseDto response = restClient.post()
                     .uri(path)
-                    .headers(this::forwardRequestContext)
+                    .headers(headers -> {
+                        forwardRequestContext(headers);
+                        if (tenantId != null) {
+                            headers.set("X-Tenant-Id", String.valueOf(tenantId));
+                        }
+                        if (companyId != null) {
+                            headers.set("X-Company-Id", String.valueOf(companyId));
+                        }
+                    })
                     .body(dto)
                     .retrieve()
                     .body(WarehouseResponseDto.class);
@@ -188,12 +196,14 @@ public class HttpWarehouseService implements WarehouseService {
     /**
      * DTO for deserializing Inventory's single warehouse response.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record WarehouseResponseDto(
             Long id,
             String code,
             String name,
             String description,
             String address,
+            @JsonProperty("type")
             String warehouseType,
             Boolean isActive,
             Boolean isDefault
@@ -260,12 +270,11 @@ public class HttpWarehouseService implements WarehouseService {
     record WarehouseCreateRequestDto(
             String code,
             String name,
-            String description,
+            @JsonProperty("type")
+            String type,
+            Long branchId,
             String address,
-            String warehouseType,
-            Boolean isActive,
-            Boolean isDefault,
-            Long branchId
+            String phone
     ) {
     }
 }

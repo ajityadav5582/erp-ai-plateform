@@ -1,8 +1,10 @@
 package com.erp.platform.identity.domain;
 
-import com.erp.platform.data.lock.OptimisticLock;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.io.Serializable;
+import java.time.Instant;
 
 @Entity
 @Table(name = "master_districts")
@@ -10,9 +12,13 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-public class District extends OptimisticLock<Long> {
+public class District implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    @Id
+    @Column(name = "id", nullable = false, columnDefinition = "smallint")
+    private Short id;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -21,5 +27,11 @@ public class District extends OptimisticLock<Long> {
     private String nepaliName;
 
     @Column(name = "province_id", nullable = false)
-    private Long provinceId;
+    private Short provinceId;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 }

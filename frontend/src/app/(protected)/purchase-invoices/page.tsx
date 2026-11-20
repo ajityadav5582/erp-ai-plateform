@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, MoreVertical, Receipt, Search, Wallet } from "lucide-react";
+import { Eye, MoreVertical, Receipt, RotateCcw, Search, Wallet } from "lucide-react";
 import {
   useGetPurchaseInvoicesQuery,
   useGetOutstandingInvoicesQuery,
@@ -57,6 +57,14 @@ const PurchaseInvoiceDetailsSheet = dynamic(
   { ssr: false, loading: () => null }
 );
 
+const CreatePurchaseReturnDialog = dynamic(
+  () =>
+    import("@/components/procurement/create-purchase-return-dialog").then((mod) => ({
+      default: mod.CreatePurchaseReturnDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 type InvoiceScope = "all" | "outstanding";
 
 const COLUMNS = 9;
@@ -84,6 +92,8 @@ export default function PurchaseInvoicesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [detailsId, setDetailsId] = useState<number | null>(null);
+  const [returnInvoiceId, setReturnInvoiceId] = useState<number | null>(null);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   const listParams = useMemo(
     () => ({ page, size: pageSize }),
@@ -328,8 +338,19 @@ export default function PurchaseInvoicesPage() {
                         <DropdownMenuContent align="end" className="z-[9999] w-48">
                           <DropdownMenuItem onClick={() => setDetailsId(invoice.id)}>
                             <Eye className="mr-2 size-4 text-muted-foreground" />
-                            View details
+                            <span>View details</span>
                           </DropdownMenuItem>
+                          {invoice.status !== "CANCELLED" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setReturnInvoiceId(invoice.id);
+                                setReturnDialogOpen(true);
+                              }}
+                            >
+                              <RotateCcw className="mr-2 size-4 text-destructive" />
+                              <span className="text-destructive font-medium">Issue Debit Note</span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -359,6 +380,13 @@ export default function PurchaseInvoicesPage() {
         onOpenChange={(open) => {
           if (!open) setDetailsId(null);
         }}
+      />
+
+      <CreatePurchaseReturnDialog
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
+        initialInvoiceId={returnInvoiceId}
+        onCreated={() => refetch()}
       />
     </div>
   );

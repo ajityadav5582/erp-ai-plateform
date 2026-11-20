@@ -92,6 +92,21 @@ public interface UserBranchRepository extends JpaRepository<UserBranch, Long> {
     Optional<UserBranch> findByTenantIdAndUserIdAndIsPrimaryTrue(Long tenantId, Long userId);
 
     /**
+     * Finds the primary branch assignment for a user within a company and tenant.
+     *
+     * @param tenantId the tenant ID
+     * @param companyId the company ID
+     * @param userId the user ID
+     * @return the primary branch assignment if found, empty otherwise
+     */
+    Optional<UserBranch> findByTenantIdAndCompanyIdAndUserIdAndIsPrimaryTrue(Long tenantId, Long companyId, Long userId);
+
+    /**
+     * Checks if a user-branch assignment exists within a tenant and company.
+     */
+    boolean existsByTenantIdAndCompanyIdAndUserIdAndBranchId(Long tenantId, Long companyId, Long userId, Long branchId);
+
+    /**
      * Checks if a user-branch assignment exists within a tenant.
      *
      * @param tenantId the tenant ID

@@ -32,14 +32,16 @@ class DistrictControllerTest {
     @Test
     @DisplayName("Should list districts by province ordered by name")
     void shouldListDistrictsByProvinceOrderedByName() {
-        Long provinceId = 3L;
+        Short provinceId = (short) 3;
         District kathmandu = District.builder()
+                .id((short) 1)
                 .name("Kathmandu")
                 .nepaliName("काठमाडौं")
                 .provinceId(provinceId)
                 .build();
 
         District lalitpur = District.builder()
+                .id((short) 2)
                 .name("Lalitpur")
                 .nepaliName("ललितपुर")
                 .provinceId(provinceId)
@@ -53,12 +55,11 @@ class DistrictControllerTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).districtName()).isEqualTo("Kathmandu");
         assertThat(result.get(0).nepaliName()).isEqualTo("काठमाडौं");
-        assertThat(result.get(0).provinceId()).isEqualTo(provinceId);
+        assertThat(result.get(0).provinceId()).isEqualTo(provinceId.longValue());
         assertThat(result.get(1).districtName()).isEqualTo("Lalitpur");
         assertThat(result.get(1).nepaliName()).isEqualTo("ललितपुर");
-        assertThat(result.get(1).provinceId()).isEqualTo(provinceId);
+        assertThat(result.get(1).provinceId()).isEqualTo(provinceId.longValue());
 
         verify(districtRepository).findByProvinceIdOrderByName(provinceId);
     }
 }
-

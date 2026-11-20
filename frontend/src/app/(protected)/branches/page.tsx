@@ -264,8 +264,17 @@ export default function BranchesPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate">{branch.branchName}</p>
-                          <p className="text-xs text-muted-foreground truncate">ID: {branch.id}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground truncate">{branch.branchName}</p>
+                            {branch.isHeadOffice && (
+                              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                Head Office
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {branch.address ? branch.address : `ID: ${branch.id}`}
+                          </p>
                         </div>
                       </div>
                     </TableCell>

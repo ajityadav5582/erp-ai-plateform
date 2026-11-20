@@ -17,17 +17,20 @@ public record CompanyResponse(
         String email,
         String website,
         String address,
-         CompanyType companyType,
-         BusinessType businessType,
-         FiscalYearType fiscalYearType,
-         Boolean vatRegistered,
-         String vatRegistrationNumber,
-         java.time.LocalDate vatEffectiveFrom,
-         java.time.LocalDate vatEffectiveTo,
-         String wardNo,
-         String toleStreet,
-         CompanyStatus status
- ) {
+        CompanyType companyType,
+        BusinessType businessType,
+        FiscalYearType fiscalYearType,
+        Boolean vatRegistered,
+        String vatRegistrationNumber,
+        java.time.LocalDate vatEffectiveFrom,
+        java.time.LocalDate vatEffectiveTo,
+        String wardNo,
+        String toleStreet,
+        Short provinceId,
+        Short districtId,
+        Short localLevelId,
+        CompanyStatus status
+) {
     public static CompanyResponse from(Company company) {
         return new CompanyResponse(
                 company.getId(),
@@ -40,16 +43,19 @@ public record CompanyResponse(
                 company.getEmail(),
                 company.getWebsite(),
                 company.getAddress(),
-                 company.getCompanyType(),
-                 company.getBusinessType(),
-                 company.getFiscalYearType(),
-                 company.getVatRegistered(),
-                 company.getVatRegistrationNumber(),
-                 company.getVatEffectiveFrom(),
-                 company.getVatEffectiveTo(),
-                 company.getWardNo(),
-                 company.getToleStreet(),
-                 company.getStatus()
+                company.getCompanyType(),
+                company.getBusinessType(),
+                company.getFiscalYearType(),
+                company.getVatRegistered(),
+                company.getVatRegistrationNumber(),
+                company.getVatEffectiveFrom(),
+                company.getVatEffectiveTo(),
+                company.getWardNo(),
+                company.getToleStreet(),
+                company.getProvinceId(),
+                company.getDistrictId(),
+                company.getLocalLevelId(),
+                company.getStatus()
         );
     }
 }

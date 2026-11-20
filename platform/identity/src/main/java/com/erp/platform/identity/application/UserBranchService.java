@@ -137,6 +137,7 @@ public class UserBranchService {
                 request.userId(),
                 request.branchId(),
                 tenantId,
+                branch.getCompanyId(),
                 "system",
                 Instant.now(),
                 isPrimary

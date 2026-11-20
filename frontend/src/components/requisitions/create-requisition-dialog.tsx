@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Trash2, Copy, FileText } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Copy,
+  FileText,
+  Building2,
+  Calendar,
+  Warehouse,
+  Package,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   useCreateRequisitionMutation,
@@ -16,7 +27,7 @@ import {
   useGetWarehousesQuery,
   NON_RECEIVING_WAREHOUSE_TYPES,
 } from "@/services/warehouse.service";
-import { useGetActiveItemsQuery } from "@/services/item.service";
+import { useGetActiveItemsQuery, type ItemListResponse } from "@/services/item.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { useSelectedCompany } from "@/config/company-context";
 import {
@@ -29,6 +40,7 @@ import {
   toUpdateRequisitionRequest,
   type RequisitionFormValues,
 } from "@/components/requisitions/requisition-form";
+import { ItemCombobox } from "@/components/requisitions/item-combobox";
 
 import {
   Dialog,
@@ -38,19 +50,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Form, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
 import { BsDateField } from "@/components/ui/bs-date-field";
 import {
-  formatBsLong,
   formatBsLongNp,
   formatAdLong,
   safeAdToBs,
   safeAdToBsISO,
   safeBsToAd,
   todayISO,
+  formatBsLong,
 } from "@/lib/nepali-date";
 import {
   Select,
@@ -67,6 +86,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface CreateRequisitionDialogProps {
   open: boolean;
@@ -140,8 +160,7 @@ export function CreateRequisitionDialog({
   );
 
   // Receiving sites only. Quarantine and transit are somewhere goods pass
-  // through, not somewhere a branch asks for stock to end up, so nominating one
-  // here would be a demand for the wrong floor.
+  // through, not somewhere a branch asks for stock to end up.
   const { data: warehouseData } = useGetWarehousesQuery(
     { page: 0, size: 100, sort: "name,asc" },
     { skip: !open }
@@ -156,33 +175,20 @@ export function CreateRequisitionDialog({
     [warehouseData]
   );
 
+  // Fetch active items for inline combobox search (up to 500 items for instant client-side lookup)
   const { data: itemData } = useGetActiveItemsQuery(
-    { page: 0, size: 200, sort: "nameEn,asc" },
+    { page: 0, size: 500, sort: "nameEn,asc" },
     { skip: !open }
   );
   const items = useMemo(() => itemData?.content ?? [], [itemData]);
-  const [itemSearch, setItemSearch] = useState("");
-  const filteredItems = useMemo(() => {
-    const term = itemSearch.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter(
-      (item) =>
-        item.nameEn?.toLowerCase().includes(term) ||
-        item.sku?.toLowerCase().includes(term)
-    );
-  }, [items, itemSearch]);
 
   /**
    * The backend stores item code, name and UOM as a frozen snapshot rather than
-   * resolving them live, so they must be sent with each line. Reading them from
-   * the loaded catalogue here keeps that snapshot correct without the user
-   * having to type it.
+   * resolving them live, so they must be sent with each line.
    */
   const itemSnapshot = useMemo(() => {
     const map = new Map<number, { code: string; name: string; uom: string }>();
     if (editing) {
-      // Document snapshot first, so a line the catalogue no longer lists keeps
-      // the description it was raised with instead of blanking out.
       documentSnapshot.forEach((value, key) => map.set(key, value));
     }
     items.forEach((item) => {
@@ -199,11 +205,7 @@ export function CreateRequisitionDialog({
 
   /**
    * The backend freezes the warehouse code and name onto the document, so both
-   * have to travel with the id. Watched rather than read through
-   * `getValues` inside the submit handler so the memo recomputes when the picker
-   * changes, and seeded from the document first so a warehouse that has since
-   * been deactivated or paged off the list keeps the description it was raised
-   * with - the same reasoning as `itemSnapshot` above.
+   * travel with the id.
    */
   const selectedWarehouseId = form.watch("warehouseId");
   const warehouseSnapshot = useMemo(() => {
@@ -219,9 +221,7 @@ export function CreateRequisitionDialog({
     name: "lines",
   });
 
-  // Seed on every open: the create form starts blank, the edit form starts from
-  // the document. Keyed on `open` rather than on close, so a dialog reopened with
-  // a different requisition cannot show the previous one's contents.
+  // Seed on every open
   useEffect(() => {
     if (!open) return;
     if (editing) {
@@ -232,13 +232,10 @@ export function CreateRequisitionDialog({
         lines: [emptyLineValues()],
       });
     }
-    // `form` is stable; re-running on `editing` identity would discard in-flight
-    // typing every time a background refetch produces a new object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing?.id]);
 
-  // Pre-fill the branch when opened from a branch-filtered list. Not in edit
-  // mode: an existing document keeps the branch it was raised against.
+  // Pre-fill the branch when opened from a branch-filtered list
   useEffect(() => {
     if (open && defaultBranchId && !editing) {
       form.setValue("branchId", String(defaultBranchId));
@@ -246,13 +243,11 @@ export function CreateRequisitionDialog({
   }, [open, defaultBranchId, editing, form]);
 
   const watchedLines = form.watch("lines");
-
   const requestDate = form.watch("requestDate");
   const requestDateNp = form.watch("requestDateNp");
+  const priority = form.watch("priority");
 
-  // The two fields are two views of one date, so editing either has to update the
-  // other. Doing it in the change handler rather than a watcher avoids a render loop:
-  // each setter only fires on a genuine user edit.
+  // Sync AD and BS dates
   const setRequestDateAd = (adISO: string) => {
     form.setValue("requestDate", adISO, { shouldValidate: true, shouldDirty: true });
     form.setValue("requestDateNp", safeAdToBsISO(adISO) ?? "", {
@@ -263,15 +258,13 @@ export function CreateRequisitionDialog({
 
   const setRequestDateNp = (bsISO: string) => {
     form.setValue("requestDateNp", bsISO, { shouldValidate: true, shouldDirty: true });
-    // A cleared or out-of-range BS value leaves the AD field alone rather than
-    // blanking a valid date the user already entered.
     const adISO = safeBsToAd(bsISO);
     if (adISO) {
       form.setValue("requestDate", adISO, { shouldValidate: true, shouldDirty: true });
     }
   };
 
-  // Display projections for the two fields.
+  // Projections
   const requestBsLong = useMemo(
     () => (requestDate ? formatBsLongNp(requestDate) : null),
     [requestDate],
@@ -293,7 +286,7 @@ export function CreateRequisitionDialog({
     () => (requiredByDate ? formatAdLong(requiredByDate) : null),
     [requiredByDate],
   );
-  // Sanity reference: proves the calendar is tracking the real current date.
+
   const todayBsLabel = useMemo(() => {
     try {
       return formatBsLong(todayISO());
@@ -302,10 +295,7 @@ export function CreateRequisitionDialog({
     }
   }, []);
 
-  // Estimated total, recomputed on every keystroke. The server recomputes this
-  // authoritatively; showing it here lets the requester sanity-check the request
-  // before submitting.
-  // Estimated total breakdown, recomputed on every keystroke.
+  // Estimated breakdown
   const estimatedBreakdown = useMemo(() => {
     return (watchedLines ?? []).reduce(
       (acc, line) => {
@@ -324,19 +314,52 @@ export function CreateRequisitionDialog({
     );
   }, [watchedLines]);
 
+  // Handle inline item selection with intelligent defaults auto-fill
+  const handleItemSelect = (
+    index: number,
+    field: { onChange: (val: string) => void },
+    selectedItem: ItemListResponse
+  ) => {
+    field.onChange(String(selectedItem.id));
+
+    // Auto-fill unit price from catalogue purchase price when available
+    if (selectedItem.purchasePrice != null && Number(selectedItem.purchasePrice) > 0) {
+      form.setValue(
+        `lines.${index}.estimatedUnitPrice`,
+        String(selectedItem.purchasePrice),
+        { shouldValidate: true, shouldDirty: true }
+      );
+    }
+
+    // Auto-fill tax rate from the item's VAT setting
+    if (selectedItem.taxabilityType === "TAXABLE" && selectedItem.vatRate != null) {
+      form.setValue(
+        `lines.${index}.taxRate`,
+        String(selectedItem.vatRate),
+        { shouldValidate: true, shouldDirty: true }
+      );
+    } else if (
+      selectedItem.taxabilityType === "EXEMPT" ||
+      selectedItem.taxabilityType === "ZERO_RATED"
+    ) {
+      form.setValue(
+        `lines.${index}.taxRate`,
+        "0",
+        { shouldValidate: true, shouldDirty: true }
+      );
+    }
+  };
+
   const onSubmit = async (values: RequisitionFormValues) => {
     if (!selectedCompany) {
       toast.error("No company selected", {
-        description:
-          "Select a company from the header before saving a requisition.",
+        description: "Select a company from the header before saving a requisition.",
       });
       return;
     }
 
     try {
       if (editing) {
-        // A PUT is a full replacement, so lines the user deleted are gone and
-        // lines they kept are rewritten. Nothing is merged on the server.
         const result = await updateRequisition({
           requisitionId: editing.id,
           data: toUpdateRequisitionRequest(values, itemSnapshot, warehouseSnapshot),
@@ -349,8 +372,6 @@ export function CreateRequisitionDialog({
         return;
       }
 
-      // No companyId in the body: the backend scopes the create to the company
-      // carried by the X-Company-Id header.
       const result = await createRequisition(
         toCreateRequisitionRequest(values, itemSnapshot, warehouseSnapshot)
       ).unwrap();
@@ -373,346 +394,395 @@ export function CreateRequisitionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto p-4 sm:max-w-5xl sm:p-6">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-4xl lg:max-w-5xl">
+        {/* Header */}
+        <DialogHeader className="shrink-0 border-b border-border/80 bg-muted/20 px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileText className="size-5" />
             </div>
-            <div>
-              <DialogTitle>
-                {editing
-                  ? `Edit ${editing.prNumber}`
-                  : "New Purchase Requisition"}
-              </DialogTitle>
-              <DialogDescription>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-base sm:text-lg">
+                  {editing ? `Edit Requisition` : "New Purchase Requisition"}
+                </DialogTitle>
                 {editing ? (
-                  <>
-                    Saving replaces the document as it stands. Lines you remove
-                    are deleted, so keep what you still need.
-                  </>
-                ) : (
-                  <>
-                    Raise what a branch needs. No supplier is selected here; that
-                    happens after the request is approved.
-                  </>
-                )}
+                  <Badge variant="outline" className="font-mono text-xs font-semibold">
+                    {editing.prNumber}
+                  </Badge>
+                ) : null}
+              </div>
+              <DialogDescription className="text-xs sm:text-sm">
+                {editing
+                  ? "Update lines, estimated prices, or delivery site before submitting."
+                  : "Raise branch purchase demand. No supplier is needed until approval."}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
+        {/* Scrollable Form Content */}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
-          {/* --- Request details --- */}
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Request details
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <FormField
-                control={form.control}
-                name="branchId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Branch</FormLabel>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                        // A branch change invalidates the department: a cost
-                        // centre from another branch has no meaning here, so
-                        // clear it rather than leave a dangling reference.
-                        form.setValue("departmentId", "", {
-                          shouldValidate: false,
-                          shouldDirty: true,
-                        });
-                      }}
-                      disabled={isLoading || isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            No active branches
+          <form
+            id="purchase-requisition-form"
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
+          >
+            {/* Section 1: Scope & Origin */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4.5 space-y-3.5">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Building2 className="size-3.5 text-primary" />
+                <span>Scope & Origin</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">
+                        Branch <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("departmentId", "", {
+                            shouldValidate: false,
+                            shouldDirty: true,
+                          });
+                        }}
+                        disabled={isLoading || isEditing}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select a branch" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {branches.length === 0 ? (
+                            <SelectItem value="none" disabled>
+                              No active branches
+                            </SelectItem>
+                          ) : (
+                            branches.map((branch) => (
+                              <SelectItem key={branch.id} value={String(branch.id)}>
+                                {branch.branchName}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      {isEditing && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Branch is locked after creation to preserve policy assignment.
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="departmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">Department</FormLabel>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                        disabled={isLoading || isEditing || !selectedBranchId}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue
+                              placeholder={
+                                selectedBranchId
+                                  ? "Optional cost centre"
+                                  : "Select branch first"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {departments.length === 0 ? (
+                            <SelectItem value="none" disabled>
+                              {selectedBranchId
+                                ? "No departments in this branch"
+                                : "Pick a branch first"}
+                            </SelectItem>
+                          ) : (
+                            departments.map((dept) => (
+                              <SelectItem key={dept.id} value={String(dept.id)}>
+                                {dept.departmentName}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Section 2: Schedule & Priority */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4.5 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Calendar className="size-3.5 text-primary" />
+                  <span>Timeline & Urgency</span>
+                </div>
+                {todayBsLabel ? (
+                  <span className="hidden text-[11px] text-muted-foreground sm:inline-block">
+                    Today: {todayBsLabel}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+                <FormField
+                  control={form.control}
+                  name="requestDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">Request Date (AD)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value ?? ""}
+                          onChange={(e) => setRequestDateAd(e.target.value)}
+                          disabled={isLoading}
+                          className="h-9 text-xs sm:text-sm"
+                        />
+                      </FormControl>
+                      {requestDate ? (
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {requestAdLong}
+                        </p>
+                      ) : null}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="requestDateNp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">Request Date (BS)</FormLabel>
+                      <FormControl>
+                        <BsDateField
+                          value={field.value ?? ""}
+                          onChange={setRequestDateNp}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      {requestDateNp ? (
+                        <p className="truncate font-nepali text-[11px] text-muted-foreground">
+                          {requestBsLong}
+                        </p>
+                      ) : null}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="requiredByDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">
+                        Required By <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <NepaliDatePicker
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          disabled={isLoading}
+                          placeholder="Select deadline"
+                        />
+                      </FormControl>
+                      {requiredByBs ? (
+                        <p className="truncate text-[11px] text-muted-foreground font-nepali">
+                          {requiredByBsLong} ({requiredByAdLong})
+                        </p>
+                      ) : null}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">Priority Level</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="LOW">
+                            <span className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-slate-400" />
+                              Low
+                            </span>
                           </SelectItem>
-                        ) : (
-                          branches.map((branch) => (
-                            <SelectItem
-                              key={branch.id}
-                              value={String(branch.id)}
-                            >
-                              {branch.branchName}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    {isEditing && (
-                      <p className="text-xs text-muted-foreground">
-                        The branch selects the approval policy, so it cannot be
-                        changed once a requisition has been raised.
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="departmentId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                      disabled={isLoading || isEditing || !selectedBranchId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            {selectedBranchId
-                              ? "No active departments in this branch"
-                              : "Pick a branch first"}
+                          <SelectItem value="NORMAL">
+                            <span className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-sky-500" />
+                              Normal
+                            </span>
                           </SelectItem>
+                          <SelectItem value="HIGH">
+                            <span className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-amber-500" />
+                              High
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="URGENT">
+                            <span className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-rose-500" />
+                              Urgent
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Section 3: Receiving & Notes */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4.5 space-y-3.5">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Warehouse className="size-3.5 text-primary" />
+                <span>Destination & Justification</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="warehouseId"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-1">
+                      <FormLabel className="text-xs font-medium">
+                        Nominated Warehouse{" "}
+                        <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                      </FormLabel>
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Decide upon delivery" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {warehouses.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={String(warehouse.id)}>
+                              {warehouse.name} ({warehouse.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="justification"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel className="text-xs font-medium">
+                        Justification
+                        {priority === "HIGH" || priority === "URGENT" ? (
+                          <span className="ml-1 text-destructive font-semibold">
+                            * (Required for {priority})
+                          </span>
                         ) : (
-                          departments.map((dept) => (
-                            <SelectItem
-                              key={dept.id}
-                              value={String(dept.id)}
-                            >
-                              {dept.departmentName}
-                            </SelectItem>
-                          ))
+                          <span className="ml-1 text-[10px] text-muted-foreground font-normal">
+                            (Optional)
+                          </span>
                         )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Two separate fields for one date: the Gregorian value the backend
-                  stores, and the Bikram Sambat value it projects. Editing either
-                  updates the other, so the pair can never drift apart. */}
-              <FormField
-                control={form.control}
-                name="requestDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Request Date (AD)</FormLabel>
-                    <Input
-                      type="date"
-                      value={field.value ?? ""}
-                      onChange={(e) => setRequestDateAd(e.target.value)}
-                      disabled={isLoading}
-                    />
-                    {requestDate ? (
-                      <p className="text-xs text-muted-foreground">
-                        {requestAdLong}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Bikram Sambat calendar
-                        {todayBsLabel ? ` — today is ${todayBsLabel}` : ""}
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Reason for purchase (required for High/Urgent)"
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          disabled={isLoading}
+                          className="h-9 text-xs sm:text-sm"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
-                name="requestDateNp"
+                name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Request Date (NP)</FormLabel>
-                    <BsDateField
-                      value={field.value ?? ""}
-                      onChange={setRequestDateNp}
-                      disabled={isLoading}
-                    />
-                    {requestDateNp ? (
-                      <p className="font-nepali text-xs text-muted-foreground">
-                        {requestBsLong}
-                      </p>
-                    ) : null}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="requiredByDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Required By</FormLabel>
-                    <NepaliDatePicker
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      disabled={isLoading}
-                      placeholder="ऐच्छिक"
-                    />
-                    {requiredByBs ? (
-                      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 rounded-md border border-border bg-muted/50 px-2.5 py-2 text-xs">
-                        <dt className="text-muted-foreground">Nepali (BS)</dt>
-                        <dd className="font-nepali font-medium text-foreground">
-                          {requiredByBsLong}
-                        </dd>
-                        <dt className="text-muted-foreground">Gregorian (AD)</dt>
-                        <dd className="font-medium text-foreground">
-                          {requiredByAdLong}
-                        </dd>
-                      </dl>
-                    ) : null}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(["LOW", "NORMAL", "HIGH", "URGENT"] as const).map(
-                          (priority) => (
-                            <SelectItem key={priority} value={priority}>
-                              {priority.charAt(0) + priority.slice(1).toLowerCase()}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel className="text-xs font-medium">
+                      Internal Notes{" "}
+                      <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Additional remarks for approvers or procurement officers"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        disabled={isLoading}
+                        className="h-9 text-xs sm:text-sm"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Receiving details
-            </h4>
-            <FormField
-              control={form.control}
-              name="warehouseId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Receiving Warehouse
-                    <span className="ml-1 text-muted-foreground text-xs">
-                      optional
-                    </span>
-                  </FormLabel>
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="No preference - decide at receipt" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {warehouses.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={String(warehouse.id)}>
-                          {warehouse.name} ({warehouse.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    A nomination, not a commitment. If empty, the storekeeper
-                    picks the warehouse when the goods actually arrive.
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Section 4: Demand Items */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                    <Package className="size-4 text-primary" />
+                    <span>Requested Items</span>
+                  </div>
+                  <Badge variant="secondary" className="font-mono text-xs font-semibold">
+                    {fields.length}
+                  </Badge>
+                </div>
 
-            <FormField
-              control={form.control}
-              name="justification"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Justification
-                    {form.watch("priority") === "HIGH" ||
-                    form.watch("priority") === "URGENT" ? (
-                      <span className="ml-1 text-destructive">*</span>
-                    ) : null}
-                  </FormLabel>
-                  <Input
-                    placeholder="Why is this purchase needed?"
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    disabled={isLoading}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <Input
-                    placeholder="Internal notes for the approver or storekeeper"
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    disabled={isLoading}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* --- Lines --- */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Items
-                  <span className="ml-1.5 font-normal text-muted-foreground">
-                    ({fields.length})
-                  </span>
-                </h3>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
-                    onClick={() => append(emptyLineValues())}
-                    disabled={isLoading || fields.length >= 50}
-                  >
-                    <Plus className="size-3.5" />
-                    Add Line
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-muted-foreground"
+                    className="h-8 gap-1.5 text-xs"
                     onClick={() => {
                       if (fields.length === 0) return;
                       const last = fields[fields.length - 1]!;
@@ -724,26 +794,40 @@ export function CreateRequisitionDialog({
                         remarks: "",
                       });
                     }}
-                    disabled={isLoading || fields.length >= 50}
-                    title="Duplicate the last line"
+                    disabled={isLoading || fields.length >= 50 || fields.length === 0}
+                    title="Duplicate last item"
                   >
                     <Copy className="size-3.5" />
-                    Copy
+                    <span className="hidden sm:inline">Copy Last</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => append(emptyLineValues())}
+                    disabled={isLoading || fields.length >= 50}
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Add Item</span>
                   </Button>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-border">
+              {/* Tablet & Desktop View: Clean Table */}
+              <div className="hidden rounded-xl border border-border/80 bg-card overflow-hidden md:block shadow-2xs">
                 <Table>
                   <TableHeader className="bg-muted/40">
-                    <TableRow>
-                      <TableHead className="w-10">#</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="w-28">Quantity</TableHead>
-                      <TableHead className="w-32">Est. Unit Price</TableHead>
-                      <TableHead className="w-20">Tax %</TableHead>
-                      <TableHead className="w-40">Remarks</TableHead>
-                      <TableHead className="w-32 text-right">Line Total</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-10 text-center text-xs font-semibold">#</TableHead>
+                      <TableHead className="min-w-[240px] text-xs font-semibold">
+                        Item Description (Code & Name)
+                      </TableHead>
+                      <TableHead className="w-28 text-xs font-semibold">Quantity</TableHead>
+                      <TableHead className="w-32 text-xs font-semibold">Est. Unit Price</TableHead>
+                      <TableHead className="w-20 text-xs font-semibold">Tax %</TableHead>
+                      <TableHead className="w-40 text-xs font-semibold">Remarks</TableHead>
+                      <TableHead className="w-28 text-right text-xs font-semibold">Line Total</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -757,8 +841,8 @@ export function CreateRequisitionDialog({
                       const lineTotal = net + tax;
 
                       return (
-                        <TableRow key={field.id}>
-                          <TableCell className="text-sm text-muted-foreground">
+                        <TableRow key={field.id} className="hover:bg-muted/20">
+                          <TableCell className="text-center font-mono text-xs text-muted-foreground">
                             {index + 1}
                           </TableCell>
 
@@ -768,87 +852,20 @@ export function CreateRequisitionDialog({
                               name={`lines.${index}.itemId`}
                               render={({ field: itemField }) => (
                                 <FormItem>
-                                  <Select
-                                    value={itemField.value || undefined}
-                                    onValueChange={(val) => {
-                                      itemField.onChange(val);
-                                      const matchedItem = items.find(
-                                        (it) => String(it.id) === val
-                                      );
-                                      if (matchedItem) {
-                                        // Auto-fill the unit price from the catalogue's
-                                        // purchase price when one is recorded. The
-                                        // requester can override it afterwards; the
-                                        // point is to cut down on typing for the common
-                                        // case where the estimate is the catalogue
-                                        // price.
-                                        if (matchedItem.purchasePrice) {
-                                          form.setValue(
-                                            `lines.${index}.estimatedUnitPrice`,
-                                            String(matchedItem.purchasePrice)
-                                          );
-                                        }
-                                        // Auto-fill the tax rate from the item's own
-                                        // VAT setting. A taxable item without an
-                                        // explicit rate falls through to the default
-                                        // rather than silently zeroing the column.
-                                        if (
-                                          matchedItem.taxabilityType === "TAXABLE" &&
-                                          matchedItem.vatRate != null
-                                        ) {
-                                          form.setValue(
-                                            `lines.${index}.taxRate`,
-                                            String(matchedItem.vatRate)
-                                          );
-                                        }
+                                  <FormControl>
+                                    <ItemCombobox
+                                      value={itemField.value}
+                                      items={items}
+                                      disabled={isLoading}
+                                      fallbackSnapshot={itemSnapshot.get(Number(itemField.value))}
+                                      onSelect={(selectedItem) =>
+                                        handleItemSelect(index, itemField, selectedItem)
                                       }
-                                    }}
-                                    disabled={isLoading}
-                                  >
-                                    <Input
-                                      placeholder="Search items…"
-                                      value={itemSearch}
-                                      onChange={(e) => setItemSearch(e.target.value)}
-                                      className="mb-2"
-                                    />
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select an item" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                       {filteredItems.length === 0 ? (
-                                         <SelectItem value="none" disabled>
-                                           No matching items
-                                         </SelectItem>
-                                       ) : (
-                                         filteredItems.map((item) => (
-                                          <SelectItem
-                                            key={item.id}
-                                            value={String(item.id)}
-                                          >
-                                            <div className="flex w-full flex-col">
-                                              <span className="font-medium">
-                                                {item.nameEn}
-                                              </span>
-                                              <span className="text-xs text-muted-foreground">
-                                                {item.sku}
-                                                {item.uomCode
-                                                  ? ` · ${item.uomCode}`
-                                                  : ""}
-                                                {item.purchasePrice != null
-                                                  ? ` · ${item.purchasePrice.toLocaleString(
-                                                      undefined,
-                                                      {
-                                                        minimumFractionDigits: 2,
-                                                      }
-                                                    )}`
-                                                  : ""}
-                                              </span>
-                                            </div>
-                                          </SelectItem>
-                                        ))
+                                      error={Boolean(
+                                        form.formState.errors.lines?.[index]?.itemId
                                       )}
-                                    </SelectContent>
-                                  </Select>
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -861,15 +878,18 @@ export function CreateRequisitionDialog({
                               name={`lines.${index}.quantity`}
                               render={({ field: qtyField }) => (
                                 <FormItem>
-                                  <Input
-                                    type="number"
-                                    step="0.000001"
-                                    min="0"
-                                    placeholder="0"
-                                    value={qtyField.value}
-                                    onChange={qtyField.onChange}
-                                    disabled={isLoading}
-                                  />
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.000001"
+                                      min="0"
+                                      placeholder="0"
+                                      value={qtyField.value}
+                                      onChange={qtyField.onChange}
+                                      disabled={isLoading}
+                                      className="h-9 font-mono text-xs sm:text-sm"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -882,15 +902,18 @@ export function CreateRequisitionDialog({
                               name={`lines.${index}.estimatedUnitPrice`}
                               render={({ field: priceField }) => (
                                 <FormItem>
-                                  <Input
-                                    type="number"
-                                    step="0.0001"
-                                    min="0"
-                                    placeholder="0.00"
-                                    value={priceField.value}
-                                    onChange={priceField.onChange}
-                                    disabled={isLoading}
-                                  />
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.0001"
+                                      min="0"
+                                      placeholder="0.00"
+                                      value={priceField.value}
+                                      onChange={priceField.onChange}
+                                      disabled={isLoading}
+                                      className="h-9 font-mono text-xs sm:text-sm"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -903,16 +926,19 @@ export function CreateRequisitionDialog({
                               name={`lines.${index}.taxRate`}
                               render={({ field: taxField }) => (
                                 <FormItem>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    max="100"
-                                    placeholder="13"
-                                    value={taxField.value}
-                                    onChange={taxField.onChange}
-                                    disabled={isLoading}
-                                  />
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      placeholder="13"
+                                      value={taxField.value}
+                                      onChange={taxField.onChange}
+                                      disabled={isLoading}
+                                      className="h-9 font-mono text-xs sm:text-sm"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -925,20 +951,22 @@ export function CreateRequisitionDialog({
                               name={`lines.${index}.remarks`}
                               render={({ field: remarksField }) => (
                                 <FormItem>
-                                  <Input
-                                    placeholder="Optional note…"
-                                    value={remarksField.value ?? ""}
-                                    onChange={remarksField.onChange}
-                                    disabled={isLoading}
-                                    className="min-w-[140px]"
-                                  />
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Optional note…"
+                                      value={remarksField.value ?? ""}
+                                      onChange={remarksField.onChange}
+                                      disabled={isLoading}
+                                      className="h-9 text-xs"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </TableCell>
 
-                          <TableCell className="text-right text-sm font-medium text-foreground">
+                          <TableCell className="text-right font-mono text-xs font-semibold text-foreground">
                             {Number.isNaN(lineTotal) || lineTotal <= 0
                               ? "—"
                               : lineTotal.toLocaleString(undefined, {
@@ -952,12 +980,12 @@ export function CreateRequisitionDialog({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8 text-destructive hover:text-destructive"
+                              className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                               onClick={() => remove(index)}
                               disabled={isLoading || fields.length === 1}
+                              title="Delete row"
                             >
                               <Trash2 className="size-4" />
-                              <span className="sr-only">Remove line</span>
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -966,40 +994,232 @@ export function CreateRequisitionDialog({
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Mobile View: Touch-Friendly Responsive Cards */}
+              <div className="space-y-3 md:hidden">
+                {fields.map((field, index) => {
+                  const lineQty = Number(form.watch(`lines.${index}.quantity`) || 0);
+                  const linePrice = Number(form.watch(`lines.${index}.estimatedUnitPrice`) || 0);
+                  const lineTax = Number(form.watch(`lines.${index}.taxRate`) || 0);
+                  const net = lineQty * linePrice;
+                  const tax = (net * lineTax) / 100;
+                  const lineTotal = net + tax;
+                  const selectedItemId = form.watch(`lines.${index}.itemId`);
+                  const currentSnapshot = itemSnapshot.get(Number(selectedItemId));
+
+                  return (
+                    <div
+                      key={field.id}
+                      className="rounded-xl border border-border/80 bg-card p-3.5 space-y-3 shadow-2xs"
+                    >
+                      {/* Card Header */}
+                      <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex size-5.5 items-center justify-center rounded-md bg-primary/10 font-mono text-xs font-bold text-primary">
+                            {index + 1}
+                          </span>
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Item Line #{index + 1}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-foreground">
+                            {Number.isNaN(lineTotal) || lineTotal <= 0
+                              ? "—"
+                              : `रू ${lineTotal.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}`}
+                          </span>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => remove(index)}
+                            disabled={isLoading || fields.length === 1}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Item Selector */}
+                      <FormField
+                        control={form.control}
+                        name={`lines.${index}.itemId`}
+                        render={({ field: itemField }) => (
+                          <FormItem className="space-y-1">
+                            <FormLabel className="text-xs font-medium">
+                              Select Item <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <ItemCombobox
+                                value={itemField.value}
+                                items={items}
+                                disabled={isLoading}
+                                fallbackSnapshot={itemSnapshot.get(Number(itemField.value))}
+                                onSelect={(selectedItem) =>
+                                  handleItemSelect(index, itemField, selectedItem)
+                                }
+                                error={Boolean(
+                                  form.formState.errors.lines?.[index]?.itemId
+                                )}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Quantity & Unit Price */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <FormField
+                          control={form.control}
+                          name={`lines.${index}.quantity`}
+                          render={({ field: qtyField }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="text-xs font-medium">
+                                Quantity {currentSnapshot?.uom ? `(${currentSnapshot.uom})` : ""}
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.000001"
+                                  min="0"
+                                  placeholder="0"
+                                  value={qtyField.value}
+                                  onChange={qtyField.onChange}
+                                  disabled={isLoading}
+                                  className="h-9 font-mono text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`lines.${index}.estimatedUnitPrice`}
+                          render={({ field: priceField }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="text-xs font-medium">Est. Unit Price</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  min="0"
+                                  placeholder="0.00"
+                                  value={priceField.value}
+                                  onChange={priceField.onChange}
+                                  disabled={isLoading}
+                                  className="h-9 font-mono text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Tax Rate & Remarks */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <FormField
+                          control={form.control}
+                          name={`lines.${index}.taxRate`}
+                          render={({ field: taxField }) => (
+                            <FormItem className="col-span-1 space-y-1">
+                              <FormLabel className="text-xs font-medium">Tax %</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  placeholder="13"
+                                  value={taxField.value}
+                                  onChange={taxField.onChange}
+                                  disabled={isLoading}
+                                  className="h-9 font-mono text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`lines.${index}.remarks`}
+                          render={({ field: remarksField }) => (
+                            <FormItem className="col-span-2 space-y-1">
+                              <FormLabel className="text-xs font-medium">Remarks</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Optional note…"
+                                  value={remarksField.value ?? ""}
+                                  onChange={remarksField.onChange}
+                                  disabled={isLoading}
+                                  className="h-9 text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {form.formState.errors.lines?.root ? (
+                <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>{form.formState.errors.lines.root.message}</span>
+                </div>
+              ) : null}
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center rounded-lg border border-border bg-muted/30 p-4 gap-4">
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>
-                  Currency:{" "}
-                  <span className="font-semibold text-foreground">
+            {/* Financial Summary Breakdown */}
+            <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-foreground">Currency:</span>
+                  <Badge variant="outline" className="font-mono text-[11px] font-bold">
                     {form.watch("currency") || "NPR"}
-                  </span>
-                </p>
-                <p>Line totals include the tax rate entered per line.</p>
+                  </Badge>
+                </div>
+                <p>Line totals include item-specific VAT rates.</p>
               </div>
-              <div className="w-full sm:w-auto text-right space-y-1">
-                <div className="flex justify-between sm:justify-end gap-6 text-xs text-muted-foreground">
-                  <span>Subtotal (Net):</span>
-                  <span className="font-medium text-foreground">
+
+              <div className="space-y-1.5 text-right">
+                <div className="flex justify-between gap-6 text-xs sm:justify-end">
+                  <span className="text-muted-foreground">Subtotal (Net):</span>
+                  <span className="font-mono font-medium text-foreground">
                     {estimatedBreakdown.net.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </span>
                 </div>
-                <div className="flex justify-between sm:justify-end gap-6 text-xs text-muted-foreground">
-                  <span>Est. Tax:</span>
-                  <span className="font-medium text-foreground">
+
+                <div className="flex justify-between gap-6 text-xs sm:justify-end">
+                  <span className="text-muted-foreground">Est. Tax:</span>
+                  <span className="font-mono font-medium text-foreground">
                     {estimatedBreakdown.tax.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </span>
                 </div>
-                <div className="flex justify-between sm:justify-end gap-6 text-sm font-bold text-foreground border-t border-border pt-1">
-                  <span>Estimated Total:</span>
-                  <span className="text-primary text-base">
+
+                <div className="flex justify-between gap-6 border-t border-border/80 pt-1.5 text-sm font-bold sm:justify-end">
+                  <span className="text-foreground">Estimated Total:</span>
+                  <span className="font-mono text-base font-bold text-primary">
                     {form.watch("currency") || "NPR"}{" "}
                     {estimatedBreakdown.total.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -1009,29 +1229,36 @@ export function CreateRequisitionDialog({
                 </div>
               </div>
             </div>
-
-            <DialogFooter className="pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading || !selectedCompany}>
-                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {isLoading
-                  ? "Saving..."
-                  : editing
-                    ? "Save Changes"
-                    : "Create Requisition"}
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
+
+        {/* Pinned Responsive Dialog Footer */}
+        <DialogFooter className="shrink-0 border-t border-border/80 bg-muted/20 px-4 py-3.5 sm:px-6 sm:py-4 flex-col-reverse sm:flex-row gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+            className="w-full sm:w-auto h-9"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            form="purchase-requisition-form"
+            disabled={isLoading || !selectedCompany}
+            className="w-full sm:w-auto h-9 font-semibold"
+          >
+            {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {isLoading
+              ? "Saving..."
+              : editing
+                ? "Save Changes"
+                : "Create Requisition"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

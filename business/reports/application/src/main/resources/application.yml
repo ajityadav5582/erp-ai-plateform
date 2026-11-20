@@ -16,6 +16,8 @@ spring:
         format_sql: false
   flyway:
     enabled: false
+    baseline-on-migrate: false
+    validate-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8090}
@@ -24,7 +26,7 @@ erp:
   security:
     jwt:
       enabled: true
-      secret: ${JWT_SECRET}
+      secret: ${JWT_SECRET:jwt-secret-key-change-me-in-production-32b}
       issuer: ${JWT_ISSUER:erp-ai-platform-identity}
 
 management:

@@ -145,25 +145,25 @@ echo "=== Running Flyway migrations ==="
 echo "Applying identity Flyway migrations..."
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway/identity:/flyway/sql/identity:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$POSTGRES_PORT/$POSTGRES_DB" \
     -user="$POSTGRES_USER" \
     -password="$POSTGRES_PASSWORD" \
     -table=identity_flyway_schema_history \
     -baselineOnMigrate=true \
-    -baselineVersion=1 \
+    -baselineVersion=0 \
     -locations="filesystem:/flyway/sql/identity" \
     migrate
 
 echo "Applying platform Flyway migrations..."
 docker run --rm --network host \
     -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
-    flyway/flyway:10.12-alpine \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$POSTGRES_PORT/$POSTGRES_DB" \
     -user="$POSTGRES_USER" \
     -password="$POSTGRES_PASSWORD" \
     -baselineOnMigrate=true \
-    -baselineVersion=1 \
+    -baselineVersion=0 \
     -locations="filesystem:/flyway/sql/platform" \
     migrate
 
@@ -186,8 +186,8 @@ start_backend() {
         DB_USERNAME="$DB_USERNAME" \
         DB_PASSWORD="$DB_PASSWORD" \
         KAFKA_BOOTSTRAP_SERVERS="$KAFKA_BOOTSTRAP_SERVERS" \
-        SPRING_JPA_HIBERNATE_DDL_AUTO=update \
-        SPRING_JPA_GENERATE_DDL=true \
+        SPRING_JPA_HIBERNATE_DDL_AUTO=validate \
+        SPRING_JPA_GENERATE_DDL=false \
         JWT_SECRET="$JWT_SECRET" \
         JWT_ISSUER="$JWT_ISSUER" \
         IDENTITY_SERVICE_URI="$IDENTITY_SERVICE_URI" \

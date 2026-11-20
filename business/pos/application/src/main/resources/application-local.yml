@@ -10,13 +10,18 @@ spring:
     open-in-view: false
     generate-ddl: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: false
   flyway:
     enabled: false
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+inventory:
+  service-uri: ${INVENTORY_SERVICE_URI:http://localhost:8083}
 
 logging:
   level:

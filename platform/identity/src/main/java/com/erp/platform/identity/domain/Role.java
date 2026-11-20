@@ -49,26 +49,14 @@ public class Role {
     /**
      * Unique role code within the tenant (e.g., "SUPER_ADMIN", "FINANCE_MANAGER").
      */
-    @Column(name = "code", nullable = false, length = 100)
+    @Column(name = "role_code", nullable = false, length = 100)
     private String roleCode;
-
-    /**
-     * Flyway-legacy column kept in sync for DB-level inspection/compatibility.
-     */
-    @Column(name = "role_code", length = 100)
-    private String roleCodeLegacy;
 
     /**
      * Display name of the role.
      */
-    @Column(name = "name", nullable = false, length = 150)
+    @Column(name = "role_name", nullable = false, length = 150)
     private String roleName;
-
-    /**
-     * Flyway-legacy column kept in sync for DB-level inspection/compatibility.
-     */
-    @Column(name = "role_name", length = 150)
-    private String roleNameLegacy;
 
     /**
      * Detailed description of the role's purpose and scope.
@@ -147,12 +135,6 @@ public class Role {
                 .build();
     }
 
-    @PrePersist
-    @PreUpdate
-    protected void syncLegacyColumns() {
-        this.roleCodeLegacy = this.roleCode;
-        this.roleNameLegacy = this.roleName;
-    }
 
     public Long getId() {
         return id;

@@ -8,6 +8,7 @@ import {
   MoreVertical,
   PackageCheck,
   PackageOpen,
+  Plus,
   Search,
   ShoppingCart,
   Truck,
@@ -36,6 +37,7 @@ import {
   TableSkeletonRows,
 } from "@/components/common/table-state";
 import { formatMoney, formatDate } from "@/lib/procurement-format";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -82,6 +84,14 @@ const RecordGoodsReceiptDialog = dynamic(
     import("@/components/procurement/record-goods-receipt-dialog").then((mod) => ({
       default: mod.RecordGoodsReceiptDialog,
     })),
+  { ssr: false, loading: () => null }
+);
+
+const CreateDirectPurchaseOrderDialog = dynamic(
+  () =>
+    import("@/components/procurement/create-direct-purchase-order-dialog").then(
+      (mod) => ({ default: mod.CreateDirectPurchaseOrderDialog })
+    ),
   { ssr: false, loading: () => null }
 );
 
@@ -143,8 +153,17 @@ function PurchaseOrdersView() {
   const [convertTarget, setConvertTarget] =
     useState<RequisitionListResponse | null>(null);
   const [detailsId, setDetailsId] = useState<number | null>(null);
+  const [isDirectOrderOpen, setIsDirectOrderOpen] = useState(false);
   /** The order a delivery is being recorded against. */
   const [recordOrder, setRecordOrder] = useState<PurchaseOrder | null>(null);
+
+  /** Check if URL requests opening the direct PO creator */
+  const actionParam = searchParams.get("action");
+  useEffect(() => {
+    if (actionParam === "new-direct" || actionParam === "new") {
+      setIsDirectOrderOpen(true);
+    }
+  }, [actionParam]);
 
   /**
    * Opens an order passed in the URL.
@@ -250,10 +269,103 @@ function PurchaseOrdersView() {
     <div className="flex flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
       <ListPageHeader
         title="Purchase Orders"
-        description="Track what has been committed to suppliers, and turn approved requisitions into orders."
+        description="Track commitments to suppliers, issue direct purchase orders, and convert approved requisitions."
         count={orderData?.totalElements}
         countLabel="orders"
+        actions={
+          <Button
+            onClick={() => setIsDirectOrderOpen(true)}
+            size="sm"
+            className="gap-1.5 text-xs font-semibold shadow-sm"
+          >
+            <Plus className="size-3.5" />
+            <span>Direct Purchase Order</span>
+          </Button>
+        }
       />
+
+      {/* KPI Stats Cards - Interactive & Linkable */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => handleScopeChange("orders")}
+          className={cn(
+            "group flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+            scope === "orders" ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20" : "border-border bg-card hover:border-border/80"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total Orders</span>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              <ShoppingCart className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{orderData?.totalElements ?? 0}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Committed spend</span>
+            <span className="text-[11px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">View orders →</span>
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleScopeChange("awaiting")}
+          className={cn(
+            "group flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+            scope === "awaiting" ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20" : "border-border bg-card hover:border-amber-500/40"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Awaiting PO Issue</span>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-colors group-hover:bg-amber-500/20">
+              <PackageCheck className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{requisitionData?.totalElements ?? 0}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Approved requisitions</span>
+            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 opacity-0 transition-opacity group-hover:opacity-100">Raise orders →</span>
+          </p>
+        </button>
+
+        <Link
+          href="/goods-receipts"
+          className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-teal-500/40 hover:shadow-md cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Goods Receipts</span>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 transition-colors group-hover:bg-teal-500/20">
+              <Truck className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+            {(orderData?.content ?? []).filter((o) => o.status === "RECEIVED" || o.status === "PARTIALLY_RECEIVED").length}
+          </div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Delivered consignments</span>
+            <span className="text-[11px] font-medium text-teal-600 dark:text-teal-400 opacity-0 transition-opacity group-hover:opacity-100">View receipts →</span>
+          </p>
+        </Link>
+
+        <Link
+          href="/procurement"
+          className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-500/40 hover:shadow-md cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Committed Value</span>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 transition-colors group-hover:bg-sky-500/20">
+              <ShoppingCart className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            {formatMoney((orderData?.content ?? []).reduce((sum, o) => sum + Number(o.totalAmount || 0), 0), (orderData?.content ?? [])[0]?.currency ?? "NPR")}
+          </div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Across issued orders</span>
+            <span className="text-[11px] font-medium text-sky-600 dark:text-sky-400 opacity-0 transition-opacity group-hover:opacity-100">Overview →</span>
+          </p>
+        </Link>
+      </div>
 
       <ScopeTabs
         ariaLabel="Order scope"
@@ -518,6 +630,15 @@ function PurchaseOrdersView() {
           setRecordOrder(null);
           setDetailsId(null);
           setTimeout(() => setDetailsId(receipt.purchaseOrderId), 0);
+        }}
+      />
+
+      <CreateDirectPurchaseOrderDialog
+        open={isDirectOrderOpen}
+        onOpenChange={setIsDirectOrderOpen}
+        onCreated={(order) => {
+          refetchOrders();
+          setDetailsId(order.id);
         }}
       />
     </div>
