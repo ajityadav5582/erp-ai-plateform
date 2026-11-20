@@ -124,6 +124,7 @@ export const api = createApi({
     "PurchaseOrder",
     "GoodsReceipt",
     "PurchaseInvoice",
+    "PurchaseReturn",
     "SupplierPayment",
     "Customer",
     "SalesQuotation",

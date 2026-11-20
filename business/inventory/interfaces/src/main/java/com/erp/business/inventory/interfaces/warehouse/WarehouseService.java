@@ -65,6 +65,16 @@ public interface WarehouseService {
     PageResponse<WarehouseResponse> findAll(PageRequest pageRequest);
 
     /**
+     * Creates a new warehouse for the given tenant and company.
+     *
+     * @param tenantId the tenant identifier
+     * @param companyId the company identifier
+     * @param request the warehouse creation request
+     * @return the created warehouse DTO
+     */
+    WarehouseResponse createWarehouse(Long tenantId, Long companyId, WarehouseCreateRequest request);
+
+    /**
      * Data transfer object for Warehouse information exposed to other modules.
      */
     interface WarehouseResponse {
@@ -81,15 +91,16 @@ public interface WarehouseService {
     /**
      * Request DTO for creating a warehouse (used by Inventory's own interfaces).
      */
-    interface WarehouseCreateRequest {
-        String getCode();
-        String getName();
-        String getDescription();
-        String getAddress();
-        String getWarehouseType();
-        Boolean getIsActive();
-        Boolean getIsDefault();
-    }
+   interface WarehouseCreateRequest {
+       String getCode();
+       String getName();
+       String getDescription();
+       String getAddress();
+       String getWarehouseType();
+       Boolean getIsActive();
+       Boolean getIsDefault();
+       Long getBranchId();
+   }
 
     /**
      * Request DTO for updating a warehouse (used by Inventory's own interfaces).

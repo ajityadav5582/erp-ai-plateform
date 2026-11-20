@@ -99,6 +99,37 @@ public class Branch extends TenantScopedEntity<Long> {
     private String wardNo;
 
     /**
+     * Whether this branch is the head office for the company.
+     */
+    @Column(name = "is_head_office", nullable = false)
+    @Builder.Default
+    private boolean isHeadOffice = false;
+
+    /**
+     * References the default warehouse provisioned for this branch.
+     */
+    @Column(name = "default_warehouse_id")
+    private Long defaultWarehouseId;
+
+    /**
+     * Province reference.
+     */
+    @Column(name = "province_id")
+    private Short provinceId;
+
+    /**
+     * District reference.
+     */
+    @Column(name = "district_id")
+    private Short districtId;
+
+    /**
+     * Local level (Palika / Municipality) reference.
+     */
+    @Column(name = "local_level_id")
+    private Short localLevelId;
+
+    /**
      * Current status of the branch.
      * Determines whether the branch is operational.
      */
@@ -152,6 +183,24 @@ public class Branch extends TenantScopedEntity<Long> {
      */
     public void updateLocation(String wardNo) {
         this.wardNo = wardNo;
+    }
+
+    public void markAsHeadOffice() {
+        this.isHeadOffice = true;
+    }
+
+    public void unmarkHeadOffice() {
+        this.isHeadOffice = false;
+    }
+
+    public void assignDefaultWarehouse(Long defaultWarehouseId) {
+        this.defaultWarehouseId = defaultWarehouseId;
+    }
+
+    public void updateGeography(Short provinceId, Short districtId, Short localLevelId) {
+        this.provinceId = provinceId;
+        this.districtId = districtId;
+        this.localLevelId = localLevelId;
     }
 
     /**

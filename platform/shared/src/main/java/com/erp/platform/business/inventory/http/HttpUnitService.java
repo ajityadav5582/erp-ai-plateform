@@ -13,9 +13,12 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 public class HttpUnitService implements UnitService {
 
     private static final String UNITS_PATH = "/api/v1/inventory/units";
@@ -41,6 +44,7 @@ public class HttpUnitService implements UnitService {
         } catch (HttpClientErrorException.NotFound notFound) {
             return Optional.empty();
         } catch (Exception ex) {
+            log.error("Failed to query inventory unit by id {}: {}", unitId, ex.getMessage());
             throw new InventoryClientException("Inventory unit call failed: GET " + UNITS_PATH + "/" + unitId, ex);
         }
     }
@@ -60,6 +64,7 @@ public class HttpUnitService implements UnitService {
         } catch (HttpClientErrorException.NotFound notFound) {
             return Optional.empty();
         } catch (Exception ex) {
+            log.error("Failed to query inventory unit by code '{}': {}", code, ex.getMessage());
             throw new InventoryClientException("Inventory unit call failed: GET " + UNITS_PATH + "/by-code", ex);
         }
     }
@@ -110,6 +115,7 @@ public class HttpUnitService implements UnitService {
             }
             return dtos.stream().map(this::toResponse).toList();
         } catch (Exception ex) {
+            log.error("Failed to query active inventory units: {}", ex.getMessage());
             throw new InventoryClientException("Inventory unit call failed: GET " + UNITS_PATH + "/active", ex);
         }
     }

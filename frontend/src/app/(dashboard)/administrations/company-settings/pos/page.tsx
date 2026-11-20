@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { axiosInstance } from "@/services/http-client";
 import { useAppSelector } from "@/store/hooks";
 import { readActiveFiscalSelection } from "@/services/business-context";
 import { getApiErrorMessage } from "@/services/error-handler";
+import { useGetCompanyQuery } from "@/services/company.service";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -67,9 +69,12 @@ interface PosCompanyConfig {
 }
 
 export default function PosCompanyConfigPage() {
+  const searchParams = useSearchParams();
+  const queryCompanyId = Number(searchParams?.get("companyId")) || null;
   const selection = readActiveFiscalSelection();
-  const companyId = selection?.companyId ?? 0;
-  const companyName = selection?.companyName ?? "Active Company";
+  const companyId = queryCompanyId || selection?.companyId || 0;
+  const { data: companyData } = useGetCompanyQuery(companyId, { skip: !companyId });
+  const companyName = companyData?.companyName || selection?.companyName || "Active Company";
   const tenantId = useAppSelector((s) => s.auth.tenantId);
   const queryClient = useQueryClient();
 

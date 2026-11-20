@@ -121,6 +121,19 @@ public class BranchServiceImpl implements BranchService {
         // every update inserted a second branch row instead of updating one.
         branch.updateDetails(
             request.branchCode(), request.branchName(), request.address(), request.wardNo());
+        if (request.provinceId() != null) {
+            branch.updateGeography(
+                request.provinceId(),
+                request.districtId(),
+                request.localLevelId()
+            );
+        } else if (request.districtId() != null || request.localLevelId() != null) {
+            branch.updateGeography(
+                branch.getProvinceId(),
+                request.districtId() != null ? request.districtId() : branch.getDistrictId(),
+                request.localLevelId() != null ? request.localLevelId() : branch.getLocalLevelId()
+            );
+        }
 
         Branch savedBranch = branchRepository.save(branch);
         return branchMapper.toResponse(savedBranch);

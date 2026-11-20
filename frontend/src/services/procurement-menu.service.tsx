@@ -47,6 +47,14 @@ export const { useGetProcurementMenuQuery } = procurementMenuApi;
  * the frontend needing to know about all possible icons.
  */
 export const procurementIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  "layout-dashboard": ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
+    </svg>
+  ),
   "file-text": ({ className }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -77,6 +85,12 @@ export const procurementIconMap: Record<string, React.ComponentType<{ className?
       <line x1="16" y1="13" x2="16" y2="17" />
       <line x1="8" y1="13" x2="8" y2="17" />
       <line x1="10" y1="11" x2="14" y2="11" />
+    </svg>
+  ),
+  "rotate-ccw": ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
     </svg>
   ),
   "credit-card": ({ className }) => (

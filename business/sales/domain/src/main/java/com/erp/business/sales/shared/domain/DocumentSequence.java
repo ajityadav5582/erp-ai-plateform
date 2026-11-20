@@ -46,11 +46,11 @@ import java.time.Instant;
 @Table(
         name = "sales_document_sequences",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_document_sequences_scope",
+                name = "uk_sales_document_sequences_scope",
                 columnNames = {"tenant_id", "company_id", "document_type", "period_key"}
         ),
         indexes = {
-                @Index(name = "idx_document_sequences_scope",
+                @Index(name = "idx_sales_document_sequences_scope",
                         columnList = "tenant_id, company_id, document_type")
         }
 )

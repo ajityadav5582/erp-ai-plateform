@@ -11,13 +11,15 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: false
+      ddl-auto: validate
+      show-sql: false
     properties:
       hibernate:
         format_sql: true
   flyway:
     enabled: false
+    baseline-on-migrate: false
+    validate-on-migrate: true
 
 logging:
   level:

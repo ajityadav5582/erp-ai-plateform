@@ -15,12 +15,17 @@ public record UpdateCompanyRequest(
         @Size(max = 200) String legalName,
         @Size(max = 200) String website,
         @Size(max = 500) String address,
+        @Size(max = 20) String wardNo,
+        @Size(max = 200) String toleStreet,
+        Short provinceId,
+        Short districtId,
+        Short localLevelId,
         CompanyType companyType,
         BusinessType businessType,
-         FiscalYearType fiscalYearType,
-         Boolean vatRegistered,
-         @Size(max = 30) String vatRegistrationNumber,
-         java.time.LocalDate vatEffectiveFrom,
-         java.time.LocalDate vatEffectiveTo
- ) {
+        FiscalYearType fiscalYearType,
+        Boolean vatRegistered,
+        @Size(max = 30) String vatRegistrationNumber,
+        java.time.LocalDate vatEffectiveFrom,
+        java.time.LocalDate vatEffectiveTo
+) {
 }

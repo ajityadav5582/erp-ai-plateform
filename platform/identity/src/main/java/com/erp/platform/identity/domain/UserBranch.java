@@ -69,6 +69,12 @@ public class UserBranch extends OptimisticLock<Long> {
     private Long branchId;
 
     /**
+     * Reference to the company this assignment belongs to.
+     */
+    @Column(name = "company_id", nullable = false)
+    private Long companyId;
+
+    /**
      * Reference to the tenant this assignment belongs to.
      * Ensures multi-tenant data isolation.
      * Must match the tenant of both the user and the branch.
@@ -122,6 +128,7 @@ public class UserBranch extends OptimisticLock<Long> {
             Long userId,
             Long branchId,
             Long tenantId,
+            Long companyId,
             String assignedBy,
             Instant assignedAt,
             Boolean isPrimary) {
@@ -130,10 +137,22 @@ public class UserBranch extends OptimisticLock<Long> {
                 .userId(userId)
                 .branchId(branchId)
                 .tenantId(tenantId)
+                .companyId(companyId)
                 .assignedBy(assignedBy)
                 .assignedAt(assignedAt)
                 .isPrimary(isPrimary != null ? isPrimary : false)
                 .build();
+    }
+
+    public static UserBranch assign(
+            UUID userBranchId,
+            Long userId,
+            Long branchId,
+            Long tenantId,
+            String assignedBy,
+            Instant assignedAt,
+            Boolean isPrimary) {
+        return assign(userBranchId, userId, branchId, tenantId, null, assignedBy, assignedAt, isPrimary);
     }
 
     // ==============

@@ -47,6 +47,13 @@ public class Tenant extends OptimisticLock<Long> {
 
     private static final long serialVersionUID = 1L;
 
+    @Column(name = "tenant_id", nullable = false, unique = true, updatable = false)
+    private UUID tenantId;
+
+    public void setTenantId(UUID tenantId) {
+        this.tenantId = tenantId;
+    }
+
     /**
      * Human-readable unique code for the tenant.
      * Used for display purposes and easier identification.
@@ -212,6 +219,13 @@ public class Tenant extends OptimisticLock<Long> {
      * @param isolationStrategy the data isolation strategy
      * @return a new Tenant instance in PENDING status
      */
+    @PrePersist
+    protected void ensureTenantId() {
+        if (this.tenantId == null) {
+            this.tenantId = java.util.UUID.randomUUID();
+        }
+    }
+
     public static Tenant create(
             String tenantCode,
             String legalName,
@@ -224,6 +238,7 @@ public class Tenant extends OptimisticLock<Long> {
             String language,
             IsolationStrategy isolationStrategy) {
         return Tenant.builder()
+                .tenantId(UUID.randomUUID())
                 .tenantCode(tenantCode)
                 .legalName(legalName)
                 .displayName(displayName)

@@ -34,6 +34,9 @@ public class UserRole {
     @Column(name = "role_id", nullable = false)
     private Long roleId;
 
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
     @Builder.Default
     @Column(name = "is_primary", nullable = false)
     @org.hibernate.annotations.ColumnDefault("false")
@@ -73,6 +76,7 @@ public class UserRole {
         return UserRole.builder()
                 .userId(userId)
                 .roleId(roleId)
+                .tenantId(tenantId)
                 .assignedBy(assignedBy)
                 .assignedAt(assignedAt)
                 .expiresAt(expiresAt)

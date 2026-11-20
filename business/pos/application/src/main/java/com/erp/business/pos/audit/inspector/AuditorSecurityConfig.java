@@ -2,22 +2,14 @@ package com.erp.business.pos.audit.inspector;
 
 import com.erp.business.pos.audit.FiscalAuditLogRepository;
 import com.erp.business.pos.audit.FiscalAuditLog;
-import com.erp.platform.security.filter.PlatformJwtAuthenticationFilter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -36,41 +28,6 @@ import java.time.OffsetDateTime;
 public class AuditorSecurityConfig {
 
     public static final String ROLE_TAX_AUDITOR = "ROLE_TAX_AUDITOR";
-
-    @Bean
-    @Order(1)
-    public SecurityFilterChain auditorFilterChain(HttpSecurity http,
-                                                 PlatformJwtAuthenticationFilter jwtFilter,
-                                                 FiscalAuditLogRepository auditLogRepository) throws Exception {
-        http
-            .securityMatcher("/**")
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Auditors may only read.
-                .requestMatchers(req -> isAuditor() && !HttpMethod.GET.matches(req.getMethod()))
-                    .denyAll()
-                // Everyone else (and auditors on GET) must be authenticated.
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(new AuditorSessionAuditFilter(auditLogRepository), PlatformJwtAuthenticationFilter.class);
-
-        return http.build();
-    }
-
-    private boolean isAuditor() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            return false;
-        }
-        for (GrantedAuthority authority : authentication.getAuthorities()) {
-            if (ROLE_TAX_AUDITOR.equals(authority.getAuthority())) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Records every GET request performed by an auditor into {@code fiscal_audit_logs}.

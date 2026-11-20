@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public record ConfigureCompanyIrdRequest(
         @NotBlank String sellerPan,
         @NotBlank String apiUsername,
-        @NotBlank String apiPassword,
+        String apiPassword,
         @NotNull IrdEnvironment environment
 ) {
 }

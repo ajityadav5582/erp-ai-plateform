@@ -1,12 +1,13 @@
 package com.erp.business.procurement.purchaseorder;
 
 import com.erp.business.procurement.purchaseorder.dto.ConvertToPurchaseOrderRequest;
+import com.erp.business.procurement.purchaseorder.dto.CreateDirectPurchaseOrderRequest;
 import com.erp.business.procurement.purchaseorder.dto.PurchaseOrderResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 /**
- * Turns an approved purchase requisition into a draft purchase order.
+ * Turns an approved purchase requisition into a draft purchase order, or creates a direct purchase order.
  *
  * <p>Separate from {@code PurchaseRequisitionService.awardToOrder}, which awards
  * demand to an order that already exists. Conversion is the opposite direction: it
@@ -37,6 +38,18 @@ public interface PurchaseOrderConversionService {
      */
     PurchaseOrderResponse convert(Long tenantId, Long companyId,
                                    ConvertToPurchaseOrderRequest request, String actor);
+
+    /**
+     * Creates a draft purchase order directly without an upstream requisition.
+     *
+     * @param tenantId   the owning tenant
+     * @param companyId  the owning company
+     * @param request    the supplier, warehouse destination, and line items
+     * @param actor      the acting user id
+     * @return the created draft order
+     */
+    PurchaseOrderResponse createDirect(Long tenantId, Long companyId,
+                                       CreateDirectPurchaseOrderRequest request, String actor);
 
     /**
      * Loads a purchase order in the caller's scope.

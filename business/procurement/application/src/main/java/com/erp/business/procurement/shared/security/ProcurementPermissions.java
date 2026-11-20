@@ -51,6 +51,17 @@ public final class ProcurementPermissions {
     /** Reverse a payment. */
     public static final String SUPPLIER_PAYMENT_CANCEL = "SUPPLIER_PAYMENT_CANCEL";
 
+    // ---- Purchase return / Debit note ----
+
+    /** Read purchase returns and debit notes. */
+    public static final String PURCHASE_RETURN_VIEW = "PURCHASE_RETURN_VIEW";
+
+    /** Raise or approve a purchase return. */
+    public static final String PURCHASE_RETURN_CREATE = "PURCHASE_RETURN_CREATE";
+
+    /** Void or cancel a purchase return. */
+    public static final String PURCHASE_RETURN_CANCEL = "PURCHASE_RETURN_CANCEL";
+
     private ProcurementPermissions() {
         throw new AssertionError("No instances");
     }

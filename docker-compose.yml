@@ -130,6 +130,8 @@ services:
       SALES_SERVICE_URI: ${SALES_SERVICE_URI:-http://sales-service:8085}
       # POS Service is routed to, so the gateway must be able to reach it.
       POS_SERVICE_URI: ${POS_SERVICE_URI:-http://pos-service:8086}
+      # Reports Service is routed to, so the gateway must be able to reach it.
+      REPORTS_SERVICE_URI: ${REPORTS_SERVICE_URI:-http://reports-service:8090}
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus,gateways
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
       MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
@@ -155,6 +157,9 @@ services:
         condition: service_started
       # pos-service is routed to for the same reason as procurement above.
       pos-service:
+        condition: service_started
+      # reports-service is routed to for the same reason as procurement above.
+      reports-service:
         condition: service_started
     networks:
       - erpai-data-network
@@ -429,6 +434,55 @@ services:
       - erpai-data-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${POS_PORT:-8086}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 40
+      start_period: 900s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ===========================================================================
+  # Reports Service - VAT Return (Annex 10), financial and regulatory reports.
+  # ===========================================================================
+
+  reports-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.runtime
+      target: reports
+      args:
+        SERVICE_NAME: reports-service
+        JAR_PATH: business/reports/application/build/libs
+    container_name: erpai-reports
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${REPORTS_PORT:-8090}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-erpai_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-erpai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erpai_dev_password}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_HEALTH_LIVENESS_STATE_ENABLED: "true"
+      MANAGEMENT_HEALTH_READINESS_STATE_ENABLED: "true"
+    ports:
+      - "${REPORTS_PORT:-8090}:${REPORTS_PORT:-8090}"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erpai-data-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${REPORTS_PORT:-8090}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 40

@@ -1,6 +1,8 @@
 package com.erp.platform.business.inventory.http;
 
 import com.erp.platform.business.inventory.InventoryClientException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
 import com.erp.platform.common.dto.PageRequest;
@@ -85,7 +87,17 @@ public class HttpWarehouseService implements WarehouseService {
 
     @Override
     public List<WarehouseResponse> findAllActive() {
-        return List.of();
+        try {
+            List<WarehouseResponseDto> dtos = restClient.get()
+                    .uri(ACTIVE_PATH)
+                    .headers(this::forwardRequestContext)
+                    .retrieve()
+                    .body(new org.springframework.core.ParameterizedTypeReference<>() {});
+            return dtos != null ? dtos.stream().map(dto -> (WarehouseResponse) dto).toList() : List.of();
+        } catch (Exception ex) {
+            throw new InventoryClientException(
+                    "Inventory warehouse call failed: GET " + ACTIVE_PATH, ex);
+        }
     }
 
     @Override
@@ -126,6 +138,39 @@ public class HttpWarehouseService implements WarehouseService {
         }
     }
 
+    @Override
+    public WarehouseResponse createWarehouse(Long tenantId, Long companyId, WarehouseCreateRequest request) {
+        String path = "/api/v1/inventory/warehouses";
+        try {
+            WarehouseCreateRequestDto dto = new WarehouseCreateRequestDto(
+                    request.getCode(),
+                    request.getName(),
+                    request.getWarehouseType() != null ? request.getWarehouseType() : "GENERAL",
+                    request.getBranchId(),
+                    request.getAddress(),
+                    null
+            );
+            WarehouseResponseDto response = restClient.post()
+                    .uri(path)
+                    .headers(headers -> {
+                        forwardRequestContext(headers);
+                        if (tenantId != null) {
+                            headers.set("X-Tenant-Id", String.valueOf(tenantId));
+                        }
+                        if (companyId != null) {
+                            headers.set("X-Company-Id", String.valueOf(companyId));
+                        }
+                    })
+                    .body(dto)
+                    .retrieve()
+                    .body(WarehouseResponseDto.class);
+            return response;
+        } catch (Exception ex) {
+            throw new InventoryClientException(
+                    "Inventory warehouse call failed: POST " + path, ex);
+        }
+    }
+
     private void forwardRequestContext(HttpHeaders headers) {
         Map<String, String> captured = com.erp.platform.business.inventory.InventoryRequestContext.get();
         if (captured != null && !captured.isEmpty()) {
@@ -151,12 +196,14 @@ public class HttpWarehouseService implements WarehouseService {
     /**
      * DTO for deserializing Inventory's single warehouse response.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record WarehouseResponseDto(
             Long id,
             String code,
             String name,
             String description,
             String address,
+            @JsonProperty("type")
             String warehouseType,
             Boolean isActive,
             Boolean isDefault
@@ -214,6 +261,20 @@ public class HttpWarehouseService implements WarehouseService {
             int totalPages,
             boolean first,
             boolean last
+    ) {
+    }
+
+    /**
+     * DTO for sending warehouse creation request to Inventory.
+     */
+    record WarehouseCreateRequestDto(
+            String code,
+            String name,
+            @JsonProperty("type")
+            String type,
+            Long branchId,
+            String address,
+            String phone
     ) {
     }
 }

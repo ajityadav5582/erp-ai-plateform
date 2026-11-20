@@ -49,13 +49,13 @@ public class Role {
     /**
      * Unique role code within the tenant (e.g., "SUPER_ADMIN", "FINANCE_MANAGER").
      */
-    @Column(name = "code", nullable = false, length = 100)
+    @Column(name = "role_code", nullable = false, length = 100)
     private String roleCode;
 
     /**
      * Display name of the role.
      */
-    @Column(name = "name", nullable = false, length = 150)
+    @Column(name = "role_name", nullable = false, length = 150)
     private String roleName;
 
     /**
@@ -118,10 +118,14 @@ public class Role {
 
     /**
      * Factory method to create a platform system role.
+     *
+     * @param tenantId the tenant that anchors this system role (may be null for
+     *                 pre-V33 schemas where tenant_id is nullable)
      */
-    public static Role createSystem(String roleCode, String roleName, String description) {
+    public static Role createSystem(Long tenantId, String roleCode, String roleName, String description) {
         validateRoleCode(roleCode);
         return Role.builder()
+                .tenantId(tenantId)
                 .roleCode(roleCode.trim().toUpperCase())
                 .roleName(roleName.trim())
                 .description(description != null ? description.trim() : null)
@@ -130,6 +134,7 @@ public class Role {
                 .permissions(new HashSet<>())
                 .build();
     }
+
 
     public Long getId() {
         return id;

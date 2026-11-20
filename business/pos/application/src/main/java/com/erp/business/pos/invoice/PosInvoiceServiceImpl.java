@@ -36,6 +36,7 @@ public class PosInvoiceServiceImpl implements PosInvoiceService {
         this(invoiceRepository, sequenceRepository, companyRepository, taxRateService, null);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PosInvoiceServiceImpl(PosInvoiceRepository invoiceRepository,
                                 PosInvoiceSequenceRepository sequenceRepository,
                                 CompanyRepository companyRepository,

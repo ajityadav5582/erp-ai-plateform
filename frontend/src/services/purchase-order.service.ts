@@ -168,6 +168,36 @@ export interface ConvertToPurchaseOrderRequest {
   notes?: string;
 }
 
+export interface CreateDirectPurchaseOrderLineRequest {
+  itemId: number;
+  itemCode?: string;
+  itemName?: string;
+  uomCode?: string;
+  unitId?: number;
+  quantity: number;
+  unitPrice: number;
+  discountPercentage?: number;
+  taxRate?: number;
+  expectedDeliveryDate?: string;
+  notes?: string;
+}
+
+export interface CreateDirectPurchaseOrderRequest {
+  supplierId: number;
+  supplierCode?: string;
+  supplierName?: string;
+  orderDate?: string;
+  expectedDeliveryDate?: string;
+  branchId?: number;
+  warehouseId?: number;
+  warehouseCode?: string;
+  warehouseName?: string;
+  currency?: string;
+  reference?: string;
+  notes?: string;
+  lines: CreateDirectPurchaseOrderLineRequest[];
+}
+
 /** Mirrors the backend `PurchaseOrderDecisionRequest` record. */
 export interface PurchaseOrderDecisionRequest {
   reason: string;
@@ -258,6 +288,19 @@ export const purchaseOrderApi = api.injectEndpoints({
       invalidatesTags: ["PurchaseOrder", "PurchaseRequisition"],
     }),
 
+    /** Creates a direct purchase order without an upstream requisition. */
+    createDirectPurchaseOrder: build.mutation<
+      PurchaseOrder,
+      CreateDirectPurchaseOrderRequest
+    >({
+      query: (body) => ({
+        url: `${BASE_URL}/direct`,
+        method: "POST",
+        data: body,
+      }),
+      invalidatesTags: ["PurchaseOrder"],
+    }),
+
     submitPurchaseOrder: build.mutation<PurchaseOrder, number>({
       query: (purchaseOrderId) => ({
         url: `${BASE_URL}/${purchaseOrderId}/submit`,
@@ -331,6 +374,7 @@ export const {
   useGetOutstandingPurchaseOrdersQuery,
   useGetPurchaseOrderQuery,
   useConvertToPurchaseOrderMutation,
+  useCreateDirectPurchaseOrderMutation,
   useSubmitPurchaseOrderMutation,
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,

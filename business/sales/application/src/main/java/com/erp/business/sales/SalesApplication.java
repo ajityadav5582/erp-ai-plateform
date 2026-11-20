@@ -50,7 +50,8 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.sales",
         "com.erp.business.sales.interfaces.rest",
         "com.erp.platform.shared",
-        "com.erp.platform.business"
+        "com.erp.platform.business",
+        "com.erpai.integration"
 }, excludeFilters = @ComponentScan.Filter(
         type = FilterType.ASSIGNABLE_TYPE,
         classes = com.erp.platform.shared.numbering.DocumentNumberService.class))
@@ -64,6 +65,8 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.sales.receipt.domain",
         "com.erp.business.sales.salesreturn.domain",
         "com.erp.business.sales.shared.domain",
+        "com.erp.business.pos.domain",
+        "com.erp.platform.identity.domain",
         "com.erpai.integration.ird.domain",
         "com.erpai.integration.ird.outbox.entity"
 })
@@ -76,11 +79,13 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.sales.receipt.infrastructure.persistence",
         "com.erp.business.sales.salesreturn.infrastructure.persistence",
         "com.erp.business.sales.shared.infrastructure.persistence",
+        "com.erp.business.sales.integration",
+        "com.erp.platform.identity.infrastructure.persistence",
         "com.erpai.integration.ird.infrastructure.persistence",
         "com.erpai.integration.ird.outbox.repository"
 })
 @Import({AuditingConfig.class, PermissionAspect.class, DefaultSecurityContext.class,
-        SecurityExceptionHandler.class})
+        SecurityExceptionHandler.class, com.erp.platform.common.openapi.OpenApiConfig.class})
 public class SalesApplication {
 
     public static void main(String[] args) {

@@ -29,7 +29,10 @@ public class CompanyIrdConfigApplicationService implements ConfigureCompanyIrdUs
 
     @Override
     public CompanyIrdConfig configure(Long tenantId, Long companyId, SellerPan sellerPan, String apiUsername,
-                                      String apiPassword, IrdEnvironment environment) {
+                                       String apiPassword, IrdEnvironment environment) {
+        if (apiPassword == null || apiPassword.isBlank()) {
+            throw new IllegalArgumentException("CBMS API password is required for initial setup.");
+        }
         String encrypted = cryptoPort.encrypt(apiPassword);
         CompanyIrdConfig config = new CompanyIrdConfig(tenantId, companyId, sellerPan, apiUsername, encrypted, environment);
         return repositoryPort.save(config);
@@ -37,11 +40,14 @@ public class CompanyIrdConfigApplicationService implements ConfigureCompanyIrdUs
 
     @Override
     public CompanyIrdConfig update(Long tenantId, Long companyId, SellerPan sellerPan, String apiUsername,
-                                   String apiPassword, IrdEnvironment environment) {
+                                    String apiPassword, IrdEnvironment environment) {
         Optional<CompanyIrdConfig> existing = repositoryPort.findByTenantIdAndCompanyId(tenantId, companyId);
         if (existing.isPresent()) {
             CompanyIrdConfig config = existing.get();
-            config.updateCredentials(apiUsername, cryptoPort.encrypt(apiPassword), sellerPan, environment);
+            String encryptedPassword = (apiPassword == null || apiPassword.isBlank())
+                    ? config.getApiPasswordEncrypted()
+                    : cryptoPort.encrypt(apiPassword);
+            config.updateCredentials(apiUsername, encryptedPassword, sellerPan, environment);
             return repositoryPort.save(config);
         }
         return configure(tenantId, companyId, sellerPan, apiUsername, apiPassword, environment);

@@ -20,6 +20,10 @@ public record UpdateBranchRequest(
     String address,
 
     @Size(max = 50, message = "Ward number must not exceed 50 characters")
-    String wardNo
+    String wardNo,
+
+    Short provinceId,
+    Short districtId,
+    Short localLevelId
 ) {
 }

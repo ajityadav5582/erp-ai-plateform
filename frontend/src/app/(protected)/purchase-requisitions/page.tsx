@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 import {
   FileText,
   Plus,
@@ -253,51 +255,96 @@ export default function PurchaseRequisitionsPage() {
         }
       />
 
-      {/* KPI Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+      {/* KPI Stats Cards - Interactive & Linkable */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => {
+            setScope("all");
+            setPage(0);
+          }}
+          className={cn(
+            "group flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+            scope === "all" ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20" : "border-border bg-card hover:border-border/80"
+          )}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Total Requisitions</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
               <FileText className="size-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{metrics.totalCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">Across active company</p>
-        </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metrics.totalCount}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Across active company</span>
+            <span className="text-[11px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">View all →</span>
+          </p>
+        </button>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <button
+          type="button"
+          onClick={() => {
+            setScope("inbox");
+            setPage(0);
+          }}
+          className={cn(
+            "group flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+            scope === "inbox" ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20" : "border-border bg-card hover:border-amber-500/40"
+          )}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Pending Approval</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-colors group-hover:bg-amber-500/20">
               <Inbox className="size-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{metrics.pendingCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">Awaiting decision</p>
-        </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metrics.pendingCount}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Awaiting decision</span>
+            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 opacity-0 transition-opacity group-hover:opacity-100">Open inbox →</span>
+          </p>
+        </button>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <Link
+          href="/purchase-orders"
+          className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-500/40 hover:shadow-md cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Approved Demand</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-colors group-hover:bg-emerald-500/20">
               <FileText className="size-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{metrics.approvedCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">Ready for Purchase Orders</p>
-        </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metrics.approvedCount}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Ready for Purchase Orders</span>
+            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">Raise PO →</span>
+          </p>
+        </Link>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <button
+          type="button"
+          onClick={() => {
+            setScope("mine");
+            setPage(0);
+          }}
+          className={cn(
+            "group flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+            scope === "mine" ? "border-sky-500/50 bg-sky-500/5 ring-1 ring-sky-500/20" : "border-border bg-card hover:border-sky-500/40"
+          )}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Draft Requests</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400">
+            <span className="text-xs font-medium text-muted-foreground">My Requisitions</span>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 transition-colors group-hover:bg-slate-500/20">
               <FileText className="size-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">{metrics.draftCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">In preparation</p>
-        </div>
+          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metrics.draftCount}</div>
+          <p className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>In preparation / Drafts</span>
+            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">View mine →</span>
+          </p>
+        </button>
       </div>
 
       <ScopeTabs

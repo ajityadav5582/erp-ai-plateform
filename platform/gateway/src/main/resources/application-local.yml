@@ -14,6 +14,8 @@ spring:
             allowed-origin-patterns:
               - "http://localhost:3000"
               - "http://127.0.0.1:3000"
+              - "http://localhost:8080"
+              - "http://127.0.0.1:8080"
             allowed-methods:
               - "GET"
               - "POST"
@@ -80,7 +82,19 @@ spring:
                 statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
                 methods: GET,POST,PUT,DELETE,PATCH
 
-        # Identity Service (localhost:8082) - broad catch-all so every
+        # Reports Service (localhost:8090) - MUST precede identity catch-all
+        - id: reports-service-local
+          uri: ${REPORTS_SERVICE_URI:http://localhost:8090}
+          predicates:
+            - Path=/api/v1/reports/**
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST,PUT,DELETE,PATCH
+
+        # Identity Service (localhost:8081) - broad catch-all so every
         # identity endpoint (companies, branches, departments, roles,
         # permissions, users, auth, onboarding, etc.) is reachable.
         - id: identity-service-local
@@ -94,6 +108,49 @@ spring:
                 statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
                 methods: GET,POST,PUT,DELETE,PATCH
 
+        # Swagger OpenAPI Documentation Routes (Local)
+        - id: inventory-docs-local
+          uri: ${INVENTORY_SERVICE_URI:http://localhost:8083}
+          predicates:
+            - Path=/v3/api-docs/inventory/**, /v3/api-docs/inventory
+          filters:
+            - RewritePath=/v3/api-docs/inventory(/?.*), /v3/api-docs$1
+
+        - id: procurement-docs-local
+          uri: ${PROCUREMENT_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/v3/api-docs/procurement/**, /v3/api-docs/procurement
+          filters:
+            - RewritePath=/v3/api-docs/procurement(/?.*), /v3/api-docs$1
+
+        - id: sales-docs-local
+          uri: ${SALES_SERVICE_URI:http://localhost:8085}
+          predicates:
+            - Path=/v3/api-docs/sales/**, /v3/api-docs/sales
+          filters:
+            - RewritePath=/v3/api-docs/sales(/?.*), /v3/api-docs$1
+
+        - id: pos-docs-local
+          uri: ${POS_SERVICE_URI:http://localhost:8086}
+          predicates:
+            - Path=/v3/api-docs/pos/**, /v3/api-docs/pos
+          filters:
+            - RewritePath=/v3/api-docs/pos(/?.*), /v3/api-docs$1
+
+        - id: identity-docs-local
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8081}
+          predicates:
+            - Path=/v3/api-docs/identity/**, /v3/api-docs/identity
+          filters:
+            - RewritePath=/v3/api-docs/identity(/?.*), /v3/api-docs$1
+
+        - id: reports-docs-local
+          uri: ${REPORTS_SERVICE_URI:http://localhost:8090}
+          predicates:
+            - Path=/v3/api-docs/reports/**, /v3/api-docs/reports
+          filters:
+            - RewritePath=/v3/api-docs/reports(/?.*), /v3/api-docs$1
+
         # Health check passthrough
         - id: health-check-local
           uri: ${IDENTITY_SERVICE_URI:http://localhost:8081}
@@ -104,6 +161,29 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    urls:
+      - name: Identity Service
+        url: /v3/api-docs/identity
+      - name: Inventory Service
+        url: /v3/api-docs/inventory
+      - name: Procurement Service
+        url: /v3/api-docs/procurement
+      - name: Sales Service
+        url: /v3/api-docs/sales
+      - name: POS Service
+        url: /v3/api-docs/pos
+      - name: Reports Service
+        url: /v3/api-docs/reports
 
 logging:
   level:

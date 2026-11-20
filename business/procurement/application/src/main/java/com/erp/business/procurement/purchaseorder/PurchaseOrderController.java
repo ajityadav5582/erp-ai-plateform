@@ -1,6 +1,7 @@
 package com.erp.business.procurement.purchaseorder;
 
 import com.erp.business.procurement.purchaseorder.dto.ConvertToPurchaseOrderRequest;
+import com.erp.business.procurement.purchaseorder.dto.CreateDirectPurchaseOrderRequest;
 import com.erp.business.procurement.purchaseorder.dto.PurchaseOrderDecisionRequest;
 import com.erp.business.procurement.purchaseorder.dto.PurchaseOrderResponse;
 import com.erp.platform.business.context.BusinessContextAccessor;
@@ -53,6 +54,22 @@ public class PurchaseOrderController {
             UriComponentsBuilder uriBuilder) {
 
         PurchaseOrderResponse response = conversionService.convert(
+                context.getTenantId(), context.getCompanyId(), request, currentUser());
+
+        return ResponseEntity
+                .created(uriBuilder.path(BASE_PATH + "/{id}").buildAndExpand(response.id()).toUri())
+                .body(response);
+    }
+
+    /**
+     * Creates a direct purchase order without an upstream requisition.
+     */
+    @PostMapping("/direct")
+    public ResponseEntity<PurchaseOrderResponse> createDirect(
+            @Valid @RequestBody CreateDirectPurchaseOrderRequest request,
+            UriComponentsBuilder uriBuilder) {
+
+        PurchaseOrderResponse response = conversionService.createDirect(
                 context.getTenantId(), context.getCompanyId(), request, currentUser());
 
         return ResponseEntity

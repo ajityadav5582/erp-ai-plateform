@@ -14,6 +14,9 @@ public record BranchListResponse(
     Long companyId,
     String branchCode,
     String branchName,
+    boolean isHeadOffice,
+    String address,
+    String wardNo,
     BranchStatus status,
     LocalDateTime createdAt
 ) {

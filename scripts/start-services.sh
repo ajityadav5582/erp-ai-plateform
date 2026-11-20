@@ -71,26 +71,99 @@ start_infra() {
     fi
 }
 
-start_infra erpai-postgres postgres false
-start_infra erpai-redis redis true
-start_infra erpai-kafka kafka true
+# ---------------------------------------------------------------------------
+# Ensure PostgreSQL is running and accepting connections
+# ---------------------------------------------------------------------------
+ensure_postgresql() {
+    local host="${POSTGRES_HOST:-localhost}"
+    local port="${POSTGRES_PORT:-5434}"
+    local user="${POSTGRES_USER:-erpai}"
 
-echo "Waiting for PostgreSQL to be ready..."
-for i in $(seq 1 30); do
-    if docker exec erpai-postgres pg_isready -U "$POSTGRES_USER" >/dev/null 2>&1; then
-        echo "PostgreSQL is ready."
-        break
+    # Check if PostgreSQL is already accepting connections from the host
+    if command -v pg_isready >/dev/null 2>&1 && pg_isready -h "$host" -p "$port" -U "$user" >/dev/null 2>&1; then
+        echo "PostgreSQL is already running at $host:$port."
+        return 0
     fi
-    sleep 2
-done
+
+    echo "PostgreSQL is not reachable at $host:$port. Attempting to start..."
+
+    # Try starting via Docker Compose (if the container exists or Docker is available)
+    if command -v docker >/dev/null 2>&1; then
+        if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^erpai-postgres$"; then
+            echo "Found existing erpai-postgres container. Starting it..."
+            docker start erpai-postgres 2>/dev/null || true
+        else
+            echo "Starting erpai-postgres via Docker Compose..."
+            docker compose -f compose.base.yml -f compose.infrastructure.yml --profile infrastructure up -d postgres 2>/dev/null || true
+        fi
+    fi
+
+    # Try starting via system service (for local PostgreSQL installation)
+    if ! (command -v pg_isready >/dev/null 2>&1 && pg_isready -h "$host" -p "$port" -U "$user" >/dev/null 2>&1); then
+        if command -v systemctl >/dev/null 2>&1; then
+            echo "Trying to start postgresql via systemctl..."
+            systemctl start postgresql 2>/dev/null || true
+        elif command -v service >/dev/null 2>&1; then
+            echo "Trying to start postgresql via service..."
+            service postgresql start 2>/dev/null || true
+        elif command -v pg_ctlcluster >/dev/null 2>&1; then
+            echo "Trying to start postgresql via pg_ctlcluster..."
+            pg_ctlcluster 15 main start 2>/dev/null || true
+            pg_ctlcluster 14 main start 2>/dev/null || true
+            pg_ctlcluster 13 main start 2>/dev/null || true
+        fi
+    fi
+
+    # Wait for PostgreSQL to be ready
+    echo "Waiting for PostgreSQL to be ready..."
+    for i in $(seq 1 30); do
+        if command -v pg_isready >/dev/null 2>&1 && pg_isready -h "$host" -p "$port" -U "$user" >/dev/null 2>&1; then
+            echo "PostgreSQL is ready."
+            return 0
+        fi
+        # Fallback: try docker exec if pg_isready is not available on host
+        if docker exec erpai-postgres pg_isready -U "$user" >/dev/null 2>&1; then
+            echo "PostgreSQL is ready (via container)."
+            return 0
+        fi
+        sleep 2
+    done
+
+    echo "WARNING: PostgreSQL did not become ready within 60 seconds."
+    return 1
+}
+
+ensure_postgresql
+
+#echo "=== Resetting database for clean Flyway migration ==="
+#docker exec erpai-postgres psql -U "$POSTGRES_USER" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$POSTGRES_DB' AND pid <> pg_backend_pid();" 2>/dev/null || true
+#docker exec erpai-postgres psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB;"
+#docker exec erpai-postgres psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE $POSTGRES_DB;"
 
 echo "=== Running Flyway migrations ==="
+
+echo "Applying identity Flyway migrations..."
 docker run --rm --network host \
-    -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
-    flyway/flyway:10.12-alpine \
+    -v "$ROOT/infrastructure/postgres/flyway/identity:/flyway/sql/identity:ro" \
+    flyway/flyway:11.7.2-alpine \
     -url="jdbc:postgresql://localhost:$POSTGRES_PORT/$POSTGRES_DB" \
     -user="$POSTGRES_USER" \
     -password="$POSTGRES_PASSWORD" \
+    -table=identity_flyway_schema_history \
+    -baselineOnMigrate=true \
+    -baselineVersion=0 \
+    -locations="filesystem:/flyway/sql/identity" \
+    migrate
+
+echo "Applying platform Flyway migrations..."
+docker run --rm --network host \
+    -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
+    flyway/flyway:11.7.2-alpine \
+    -url="jdbc:postgresql://localhost:$POSTGRES_PORT/$POSTGRES_DB" \
+    -user="$POSTGRES_USER" \
+    -password="$POSTGRES_PASSWORD" \
+    -baselineOnMigrate=true \
+    -baselineVersion=0 \
     -locations="filesystem:/flyway/sql/platform" \
     migrate
 
@@ -113,8 +186,8 @@ start_backend() {
         DB_USERNAME="$DB_USERNAME" \
         DB_PASSWORD="$DB_PASSWORD" \
         KAFKA_BOOTSTRAP_SERVERS="$KAFKA_BOOTSTRAP_SERVERS" \
-        SPRING_JPA_HIBERNATE_DDL_AUTO=update \
-        SPRING_JPA_GENERATE_DDL=true \
+        SPRING_JPA_HIBERNATE_DDL_AUTO=validate \
+        SPRING_JPA_GENERATE_DDL=false \
         JWT_SECRET="$JWT_SECRET" \
         JWT_ISSUER="$JWT_ISSUER" \
         IDENTITY_SERVICE_URI="$IDENTITY_SERVICE_URI" \

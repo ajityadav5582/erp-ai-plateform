@@ -44,6 +44,7 @@ export default function CompanyFiscalYearsPage() {
         fiscalYearId: currentYear.id,
         companyName: company.companyName,
         fiscalYearName: currentYear.name,
+        businessType: company.businessType ?? null,
       }));
     }
   }, [company, companyId, years]);
@@ -94,6 +95,7 @@ export default function CompanyFiscalYearsPage() {
         fiscalYearId,
         companyName: company?.companyName,
         fiscalYearName: activated.name,
+        businessType: company?.businessType ?? null,
       }));
       router.push("/");
     } catch (cause) {

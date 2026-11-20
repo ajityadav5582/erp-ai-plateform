@@ -23,9 +23,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +53,7 @@ import java.util.Optional;
  * {@code local}, or set the environment variable {@code SEED_DUMMY_DATA=true}.
  */
 @Component
-@Order(2) // Run after DataInitializer (Order 1)
-public class DummyDataInitializer implements CommandLineRunner {
+public class DummyDataInitializer implements MasterDataSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(DummyDataInitializer.class);
     private static final String SEED_ASSIGNED_BY = "dummy-data-initializer";
@@ -69,6 +67,7 @@ public class DummyDataInitializer implements CommandLineRunner {
     private final MasterFiscalYearRepository masterFiscalYearRepository;
     private final CompanyFiscalYearRepository companyFiscalYearRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -81,7 +80,8 @@ public class DummyDataInitializer implements CommandLineRunner {
             UserRoleRepository userRoleRepository,
             MasterFiscalYearRepository masterFiscalYearRepository,
             CompanyFiscalYearRepository companyFiscalYearRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            Environment environment) {
         this.tenantRepository = tenantRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
@@ -90,15 +90,49 @@ public class DummyDataInitializer implements CommandLineRunner {
         this.masterFiscalYearRepository = masterFiscalYearRepository;
         this.companyFiscalYearRepository = companyFiscalYearRepository;
         this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isDummyDataEnabled();
+    }
+
+    private boolean isDummyDataEnabled() {
+        String seedDummy = System.getenv("SEED_DUMMY_DATA");
+        if (seedDummy != null && Boolean.parseBoolean(seedDummy)) {
+            return true;
+        }
+        if (environment != null) {
+            for (String profile : environment.getActiveProfiles()) {
+                if ("dev".equalsIgnoreCase(profile) || "local".equalsIgnoreCase(profile)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public String stepName() {
+        return "dummy-data";
+    }
+
+    @Override
+    public String stepVersion() {
+        return "1";
+    }
+
+    @Override
+    public int order() {
+        return 100;
     }
 
     @Override
     @Transactional
-    public void run(String... args) {
-        // Only run if explicitly enabled
-        String seedDummy = System.getenv("SEED_DUMMY_DATA");
-        if (seedDummy == null || !Boolean.parseBoolean(seedDummy)) {
-            log.info("Dummy data seeding is disabled. Set SEED_DUMMY_DATA=true to enable.");
+    public void seed() {
+        if (!isDummyDataEnabled()) {
+            log.info("Dummy data seeding is disabled. Set SEED_DUMMY_DATA=true or use dev/local profile to enable.");
             return;
         }
 

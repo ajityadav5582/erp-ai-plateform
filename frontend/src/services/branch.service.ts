@@ -8,8 +8,20 @@ export interface BranchListResponse {
   companyId: number;
   branchCode: string;
   branchName: string;
+  isHeadOffice?: boolean;
+  address?: string | null;
+  wardNo?: string | null;
   status: BranchStatus;
   createdAt: string;
+}
+
+export interface MyBranch {
+  id: number;
+  companyId: number;
+  branchCode: string;
+  branchName: string;
+  status: BranchStatus;
+  isPrimary: boolean;
 }
 
 export interface Branch {
@@ -18,8 +30,13 @@ export interface Branch {
   companyId: number;
   branchCode: string;
   branchName: string;
-  address: string;
-  wardNo: string | null;
+  address?: string | null;
+  wardNo?: string | null;
+  isHeadOffice?: boolean;
+  provinceId?: number | null;
+  districtId?: number | null;
+  localLevelId?: number | null;
+  defaultWarehouseId?: number | null;
   status: BranchStatus;
   createdAt: string;
   updatedAt: string;
@@ -33,6 +50,9 @@ export interface CreateBranchRequest {
   branchName: string;
   address?: string;
   wardNo?: string;
+  provinceId?: number | null;
+  districtId?: number | null;
+  localLevelId?: number | null;
 }
 
 export interface UpdateBranchRequest {
@@ -40,6 +60,9 @@ export interface UpdateBranchRequest {
   branchName?: string;
   address?: string;
   wardNo?: string;
+  provinceId?: number | null;
+  districtId?: number | null;
+  localLevelId?: number | null;
 }
 
 export interface GetBranchesParams {

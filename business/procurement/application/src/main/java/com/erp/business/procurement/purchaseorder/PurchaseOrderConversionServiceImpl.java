@@ -1,6 +1,10 @@
 package com.erp.business.procurement.purchaseorder;
 
+import com.erp.business.inventory.interfaces.item.ItemService;
+import com.erp.business.inventory.interfaces.supplier.SupplierService;
+import com.erp.business.inventory.interfaces.tax.TaxRateService;
 import com.erp.business.inventory.interfaces.unit.UnitService;
+import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
 import com.erp.business.procurement.purchaserequisition.domain.PurchaseRequisition;
 import com.erp.business.procurement.purchaserequisition.domain.PurchaseRequisitionLine;
 import com.erp.business.procurement.purchaserequisition.domain.PurchaseRequisitionOrderLink;
@@ -10,6 +14,7 @@ import com.erp.business.procurement.purchaserequisition.infrastructure.persisten
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrder;
 import com.erp.business.procurement.purchaseorder.domain.PurchaseOrderLine;
 import com.erp.business.procurement.purchaseorder.dto.ConvertToPurchaseOrderRequest;
+import com.erp.business.procurement.purchaseorder.dto.CreateDirectPurchaseOrderRequest;
 import com.erp.business.procurement.purchaseorder.dto.PurchaseOrderResponse;
 import com.erp.business.procurement.purchaseorder.infrastructure.persistence.PurchaseOrderRepository;
 import com.erp.business.procurement.shared.domain.DocumentSequence;
@@ -66,6 +71,10 @@ public class PurchaseOrderConversionServiceImpl implements PurchaseOrderConversi
     private final DocumentSequenceRepository sequenceRepository;
     private final PurchaseOrderAssembler assembler;
     private final UnitService unitService;
+    private final ItemService itemService;
+    private final SupplierService supplierService;
+    private final WarehouseService warehouseService;
+    private final TaxRateService taxRateService;
 
     @Override
     @Transactional
@@ -165,6 +174,132 @@ public class PurchaseOrderConversionServiceImpl implements PurchaseOrderConversi
             orderLinkRepository.save(link);
         }
 
+        return assembler.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    @RequiresPermission(PurchaseOrderPermissions.CREATE)
+    public PurchaseOrderResponse createDirect(Long tenantId, Long companyId,
+                                              CreateDirectPurchaseOrderRequest request, String actor) {
+
+        requireScope(tenantId, companyId);
+
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new ValidationException("At least one line item is required to create a purchase order");
+        }
+
+        // 1. Resolve & validate supplier
+        String supplierCode = request.supplierCode();
+        String supplierName = request.supplierName();
+        if (supplierCode == null || supplierCode.isBlank() || supplierName == null || supplierName.isBlank()) {
+            SupplierService.SupplierResponse supplier = supplierService.findById(request.supplierId())
+                    .orElseThrow(() -> new ValidationException("Supplier " + request.supplierId() + " was not found"));
+            supplierCode = supplier.getCode();
+            supplierName = supplier.getName();
+        }
+
+        // 2. Resolve warehouse if provided
+        String warehouseCode = request.warehouseCode();
+        String warehouseName = request.warehouseName();
+        if (request.warehouseId() != null && (warehouseCode == null || warehouseCode.isBlank() || warehouseName == null || warehouseName.isBlank())) {
+            var wh = warehouseService.findById(request.warehouseId()).orElse(null);
+            if (wh != null) {
+                warehouseCode = wh.getCode();
+                warehouseName = wh.getName();
+            }
+        }
+
+        // 3. Resolve order date and allocate document number
+        LocalDate orderDate = request.orderDate() != null ? request.orderDate() : LocalDate.now();
+        String poNumber = allocateNumber(tenantId, companyId, orderDate);
+
+        // 4. Instantiate Direct Draft PO
+        PurchaseOrder order = PurchaseOrder.directDraft(
+                poNumber,
+                orderDate,
+                request.supplierId(),
+                supplierCode,
+                supplierName,
+                request.currency() != null && !request.currency().isBlank() ? request.currency() : "NPR",
+                null,
+                request.branchId(),
+                request.reference(),
+                request.notes());
+
+        order.assignScope(tenantId, companyId);
+
+        order.adoptDelivery(
+                request.expectedDeliveryDate(),
+                request.warehouseId(),
+                warehouseCode,
+                warehouseName,
+                request.reference(),
+                request.notes());
+
+        // 5. Construct lines
+        int lineNumber = 1;
+        for (CreateDirectPurchaseOrderRequest.Line lineReq : request.lines()) {
+            if (lineReq.quantity() == null || lineReq.quantity().signum() <= 0) {
+                throw new ValidationException("Line quantity must be greater than zero");
+            }
+            if (lineReq.unitPrice() == null || lineReq.unitPrice().signum() < 0) {
+                throw new ValidationException("Line unit price cannot be negative");
+            }
+
+            String itemCode = lineReq.itemCode();
+            String itemName = lineReq.itemName();
+            String uomCode = lineReq.uomCode();
+            Long unitId = lineReq.unitId();
+
+            ItemService.ItemResponse item = itemService.findById(lineReq.itemId()).orElse(null);
+            if (item != null) {
+                if (itemCode == null || itemCode.isBlank()) itemCode = item.getSku();
+                if (itemName == null || itemName.isBlank()) itemName = item.getName();
+                if (uomCode == null || uomCode.isBlank()) uomCode = item.getUnitCode();
+                if (unitId == null) unitId = item.getUnitId();
+            }
+
+            if (itemCode == null || itemCode.isBlank() || itemName == null || itemName.isBlank()) {
+                throw new ValidationException("Item details could not be resolved for item ID " + lineReq.itemId());
+            }
+            if (uomCode == null || uomCode.isBlank()) {
+                throw new ValidationException("Unit of measure is required for item " + itemCode);
+            }
+
+            String normalizedUom = uomCode.trim().toUpperCase();
+            unitService.findByCode(normalizedUom)
+                    .orElseThrow(() -> new ValidationException("Unit of measure '" + normalizedUom + "' not found"));
+
+            BigDecimal taxRate = lineReq.taxRate();
+            if (taxRate == null) {
+                if (item != null && "TAXABLE".equalsIgnoreCase(item.getTaxabilityType())) {
+                    TaxRateService.TaxRate activeVat = taxRateService.findActive(tenantId, companyId, "VAT", orderDate);
+                    taxRate = activeVat != null ? activeVat.rate() : BigDecimal.ZERO;
+                } else {
+                    taxRate = BigDecimal.ZERO;
+                }
+            }
+
+            BigDecimal discount = lineReq.discountPercentage() != null ? lineReq.discountPercentage() : BigDecimal.ZERO;
+
+            PurchaseOrderLine poLine = PurchaseOrderLine.create(
+                    lineNumber++,
+                    lineReq.itemId(),
+                    itemCode,
+                    itemName,
+                    normalizedUom,
+                    unitId,
+                    lineReq.quantity(),
+                    lineReq.unitPrice(),
+                    discount,
+                    taxRate,
+                    null);
+
+            order.addLine(poLine);
+        }
+
+        PurchaseOrder saved = orderRepository.saveAndFlush(order);
         return assembler.toResponse(saved);
     }
 

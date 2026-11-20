@@ -50,6 +50,21 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "address", length = 500)
     private String address;
 
+    @Column(name = "ward_no", length = 20)
+    private String wardNo;
+
+    @Column(name = "tole_street", length = 200)
+    private String toleStreet;
+
+    @Column(name = "province_id")
+    private Short provinceId;
+
+    @Column(name = "district_id")
+    private Short districtId;
+
+    @Column(name = "local_level_id")
+    private Short localLevelId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "company_type", length = 40)
     private CompanyType companyType;
@@ -161,6 +176,48 @@ public class Company extends OptimisticLock<Long> {
         if (city != null && !city.isBlank()) {
             this.city = city.trim();
         }
+    }
+
+    public void updateWardNo(String wardNo) {
+        if (wardNo != null) {
+            this.wardNo = wardNo.trim();
+        }
+    }
+
+    public void updateToleStreet(String toleStreet) {
+        if (toleStreet != null) {
+            this.toleStreet = toleStreet.trim();
+        }
+    }
+
+    public void updateLocation(Short provinceId, Short districtId, Short localLevelId, String wardNo, String toleStreet) {
+        if (provinceId != null) {
+            this.provinceId = provinceId;
+        }
+        if (districtId != null) {
+            this.districtId = districtId;
+        }
+        if (localLevelId != null) {
+            this.localLevelId = localLevelId;
+        }
+        if (wardNo != null) {
+            this.wardNo = wardNo.trim();
+        }
+        if (toleStreet != null) {
+            this.toleStreet = toleStreet.trim();
+        }
+    }
+
+    public void updateProvinceId(Short provinceId) {
+        this.provinceId = provinceId;
+    }
+
+    public void updateDistrictId(Short districtId) {
+        this.districtId = districtId;
+    }
+
+    public void updateLocalLevelId(Short localLevelId) {
+        this.localLevelId = localLevelId;
     }
 
     public void updateCompanyType(CompanyType companyType) {

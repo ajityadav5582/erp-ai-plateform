@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * User aggregate root for identity and access management.
@@ -40,6 +41,9 @@ import java.time.Instant;
 public class User extends OptimisticLock<Long> {
 
     private static final long serialVersionUID = 1L;
+
+    @Column(name = "user_id", nullable = false, unique = true, updatable = false)
+    private UUID userId;
 
     /**
      * Reference to the tenant this user belongs to.
@@ -213,6 +217,7 @@ public class User extends OptimisticLock<Long> {
             Long departmentId,
             Long companyId) {
         return User.builder()
+                .userId(UUID.randomUUID())
                 .tenantId(tenantId)
                 .username(username)
                 .email(email)

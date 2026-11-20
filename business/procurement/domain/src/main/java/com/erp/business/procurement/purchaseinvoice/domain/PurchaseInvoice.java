@@ -305,6 +305,36 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
     }
 
     /**
+     * Applies a debit note reduction to this invoice's payable balance.
+     *
+     * @param amount the debit note total amount
+     */
+    public void recordDebitNote(BigDecimal amount) {
+        if (status == PurchaseInvoiceStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot apply a debit note to a cancelled invoice " + invoiceNumber);
+        }
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("Debit note amount must be positive");
+        }
+        this.balanceAmount = this.balanceAmount.subtract(amount).max(BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        if (this.balanceAmount.signum() == 0 && this.status != PurchaseInvoiceStatus.CANCELLED) {
+            this.status = PurchaseInvoiceStatus.PAID;
+        }
+    }
+
+    /**
+     * Reverses a previously applied debit note (e.g. if the return was cancelled).
+     */
+    public void reverseDebitNote(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("Debit note reversal amount must be positive");
+        }
+        BigDecimal maxBalance = this.totalAmount.subtract(this.paidAmount).max(BigDecimal.ZERO);
+        this.balanceAmount = this.balanceAmount.add(amount).min(maxBalance).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        this.status = PurchaseInvoiceStatus.fromPaidAmount(this.totalAmount, this.paidAmount);
+    }
+
+    /**
      * Voids this invoice. A reason is required.
      *
      * <p>Refused once payment has been made: a settled invoice cannot be voided, because

@@ -137,6 +137,7 @@ public class UserBranchService {
                 request.userId(),
                 request.branchId(),
                 tenantId,
+                branch.getCompanyId(),
                 "system",
                 Instant.now(),
                 isPrimary
@@ -297,5 +298,18 @@ public class UserBranchService {
                 userBranch.getAssignedBy(),
                 userBranch.getAssignedAt()
         );
+    }
+
+    /**
+     * Returns the primary branch ID for a user, or null if none.
+     *
+     * @param userId the user ID
+     * @return the primary branch ID, or null
+     */
+    public Long getUserPrimaryBranchId(Long userId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        return userBranchRepository.findByTenantIdAndUserIdAndIsPrimaryTrue(tenantId, userId)
+                .map(UserBranch::getBranchId)
+                .orElse(null);
     }
 }

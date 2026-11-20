@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "permissions",
-        uniqueConstraints = @UniqueConstraint(name = "uk_permissions_code", columnNames = "code"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_permissions_code", columnNames = "permission_code"),
         indexes = @Index(name = "idx_permissions_resource_action", columnList = "resource, action")
 )
 @Getter
@@ -27,7 +27,7 @@ public class Permission {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "code", nullable = false, length = 150)
+    @Column(name = "permission_code", nullable = false, length = 150)
     private String permissionCode;
 
     @Column(name = "name", nullable = false, length = 200)

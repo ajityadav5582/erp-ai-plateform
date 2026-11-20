@@ -35,6 +35,10 @@ import {
   type PaymentMethod,
   type SupplierPaymentStatus,
 } from "@/services/supplier-payment.service";
+import {
+  formatPurchaseReturnStatus,
+  type PurchaseReturnStatus,
+} from "@/services/purchase-return.service";
 
 /**
  * One place that maps a lifecycle state to a colour and an icon for every document
@@ -143,6 +147,20 @@ const PAYMENT_TONES: Record<SupplierPaymentStatus, Tone> = {
 
 const PAYMENT_ICONS: Record<SupplierPaymentStatus, LucideIcon> = {
   POSTED: Wallet,
+  CANCELLED: Ban,
+};
+
+const RETURN_TONES: Record<PurchaseReturnStatus, Tone> = {
+  DRAFT: "neutral",
+  APPROVED: "info",
+  POSTED: "success",
+  CANCELLED: "danger",
+};
+
+const RETURN_ICONS: Record<PurchaseReturnStatus, LucideIcon> = {
+  DRAFT: FileCheck2,
+  APPROVED: CheckCircle2,
+  POSTED: PackageCheck,
   CANCELLED: Ban,
 };
 
@@ -281,6 +299,24 @@ export function PaymentMethodBadge({
     >
       {formatPaymentMethod(method)}
     </span>
+  );
+}
+
+export function PurchaseReturnStatusBadge({
+  status,
+  className,
+}: {
+  status: PurchaseReturnStatus | string | null | undefined;
+  className?: string;
+}) {
+  const resolved = (status ?? "DRAFT") as PurchaseReturnStatus;
+  return (
+    <Chip
+      label={formatPurchaseReturnStatus(status)}
+      tone={RETURN_TONES[resolved] ?? "neutral"}
+      icon={RETURN_ICONS[resolved] ?? CircleDashed}
+      className={className}
+    />
   );
 }
 

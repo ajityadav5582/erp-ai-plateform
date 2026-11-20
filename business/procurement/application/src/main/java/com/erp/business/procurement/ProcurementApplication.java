@@ -69,7 +69,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.procurement.workflow.infrastructure.persistence"
 })
 @Import({AuditingConfig.class, PermissionAspect.class, DefaultSecurityContext.class,
-        SecurityExceptionHandler.class})
+        SecurityExceptionHandler.class, com.erp.platform.common.openapi.OpenApiConfig.class})
 public class ProcurementApplication {
 
     public static void main(String[] args) {

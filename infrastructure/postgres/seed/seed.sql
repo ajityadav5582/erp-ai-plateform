@@ -9,37 +9,6 @@
 -- =============================================================================
 
 -- =============================================================================
--- 1. PROVINCES (required by DataInitializer)
--- =============================================================================
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P1', 'Koshi', 'कोशी', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P1');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P2', 'Madhesh', 'मधेश', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P2');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P3', 'Bagmati', 'बागमती', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P3');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P4', 'Gandaki', 'गण्डकी', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P4');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P5', 'Lumbini', 'लुम्बिनी', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P5');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P6', 'Karnali', 'कर्णाली', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P6');
-
-INSERT INTO provinces (province_code, province_name, nepali_name, country_code, status, version, created_at, created_by, updated_at, updated_by)
-SELECT 'P7', 'Sudurpashchim', 'सुदूरपश्चिम', 'NPL', 'ACTIVE', 1, NOW(), 'seed', NOW(), 'seed'
-WHERE NOT EXISTS (SELECT 1 FROM provinces WHERE province_code = 'P7');
-
--- =============================================================================
 -- 2. PERMISSIONS (required by DataInitializer)
 -- =============================================================================
 INSERT INTO permissions (code, name, resource, action, description, status, created_at, updated_at)
@@ -152,6 +121,8 @@ ON CONFLICT (code) DO NOTHING;
 -- =============================================================================
 -- 3. SYSTEM ROLES (required by DataInitializer)
 -- =============================================================================
+-- Only SUPER_ADMIN and TENANT_ADMIN are seeded on first bootstrap.
+-- All other roles are created by tenant administrators via the Role screen.
 INSERT INTO roles (tenant_id, code, name, description, role_type, status)
 SELECT null, 'SUPER_ADMIN', 'Super Administrator', 'System super administrator with full platform access across all tenants', 'SYSTEM', 'ACTIVE'
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'SUPER_ADMIN');
@@ -159,18 +130,6 @@ WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'SUPER_
 INSERT INTO roles (tenant_id, code, name, description, role_type, status)
 SELECT null, 'TENANT_ADMIN', 'Tenant Administrator', 'Platform-managed administrator role assigned to a tenant''s first user', 'SYSTEM', 'ACTIVE'
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'TENANT_ADMIN');
-
-INSERT INTO roles (tenant_id, code, name, description, role_type, status)
-SELECT null, 'STOREKEEPER', 'Storekeeper', 'Records goods receipts against purchase orders', 'SYSTEM', 'ACTIVE'
-WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'STOREKEEPER');
-
-INSERT INTO roles (tenant_id, code, name, description, role_type, status)
-SELECT null, 'ACCOUNTS_CLERK', 'Accounts Clerk', 'Records supplier invoices against received goods', 'SYSTEM', 'ACTIVE'
-WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'ACCOUNTS_CLERK');
-
-INSERT INTO roles (tenant_id, code, name, description, role_type, status)
-SELECT null, 'TREASURY', 'Treasury', 'Releases supplier payments against booked invoices', 'SYSTEM', 'ACTIVE'
-WHERE NOT EXISTS (SELECT 1 FROM roles WHERE tenant_id IS NULL AND code = 'TREASURY');
 
 -- =============================================================================
 -- 4. ROLE PERMISSIONS (required by DataInitializer)
@@ -189,30 +148,6 @@ SELECT r.id, p.id, 'seed', NOW(), true, 'ALL'
 FROM roles r
 CROSS JOIN permissions p
 WHERE r.code = 'TENANT_ADMIN' AND r.tenant_id IS NULL
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- STOREKEEPER gets goods receipt permissions
-INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active, data_scope)
-SELECT r.id, p.id, 'seed', NOW(), true, 'ALL'
-FROM roles r
-JOIN permissions p ON p.code IN ('GOODS_RECEIPT_VIEW', 'GOODS_RECEIPT_CREATE', 'GOODS_RECEIPT_CANCEL')
-WHERE r.code = 'STOREKEEPER' AND r.tenant_id IS NULL
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- ACCOUNTS_CLERK gets purchase invoice permissions
-INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active, data_scope)
-SELECT r.id, p.id, 'seed', NOW(), true, 'ALL'
-FROM roles r
-JOIN permissions p ON p.code IN ('PURCHASE_INVOICE_VIEW', 'PURCHASE_INVOICE_CREATE', 'PURCHASE_INVOICE_CANCEL')
-WHERE r.code = 'ACCOUNTS_CLERK' AND r.tenant_id IS NULL
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- TREASURY gets supplier payment permissions
-INSERT INTO role_permissions (role_id, permission_id, assigned_by, assigned_at, active, data_scope)
-SELECT r.id, p.id, 'seed', NOW(), true, 'ALL'
-FROM roles r
-JOIN permissions p ON p.code IN ('SUPPLIER_PAYMENT_VIEW', 'SUPPLIER_PAYMENT_CREATE', 'SUPPLIER_PAYMENT_CANCEL')
-WHERE r.code = 'TREASURY' AND r.tenant_id IS NULL
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- =============================================================================
@@ -243,19 +178,19 @@ WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE tenant_code = 'GLOB-TRAD-002');
 -- 7. COMPANIES
 -- =============================================================================
 INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 1, 'TECH-KTM', 'Tech Solutions Kathmandu', '123456789', 'Kathmandu', '+9779812345678', 'ktm@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Kathmandu, Nepal'
+SELECT gen_random_uuid(), 1, 'TECH-KTM', 'Tech Solutions Kathmandu', '123456789', 'Kathmandu', '+9779812345678', 'ktm@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Kathmandu, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 1 AND company_code = 'TECH-KTM');
 
 INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 1, 'TECH-PKH', 'Tech Solutions Pokhara', '987654321', 'Pokhara', '+9779812345670', 'pkh@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Pokhara, Nepal'
+SELECT gen_random_uuid(), 1, 'TECH-PKH', 'Tech Solutions Pokhara', '987654321', 'Pokhara', '+9779812345670', 'pkh@techsolutions.com', 'PRIVATE_LIMITED', 'OTHER', 'NEPALI_BS', true, 'ACTIVE', 'Tech Solutions Pvt. Ltd.', 1, 'https://techsolutions.com', 'Pokhara, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 1 AND company_code = 'TECH-PKH');
 
 INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 2, 'GLOB-KTM', 'Global Trading Kathmandu', '456789123', 'Kathmandu', '+9779812345680', 'ktm@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Kathmandu, Nepal'
+SELECT gen_random_uuid(), 2, 'GLOB-KTM', 'Global Trading Kathmandu', '456789123', 'Kathmandu', '+9779812345680', 'ktm@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Kathmandu, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 2 AND company_code = 'GLOB-KTM');
 
 INSERT INTO companies (company_id, tenant_id, company_code, company_name, pan_number, city, phone, email, company_type, business_type, fiscal_year_type, vat_registered, status, legal_name, version, website, address)
-SELECT UUID_GENERATE_V4(), 2, 'GLOB-BIR', 'Global Trading Biratnagar', '789123456', 'Biratnagar', '+9779812345681', 'bir@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Biratnagar, Nepal'
+SELECT gen_random_uuid(), 2, 'GLOB-BIR', 'Global Trading Biratnagar', '789123456', 'Biratnagar', '+9779812345681', 'bir@globaltrading.com', 'PRIVATE_LIMITED', 'OTHER', 'ENGLISH_AD', true, 'ACTIVE', 'Global Trading Company', 1, 'https://globaltrading.com', 'Biratnagar, Nepal'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE tenant_id = 2 AND company_code = 'GLOB-BIR');
 
 -- =============================================================================

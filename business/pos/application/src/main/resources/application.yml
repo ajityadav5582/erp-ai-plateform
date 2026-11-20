@@ -16,6 +16,8 @@ spring:
         format_sql: false
   flyway:
     enabled: false
+    baseline-on-migrate: false
+    validate-on-migrate: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -33,6 +35,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8086}
+
+inventory:
+  service-uri: ${INVENTORY_SERVICE_URI:http://localhost:8083}
 
 # Platform security (libraries:common-security).
 erp:
