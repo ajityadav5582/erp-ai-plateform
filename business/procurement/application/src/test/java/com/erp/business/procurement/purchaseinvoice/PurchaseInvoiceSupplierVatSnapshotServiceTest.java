@@ -81,8 +81,9 @@ class PurchaseInvoiceSupplierVatSnapshotServiceTest {
                 LocalDate.now().minusDays(1), null);
         when(taxRateService.findActive(Mockito.eq(1L), Mockito.eq(1L), Mockito.eq("VAT"), Mockito.any())).thenReturn(taxRate);
 
+        com.erp.business.procurement.goodsreceipt.GoodsReceiptService goodsReceiptService = Mockito.mock(com.erp.business.procurement.goodsreceipt.GoodsReceiptService.class);
         PurchaseInvoiceServiceImpl service = new PurchaseInvoiceServiceImpl(
-                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService);
+                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService, goodsReceiptService);
 
         CreateInvoiceRequest.Line line = new CreateInvoiceRequest.Line(
                 100L, null, null, null, null, null,
@@ -144,8 +145,9 @@ class PurchaseInvoiceSupplierVatSnapshotServiceTest {
                 .thenReturn(false);
         when(invoiceRepo.saveAndFlush(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
 
+        com.erp.business.procurement.goodsreceipt.GoodsReceiptService goodsReceiptService = Mockito.mock(com.erp.business.procurement.goodsreceipt.GoodsReceiptService.class);
         PurchaseInvoiceServiceImpl service = new PurchaseInvoiceServiceImpl(
-                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService);
+                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService, goodsReceiptService);
 
         CreateInvoiceRequest.Line line = new CreateInvoiceRequest.Line(
                 200L, null, null, null, null, null,
@@ -204,8 +206,9 @@ class PurchaseInvoiceSupplierVatSnapshotServiceTest {
                 .thenReturn(false);
         when(invoiceRepo.saveAndFlush(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
 
+        com.erp.business.procurement.goodsreceipt.GoodsReceiptService goodsReceiptService = Mockito.mock(com.erp.business.procurement.goodsreceipt.GoodsReceiptService.class);
         PurchaseInvoiceServiceImpl service = new PurchaseInvoiceServiceImpl(
-                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService);
+                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService, goodsReceiptService);
 
         CreateInvoiceRequest.Line line = new CreateInvoiceRequest.Line(
                 300L, null, null, null, null, null,
@@ -223,5 +226,54 @@ class PurchaseInvoiceSupplierVatSnapshotServiceTest {
         assertNull(saved.getSupplierVatRegistrationStatus());
         assertNull(saved.getSupplierVatRegistrationNumber());
         assertNull(saved.getSupplierTaxId());
+    }
+
+    @Test
+    void panOnlySupplier_taxableLine_rejectedByValidation() {
+        PurchaseInvoiceRepository invoiceRepo = Mockito.mock(PurchaseInvoiceRepository.class);
+        GoodsReceiptRepository receiptRepo = Mockito.mock(GoodsReceiptRepository.class);
+        ItemService itemService = Mockito.mock(ItemService.class);
+        SupplierService supplierService = Mockito.mock(SupplierService.class);
+        TaxRateService taxRateService = Mockito.mock(TaxRateService.class);
+
+        SupplierService.SupplierResponse supplier = Mockito.mock(SupplierService.SupplierResponse.class);
+        when(supplier.getVatRegistrationStatus()).thenReturn("PAN_ONLY");
+        when(supplier.getCode()).thenReturn("SUP-PAN");
+        when(supplierService.findById(5L)).thenReturn(Optional.of(supplier));
+
+        GoodsReceipt receipt = Mockito.mock(GoodsReceipt.class);
+        when(receipt.getId()).thenReturn(50L);
+        when(receipt.getGrnNumber()).thenReturn("GRN-50");
+        when(receipt.getStatus()).thenReturn(GoodsReceiptStatus.POSTED);
+        when(receipt.getSupplierId()).thenReturn(5L);
+        when(receipt.getSupplierCode()).thenReturn("SUP-PAN");
+        when(receipt.getCurrency()).thenReturn("NPR");
+
+        GoodsReceiptLine receiptLine = Mockito.mock(GoodsReceiptLine.class);
+        when(receiptLine.getId()).thenReturn(500L);
+        when(receiptLine.getItemId()).thenReturn(5L);
+        when(receiptLine.getReceivedQuantity()).thenReturn(new BigDecimal("1"));
+        when(receiptLine.getUnitPrice()).thenReturn(new BigDecimal("100"));
+        when(receipt.getLines()).thenReturn(List.of(receiptLine));
+
+        when(receiptRepo.findByIdForUpdate(1L, 1L, 50L)).thenReturn(Optional.of(receipt));
+        when(invoiceRepo.findByTenantIdAndCompanyIdAndGoodsReceiptId(1L, 1L, 50L)).thenReturn(Optional.empty());
+        when(invoiceRepo.existsByTenantIdAndCompanyIdAndSupplierIdAndInvoiceNumber(1L, 1L, 5L, "INV-050")).thenReturn(false);
+
+        com.erp.business.procurement.goodsreceipt.GoodsReceiptService goodsReceiptService = Mockito.mock(com.erp.business.procurement.goodsreceipt.GoodsReceiptService.class);
+        PurchaseInvoiceServiceImpl service = new PurchaseInvoiceServiceImpl(
+                invoiceRepo, receiptRepo, itemService, supplierService, taxRateService, goodsReceiptService);
+
+        CreateInvoiceRequest.Line line = new CreateInvoiceRequest.Line(
+                500L, new BigDecimal("1"), new BigDecimal("100"), BigDecimal.ZERO, null, null,
+                PurchaseTaxCategory.TAXABLE);
+        CreateInvoiceRequest request = new CreateInvoiceRequest(
+                50L, "INV-050", LocalDate.now(), null, List.of(line), null);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.erp.platform.common.exception.ValidationException.class,
+                () -> service.create(1L, 1L, request),
+                "Supplier SUP-PAN is PAN-only (not registered for VAT)"
+        );
     }
 }

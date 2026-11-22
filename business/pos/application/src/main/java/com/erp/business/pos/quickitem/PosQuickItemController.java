@@ -108,11 +108,13 @@ public class PosQuickItemController {
 
     @GetMapping
     public ResponseEntity<Page<PosQuickItemResponse>> listQuickItems(
+            @RequestParam(value = "registerId", required = false) Long registerId,
+            @RequestParam(value = "term", required = false) String term,
             @PageableDefault(size = 50, sort = {"sortOrder", "gridRow", "gridCol", "id"},
                     direction = Sort.Direction.ASC)
             Pageable pageable) {
-        return ResponseEntity.ok(quickItemService.listQuickItems(
-                context.getTenantId(), context.getCompanyId(), pageable));
+        return ResponseEntity.ok(quickItemService.filterQuickItems(
+                context.getTenantId(), context.getCompanyId(), registerId, term, pageable));
     }
 
     @GetMapping("/search")
@@ -121,8 +123,8 @@ public class PosQuickItemController {
             @PageableDefault(size = 50, sort = {"sortOrder", "gridRow", "gridCol", "id"},
                     direction = Sort.Direction.ASC)
             Pageable pageable) {
-        return ResponseEntity.ok(quickItemService.searchQuickItems(
-                context.getTenantId(), context.getCompanyId(), term, pageable));
+        return ResponseEntity.ok(quickItemService.filterQuickItems(
+                context.getTenantId(), context.getCompanyId(), null, term, pageable));
     }
 
     @GetMapping("/by-register")
@@ -131,8 +133,8 @@ public class PosQuickItemController {
             @PageableDefault(size = 50, sort = {"sortOrder", "gridRow", "gridCol", "id"},
                     direction = Sort.Direction.ASC)
             Pageable pageable) {
-        return ResponseEntity.ok(quickItemService.listQuickItemsByRegister(
-                context.getTenantId(), context.getCompanyId(), registerId, pageable));
+        return ResponseEntity.ok(quickItemService.filterQuickItems(
+                context.getTenantId(), context.getCompanyId(), registerId, null, pageable));
     }
 
     @GetMapping("/company-shared")

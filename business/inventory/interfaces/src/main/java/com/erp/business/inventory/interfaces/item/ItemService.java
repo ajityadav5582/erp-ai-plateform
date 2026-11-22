@@ -140,8 +140,13 @@ public interface ItemService {
         // carry price keep compiling; consumers such as POS read these to resolve
         // a selling price without coupling to Inventory internals.
         default BigDecimal getSellingPrice() { return null; }
+        default BigDecimal getWholesalePrice() { return null; }
+        default BigDecimal getMinSellingPrice() { return null; }
         default BigDecimal getVatRate() { return null; }
         default Boolean getIsVatInclusive() { return null; }
+        default Long getSecondaryUomId() { return null; }
+        default String getSecondaryUomCode() { return null; }
+        default BigDecimal getConversionFactor() { return null; }
     }
 
     /**

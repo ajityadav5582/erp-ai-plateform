@@ -1,9 +1,11 @@
 package com.erpai.integration.ird.outbox.scheduler;
 
+import com.erpai.integration.ird.domain.CompanyIrdConfig;
 import com.erpai.integration.ird.outbox.entity.IrdSyncOutboxEntity;
 import com.erpai.integration.ird.outbox.repository.IrdSyncOutboxRepository;
 import com.erpai.integration.ird.port.FiscalBillCommand;
 import com.erpai.integration.ird.port.FiscalCreditNoteCommand;
+import com.erpai.integration.ird.port.out.CompanyIrdConfigRepositoryPort;
 import com.erpai.integration.ird.port.out.IrdFiscalSyncPort;
 import com.erpai.integration.ird.port.IrdSyncResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -28,13 +31,16 @@ public class IrdOutboxRetryScheduler {
 
     private final IrdSyncOutboxRepository outboxRepository;
     private final IrdFiscalSyncPort irdFiscalSyncPort;
+    private final CompanyIrdConfigRepositoryPort companyIrdConfigRepositoryPort;
     private final ObjectMapper objectMapper;
 
     public IrdOutboxRetryScheduler(IrdSyncOutboxRepository outboxRepository,
                                   IrdFiscalSyncPort irdFiscalSyncPort,
+                                  CompanyIrdConfigRepositoryPort companyIrdConfigRepositoryPort,
                                   ObjectMapper objectMapper) {
         this.outboxRepository = outboxRepository;
         this.irdFiscalSyncPort = irdFiscalSyncPort;
+        this.companyIrdConfigRepositoryPort = companyIrdConfigRepositoryPort;
         this.objectMapper = objectMapper;
     }
 
@@ -45,17 +51,26 @@ public class IrdOutboxRetryScheduler {
 
         for (IrdSyncOutboxEntity record : records) {
             try {
+                Optional<CompanyIrdConfig> configOpt =
+                        companyIrdConfigRepositoryPort.findByTenantIdAndCompanyId(record.getTenantId(), record.getCompanyId());
+
+                if (configOpt.isPresent() && !configOpt.get().isCbmsActive()) {
+                    outboxRepository.markSkipped(record.getId());
+                    continue;
+                }
+
+                CompanyIrdConfig companyConfig = configOpt.orElse(null);
                 boolean isCreditNote = record.getInvoiceType() == com.erpai.integration.ird.outbox.entity.IrdInvoiceType.CREDIT_NOTE;
 
                 IrdSyncResult result;
                 if (isCreditNote) {
                     FiscalCreditNoteCommand command = objectMapper.readValue(record.getPayloadJson(), FiscalCreditNoteCommand.class);
                     command = command.withRealtime(false);
-                    result = irdFiscalSyncPort.syncCreditNote(command);
+                    result = irdFiscalSyncPort.syncCreditNote(command, companyConfig);
                 } else {
                     FiscalBillCommand command = objectMapper.readValue(record.getPayloadJson(), FiscalBillCommand.class);
                     command = command.withRealtime(false);
-                    result = irdFiscalSyncPort.syncSalesBill(command);
+                    result = irdFiscalSyncPort.syncSalesBill(command, companyConfig);
                 }
                 int responseCode = (result != null) ? result.getStatusCode() : 0;
 

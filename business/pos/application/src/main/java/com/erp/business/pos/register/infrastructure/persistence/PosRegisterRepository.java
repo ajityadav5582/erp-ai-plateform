@@ -37,4 +37,20 @@ public interface PosRegisterRepository extends JpaRepository<PosRegister, Long> 
                              @Param("companyId") Long companyId,
                              @Param("term") String term,
                              Pageable pageable);
+
+    @Query("SELECT r FROM PosRegister r WHERE r.tenantId = :tenantId AND r.companyId = :companyId "
+            + "AND (:status IS NULL OR r.status = :status)")
+    Page<PosRegister> filterRegistersNoTerm(@Param("tenantId") Long tenantId,
+                                           @Param("companyId") Long companyId,
+                                           @Param("status") PosRegisterStatus status,
+                                           Pageable pageable);
+
+    @Query("SELECT r FROM PosRegister r WHERE r.tenantId = :tenantId AND r.companyId = :companyId "
+            + "AND (:status IS NULL OR r.status = :status) "
+            + "AND (LOWER(r.registerCode) LIKE :pattern OR LOWER(r.registerName) LIKE :pattern)")
+    Page<PosRegister> filterRegistersWithPattern(@Param("tenantId") Long tenantId,
+                                                @Param("companyId") Long companyId,
+                                                @Param("status") PosRegisterStatus status,
+                                                @Param("pattern") String pattern,
+                                                Pageable pageable);
 }

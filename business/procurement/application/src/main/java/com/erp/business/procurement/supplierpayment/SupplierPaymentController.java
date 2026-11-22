@@ -1,6 +1,7 @@
 package com.erp.business.procurement.supplierpayment;
 
 import com.erp.platform.business.context.BusinessContextAccessor;
+import com.erp.business.procurement.supplierpayment.dto.ApplyAdvanceRequest;
 import com.erp.business.procurement.supplierpayment.dto.CreatePaymentRequest;
 import com.erp.business.procurement.supplierpayment.dto.SupplierPaymentResponse;
 import com.erp.platform.common.exception.UnauthorizedException;
@@ -16,8 +17,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
 
 /**
  * Supplier payment endpoints.
@@ -79,6 +83,40 @@ public class SupplierPaymentController {
 
         return ResponseEntity.ok(paymentService.findByInvoice(
                 context.getTenantId(), context.getCompanyId(), invoiceId, pageable));
+    }
+
+    /** Available unallocated advance payments for a supplier. */
+    @GetMapping("/advances/available")
+    public ResponseEntity<List<SupplierPaymentResponse>> findAvailableAdvances(
+            @RequestParam Long supplierId) {
+        return ResponseEntity.ok(paymentService.findAvailableAdvances(
+                context.getTenantId(), context.getCompanyId(), supplierId));
+    }
+
+    /** Applies available advance credit against an approved purchase invoice. */
+    @PostMapping("/apply-advance")
+    public ResponseEntity<SupplierPaymentResponse> applyAdvance(
+            @Valid @RequestBody ApplyAdvanceRequest request) {
+        return ResponseEntity.ok(paymentService.applyAdvance(
+                context.getTenantId(), context.getCompanyId(), request, currentUser()));
+    }
+
+    /** Live balance summary (total outstanding payable & available advance credit) for a supplier. */
+    @GetMapping("/suppliers/{supplierId}/balance-summary")
+    public ResponseEntity<com.erp.business.procurement.supplierpayment.dto.SupplierBalanceSummaryResponse> getSupplierBalanceSummary(
+            @PathVariable Long supplierId) {
+        return ResponseEntity.ok(paymentService.getSupplierBalanceSummary(
+                context.getTenantId(), context.getCompanyId(), supplierId));
+    }
+
+    /** Chronological running Statement of Account for a supplier. */
+    @GetMapping("/suppliers/{supplierId}/statement")
+    public ResponseEntity<com.erp.business.procurement.supplierpayment.dto.SupplierStatementResponse> getSupplierStatement(
+            @PathVariable Long supplierId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate) {
+        return ResponseEntity.ok(paymentService.getSupplierStatement(
+                context.getTenantId(), context.getCompanyId(), supplierId, fromDate, toDate));
     }
 
     private String currentUser() {

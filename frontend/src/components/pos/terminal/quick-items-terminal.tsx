@@ -146,7 +146,7 @@ export function QuickItemsTerminal({ registerId, onSelect, disabled }: QuickItem
               disabled={disabled}
               onClick={() => handleTileClick(tile)}
               className={cn(
-                "flex h-20 flex-col items-start justify-between gap-1 rounded-lg border p-2 text-left transition active:scale-95",
+                "flex h-20 flex-col items-start justify-between gap-1 rounded-lg border border-border bg-card hover:bg-accent/70 hover:border-primary/50 text-card-foreground shadow-xs p-2 text-left transition active:scale-95",
                 outOfStock && "opacity-50",
               )}
               style={
@@ -155,7 +155,7 @@ export function QuickItemsTerminal({ registerId, onSelect, disabled }: QuickItem
                   : undefined
               }
             >
-              {TileIcon && <TileIcon className="h-4 w-4 text-muted-foreground" />}
+              {TileIcon && <TileIcon className="h-4 w-4 text-foreground/70" />}
               <span className="line-clamp-2 text-xs font-medium leading-tight">{tile.itemName}</span>
               <span className="text-[10px] text-muted-foreground">
                 {tile.defaultPrice != null ? formatPosCurrency(tile.defaultPrice) : tile.itemCode}
@@ -183,6 +183,7 @@ export function QuickItemsTerminal({ registerId, onSelect, disabled }: QuickItem
               <Button
                 key={child.id}
                 variant="outline"
+                className="justify-start text-left h-auto py-2.5 px-3 border-border hover:bg-accent hover:text-accent-foreground text-foreground"
                 onClick={() => {
                   onSelect(child);
                   setFolderOpen(null);

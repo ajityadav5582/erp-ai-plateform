@@ -24,6 +24,10 @@ public interface PurchaseReturnRepository extends JpaRepository<PurchaseReturn, 
             @Param("companyId") Long companyId,
             @Param("id") Long id);
 
+    default Optional<PurchaseReturn> findWithLinesById(Long tenantId, Long companyId, Long id) {
+        return findWithLinesByTenantIdAndCompanyIdAndId(tenantId, companyId, id);
+    }
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM PurchaseReturn r WHERE r.tenantId = :tenantId "
          + "AND r.companyId = :companyId AND r.id = :id")
@@ -46,6 +50,9 @@ public interface PurchaseReturnRepository extends JpaRepository<PurchaseReturn, 
 
     Page<PurchaseReturn> findByTenantIdAndCompanyIdAndSupplierId(
             Long tenantId, Long companyId, Long supplierId, Pageable pageable);
+
+    java.util.List<PurchaseReturn> findByTenantIdAndCompanyIdAndSupplierId(
+            Long tenantId, Long companyId, Long supplierId);
 
     @Query("SELECT r FROM PurchaseReturn r WHERE r.tenantId = :tenantId AND r.companyId = :companyId "
          + "AND (LOWER(r.debitNoteNumber) LIKE LOWER(CONCAT('%', :term, '%')) "

@@ -226,13 +226,28 @@ export function ItemDetailsSheet({
               />
               <DetailRow
                 icon={<Boxes className="size-4" />}
-                label="Unit"
+                label="Primary Unit"
                 value={
                   item.uomName
                     ? `${item.uomName}${item.uomCode ? ` (${item.uomCode})` : ""}`
                     : item.uomCode
                 }
               />
+              {item.secondaryUomCode && (
+                <DetailRow
+                  icon={<Boxes className="size-4" />}
+                  label="Packaging Unit"
+                  value={
+                    item.secondaryUomName
+                      ? `${item.secondaryUomName} (${item.secondaryUomCode})${
+                          item.conversionFactor ? ` [1 ${item.secondaryUomCode} = ${item.conversionFactor} ${item.uomCode ?? "units"}]` : ""
+                        }`
+                      : `${item.secondaryUomCode}${
+                          item.conversionFactor ? ` [1 ${item.secondaryUomCode} = ${item.conversionFactor} ${item.uomCode ?? "units"}]` : ""
+                        }`
+                  }
+                />
+              )}
               <DetailRow
                 icon={<Package className="size-4" />}
                 label="Description"
@@ -246,8 +261,18 @@ export function ItemDetailsSheet({
             <div className="space-y-3 text-sm">
               <DetailRow
                 icon={<Banknote className="size-4" />}
-                label="Selling price"
+                label="Retail selling price"
                 value={item.sellingPrice}
+              />
+              <DetailRow
+                icon={<Banknote className="size-4" />}
+                label="Wholesale price"
+                value={item.wholesalePrice}
+              />
+              <DetailRow
+                icon={<Banknote className="size-4" />}
+                label="Min price floor"
+                value={item.minSellingPrice}
               />
               <DetailRow
                 icon={<Banknote className="size-4" />}

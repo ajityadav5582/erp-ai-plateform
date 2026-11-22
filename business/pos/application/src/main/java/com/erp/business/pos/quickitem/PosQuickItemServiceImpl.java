@@ -183,6 +183,22 @@ public class PosQuickItemServiceImpl implements PosQuickItemService {
     @Override
     @Transactional(readOnly = true)
     @RequiresPermission(PosQuickItemPermissions.POS_QUICK_ITEM_VIEW)
+    public Page<PosQuickItemResponse> filterQuickItems(Long tenantId, Long companyId,
+                                                       Long registerId,
+                                                       String term,
+                                                       Pageable pageable) {
+        String cleanTerm = (term != null && !term.isBlank()) ? term.trim() : null;
+        if (cleanTerm == null) {
+            return quickItemRepository.filterQuickItemsNoTerm(tenantId, companyId, registerId, pageable)
+                    .map(quickItemMapper::toResponse);
+        }
+        return quickItemRepository.filterQuickItemsWithPattern(tenantId, companyId, registerId, "%" + cleanTerm.toLowerCase() + "%", pageable)
+                .map(quickItemMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission(PosQuickItemPermissions.POS_QUICK_ITEM_VIEW)
     public List<PosQuickItemResolvedDto> resolveTilesForTerminal(Long tenantId, Long companyId,
                                                                   Long registerId, String tabName,
                                                                   Integer pageNumber) {

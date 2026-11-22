@@ -24,6 +24,7 @@ import {
 } from "@/services/pos-auditor.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { formatPosCurrency as formatCurrency } from "@/lib/pos-format";
+import { useSelectedCompany } from "@/config/company-context";
 
 const TABS = [
   { id: "bills", label: "Sales Book", icon: Receipt },
@@ -34,12 +35,17 @@ const TABS = [
 ];
 
 export default function PosAuditorPage() {
+  const selectedCompany = useSelectedCompany();
   const [activeTab, setActiveTab] = React.useState("bills");
   const [fromDate, setFromDate] = React.useState<string | null>(null);
   const [toDate, setToDate] = React.useState<string | null>(null);
   const [downloadDossier, { isLoading: isDownloading }] = useDownloadDossierMutation();
 
-  const queryParams = { companyId: 1, from: fromDate ?? undefined, to: toDate ?? undefined };
+  const queryParams = {
+    companyId: selectedCompany?.id ?? 1,
+    from: fromDate ?? undefined,
+    to: toDate ?? undefined,
+  };
 
   const handleDownload = async () => {
     try {

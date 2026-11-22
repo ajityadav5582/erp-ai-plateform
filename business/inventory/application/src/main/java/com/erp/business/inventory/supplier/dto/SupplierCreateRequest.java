@@ -2,6 +2,7 @@ package com.erp.business.inventory.supplier.dto;
 
 import com.erp.business.inventory.domain.SupplierType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SupplierCreateRequest(
@@ -18,11 +19,17 @@ public record SupplierCreateRequest(
         String email,
         String phone,
         String address,
+
+        @Pattern(regexp = "^$|^[0-9]{9}$", message = "Supplier PAN must be exactly 9 digits")
         String taxId,
+
         Integer paymentTermsDays,
         String currency,
         com.erp.business.inventory.domain.Supplier.VatRegistrationStatus vatRegistrationStatus,
+
+        @Pattern(regexp = "^$|^[0-9]{9}$", message = "VAT registration number must be exactly 9 digits")
         String vatRegistrationNumber,
+
         java.time.LocalDate vatEffectiveFrom,
         java.time.LocalDate vatEffectiveTo
 ) {

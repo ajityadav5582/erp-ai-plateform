@@ -1,5 +1,18 @@
 import { api } from "./api";
+import { axiosInstance } from "./http-client";
 import type { PageResponse } from "@/types/api";
+
+export interface ItemImportResult {
+  totalRows: number;
+  importedCount: number;
+  failedCount: number;
+  errors: Array<{
+    rowNumber: number;
+    sku: string;
+    itemName: string;
+    error: string;
+  }>;
+}
 
 /**
  * Mirrors the backend `ItemType` enum. Jackson rejects any value outside this
@@ -76,10 +89,14 @@ export interface ItemListResponse {
   categoryName: string | null;
   uomId: number;
   uomCode: string | null;
+  secondaryUomCode?: string | null;
+  conversionFactor?: number | null;
   itemType: ItemType | null;
   taxabilityType: TaxabilityType | null;
   vatRate: number | null;
   sellingPrice: number;
+  wholesalePrice?: number | null;
+  minSellingPrice?: number | null;
   purchasePrice: number | null;
   mrp: number | null;
   isActive: boolean;
@@ -90,6 +107,8 @@ export interface Item extends ItemListResponse {
   tenantId: number;
   companyId: number;
   uomName: string | null;
+  secondaryUomId?: number | null;
+  secondaryUomName?: string | null;
   descriptionEn: string | null;
   descriptionNp: string | null;
   exciseType: ExciseType | null;
@@ -118,7 +137,11 @@ export interface CreateItemRequest {
   sku: string;
   nameEn: string;
   uomId: number;
-  sellingPrice: number;
+  sellingPrice?: number;
+  wholesalePrice?: number;
+  minSellingPrice?: number;
+  secondaryUomId?: number;
+  conversionFactor?: number;
   barcode?: string;
   hsCode?: string;
   nameNp?: string;
@@ -144,6 +167,9 @@ export interface CreateItemRequest {
   minStockLevel?: number;
   reorderLevel?: number;
   reorderQuantity?: number;
+  openingQuantity?: number;
+  openingCostPrice?: number;
+  openingWarehouseId?: number;
 }
 
 /**
@@ -159,6 +185,10 @@ export interface UpdateItemRequest {
   nameEn?: string;
   uomId?: number;
   sellingPrice?: number;
+  wholesalePrice?: number;
+  minSellingPrice?: number;
+  secondaryUomId?: number;
+  conversionFactor?: number;
   barcode?: string;
   hsCode?: string;
   nameNp?: string;
@@ -341,6 +371,18 @@ export const itemApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Item"],
     }),
+
+    importItemsCsv: build.mutation<ItemImportResult, FormData>({
+      query: (formData) => ({
+        url: "/inventory/items/csv/import",
+        method: "POST",
+        data: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }),
+      invalidatesTags: ["Item"],
+    }),
   }),
 });
 
@@ -358,4 +400,34 @@ export const {
   useActivateItemMutation,
   useDeactivateItemMutation,
   useDeleteItemMutation,
+  useImportItemsCsvMutation,
 } = itemApi;
+
+export async function downloadItemTemplateCsv(): Promise<void> {
+  const response = await axiosInstance.get("/inventory/items/csv/template", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "items_template.csv");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportItemsCsv(): Promise<void> {
+  const response = await axiosInstance.get("/inventory/items/csv/export", {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }));
+  const link = document.createElement("a");
+  link.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.setAttribute("download", `items_export_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

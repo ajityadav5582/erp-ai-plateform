@@ -72,6 +72,19 @@ export const posIconMap: Record<string, React.ComponentType<{ className?: string
       <line x1="12" x2="12" y1="17" y2="21" />
     </svg>
   ),
+  table: ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
+  utensils: ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2" />
+      <path d="M14 2v20" />
+      <path d="M6 2v20" />
+      <path d="M4 2v4a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" />
+    </svg>
+  ),
   grid: GridIcon,
 };
 

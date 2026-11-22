@@ -91,6 +91,12 @@ public record CreateGoodsReceiptRequest(
         String notes
 ) {
 
+    /** Convenient constructor when receiving all outstanding lines of a purchase order in full. */
+    public CreateGoodsReceiptRequest(Long purchaseOrderId, LocalDate receiptDate, Long warehouseId,
+                                    String deliveryChallanNo, String notes) {
+        this(purchaseOrderId, receiptDate, warehouseId, null, null, null, null, deliveryChallanNo, notes);
+    }
+
     /**
      * One arriving line.
      *

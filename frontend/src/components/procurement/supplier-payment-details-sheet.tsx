@@ -102,12 +102,68 @@ export function SupplierPaymentDetailsSheet({
               <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Payment
               </h4>
-              <DetailRow label="Amount" value={formatMoney(payment.amount, payment.currency)} />
+              <DetailRow label="Total amount" value={formatMoney(payment.amount, payment.currency)} />
+              {Number(payment.unallocatedAmount) > 0 && (
+                <DetailRow
+                  label="Unallocated advance"
+                  value={
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatMoney(payment.unallocatedAmount, payment.currency)}
+                    </span>
+                  }
+                />
+              )}
               <DetailRow label="Payment date" value={formatDate(payment.paymentDate)} />
               <DetailRow label="Reference" value={payment.referenceNo ?? "—"} />
               <DetailRow label="Paid from" value={payment.paidFrom ?? "—"} />
-              <DetailRow label="Settles invoice" value={payment.invoiceNumber} />
+              <DetailRow
+                label="Settlement type"
+                value={
+                  payment.allocations && payment.allocations.length > 1
+                    ? `Multi-invoice (${payment.allocations.length} invoices)`
+                    : payment.invoiceNumber
+                    ? `Invoice ${payment.invoiceNumber}`
+                    : payment.allocations && payment.allocations.length === 1
+                    ? `Invoice ${payment.allocations[0]?.invoiceNumber || payment.allocations[0]?.purchaseInvoiceId}`
+                    : "Pure Advance Payment (Unallocated Credit)"
+                }
+              />
             </div>
+
+            {/* Allocated Invoices Table */}
+            {payment.allocations && payment.allocations.length > 0 && (
+              <div className="py-3">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Allocated Invoices ({payment.allocations.length})
+                </h4>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-border bg-muted/50 font-medium text-muted-foreground">
+                      <tr>
+                        <th className="py-2 px-3">Invoice #</th>
+                        <th className="py-2 px-3 text-right">Allocated Amount</th>
+                        <th className="py-2 px-3">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {payment.allocations.map((alloc, idx) => (
+                        <tr key={alloc.id ?? idx} className="hover:bg-muted/30">
+                          <td className="py-2 px-3 font-mono font-medium text-foreground">
+                            {alloc.invoiceNumber || `Invoice #${alloc.purchaseInvoiceId}`}
+                          </td>
+                          <td className="py-2 px-3 text-right font-semibold text-foreground">
+                            {formatMoney(alloc.allocatedAmount, payment.currency)}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground">
+                            {alloc.notes || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             <div className="py-2">
               <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

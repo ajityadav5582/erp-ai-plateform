@@ -98,19 +98,25 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
     @Column(name = "branch_id")
     private Long branchId;
 
-    /** The order whose goods are being billed. */
-    @Column(name = "purchase_order_id", nullable = false)
+    /** The order whose goods are being billed, or null for direct service invoices. */
+    @Column(name = "purchase_order_id")
     private Long purchaseOrderId;
 
-    @Column(name = "po_number", nullable = false, length = 40)
+    @Column(name = "po_number", length = 40)
     private String poNumber;
 
-    /** The receipt that evidences the delivery. One invoice per receipt. */
-    @Column(name = "goods_receipt_id", nullable = false)
+    /** The receipt that evidences the delivery, or null for direct service invoices. */
+    @Column(name = "goods_receipt_id")
     private Long goodsReceiptId;
 
-    @Column(name = "grn_number", nullable = false, length = 40)
+    @Column(name = "grn_number", length = 40)
     private String grnNumber;
+
+    @NotNull(message = "Invoice type is required")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "invoice_type", nullable = false, length = 32)
+    @Builder.Default
+    private PurchaseInvoiceType invoiceType = PurchaseInvoiceType.GOODS_RECEIPT;
 
     @NotNull(message = "Invoice date is required")
     @Column(name = "invoice_date", nullable = false)
@@ -170,6 +176,22 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
     @Builder.Default
     private BigDecimal totalAmount = BigDecimal.ZERO.setScale(MONEY_SCALE);
 
+    @Column(name = "is_tds_applicable", nullable = false)
+    @Builder.Default
+    private Boolean isTdsApplicable = false;
+
+    @Column(name = "tds_rate", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal tdsRate = BigDecimal.ZERO;
+
+    @Column(name = "tds_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal tdsAmount = BigDecimal.ZERO.setScale(MONEY_SCALE);
+
+    @Column(name = "net_payable_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal netPayableAmount = BigDecimal.ZERO.setScale(MONEY_SCALE);
+
     /** Cumulative settled amount. Written only by {@link #recordPayment}. */
     @Column(name = "paid_amount", nullable = false, precision = 19, scale = 4)
     @Builder.Default
@@ -220,6 +242,7 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
                 .invoiceNumber(invoiceNumber)
                 .invoiceDate(invoiceDate == null ? LocalDate.now() : invoiceDate)
                 .dueDate(dueDate)
+                .invoiceType(PurchaseInvoiceType.GOODS_RECEIPT)
                 .purchaseOrderId(receipt.getPurchaseOrderId())
                 .poNumber(receipt.getPoNumber())
                 .goodsReceiptId(receipt.getId())
@@ -230,6 +253,36 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
                 .supplierCode(receipt.getSupplierCode())
                 .supplierName(receipt.getSupplierName())
                 .currency(receipt.getCurrency())
+                .status(PurchaseInvoiceStatus.APPROVED)
+                .notes(notes)
+                .lines(new ArrayList<>())
+                .build();
+    }
+
+    /**
+     * Creates an approved direct invoice (for services, non-physical goods, or direct expenses)
+     * without requiring a warehouse Goods Receipt Note.
+     */
+    public static PurchaseInvoice direct(String invoiceNumber, LocalDate invoiceDate,
+                                         LocalDate dueDate, Long supplierId, String supplierCode,
+                                         String supplierName, String currency, Long branchId,
+                                         Long fiscalYearId, String notes) {
+
+        return PurchaseInvoice.builder()
+                .invoiceNumber(invoiceNumber)
+                .invoiceDate(invoiceDate == null ? LocalDate.now() : invoiceDate)
+                .dueDate(dueDate)
+                .invoiceType(PurchaseInvoiceType.DIRECT)
+                .purchaseOrderId(null)
+                .poNumber(null)
+                .goodsReceiptId(null)
+                .grnNumber(null)
+                .fiscalYearId(fiscalYearId)
+                .branchId(branchId)
+                .supplierId(supplierId)
+                .supplierCode(supplierCode)
+                .supplierName(supplierName)
+                .currency(currency == null || currency.isBlank() ? "NPR" : currency)
                 .status(PurchaseInvoiceStatus.APPROVED)
                 .notes(notes)
                 .lines(new ArrayList<>())
@@ -259,6 +312,17 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
      * <p>The payable figure accounts payable reports is {@link #balanceAmount}, and it
      * is only ever written here - never supplied by a caller.
      */
+    public void configureTds(Boolean isTdsApplicable, BigDecimal tdsRate) {
+        if (Boolean.TRUE.equals(isTdsApplicable)) {
+            this.isTdsApplicable = true;
+            this.tdsRate = tdsRate != null ? tdsRate : new BigDecimal("1.50");
+        } else {
+            this.isTdsApplicable = false;
+            this.tdsRate = BigDecimal.ZERO;
+        }
+        recalculateTotals();
+    }
+
     public void recalculateTotals() {
         BigDecimal net = BigDecimal.ZERO;
         BigDecimal tax = BigDecimal.ZERO;
@@ -269,7 +333,16 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
         this.subtotalAmount = net.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         this.taxAmount = tax.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         this.totalAmount = net.add(tax).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.balanceAmount = this.totalAmount.subtract(this.paidAmount)
+
+        if (Boolean.TRUE.equals(this.isTdsApplicable) && this.tdsRate != null && this.tdsRate.compareTo(BigDecimal.ZERO) > 0) {
+            this.tdsAmount = this.subtotalAmount.multiply(this.tdsRate)
+                    .divide(new BigDecimal("100"), MONEY_SCALE, RoundingMode.HALF_UP);
+        } else {
+            this.tdsAmount = BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        }
+
+        this.netPayableAmount = this.totalAmount.subtract(this.tdsAmount).max(BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        this.balanceAmount = this.netPayableAmount.subtract(this.paidAmount)
                 .max(BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
@@ -288,20 +361,23 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("Payment amount must be greater than zero");
         }
-        if (totalAmount.signum() <= 0) {
+        BigDecimal effectivePayable = (this.netPayableAmount != null && this.netPayableAmount.signum() > 0)
+                ? this.netPayableAmount
+                : this.totalAmount;
+        if (effectivePayable.signum() <= 0) {
             throw new IllegalStateException("Invoice " + invoiceNumber + " has no amount to pay");
         }
 
         BigDecimal newPaid = paidAmount.add(amount);
-        if (newPaid.compareTo(totalAmount) > 0) {
+        if (newPaid.compareTo(effectivePayable) > 0) {
             throw new IllegalStateException(
                     "Paying " + amount.toPlainString() + " would exceed the balance of "
                             + balanceAmount.toPlainString() + " on invoice " + invoiceNumber);
         }
 
         this.paidAmount = newPaid.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.balanceAmount = totalAmount.subtract(this.paidAmount).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.status = PurchaseInvoiceStatus.fromPaidAmount(totalAmount, this.paidAmount);
+        this.balanceAmount = effectivePayable.subtract(this.paidAmount).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        this.status = PurchaseInvoiceStatus.fromPaidAmount(effectivePayable, this.paidAmount);
     }
 
     /**
@@ -329,9 +405,12 @@ public class PurchaseInvoice extends TenantScopedEntity<Long> {
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("Debit note reversal amount must be positive");
         }
-        BigDecimal maxBalance = this.totalAmount.subtract(this.paidAmount).max(BigDecimal.ZERO);
+        BigDecimal effectivePayable = (this.netPayableAmount != null && this.netPayableAmount.signum() > 0)
+                ? this.netPayableAmount
+                : this.totalAmount;
+        BigDecimal maxBalance = effectivePayable.subtract(this.paidAmount).max(BigDecimal.ZERO);
         this.balanceAmount = this.balanceAmount.add(amount).min(maxBalance).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.status = PurchaseInvoiceStatus.fromPaidAmount(this.totalAmount, this.paidAmount);
+        this.status = PurchaseInvoiceStatus.fromPaidAmount(effectivePayable, this.paidAmount);
     }
 
     /**

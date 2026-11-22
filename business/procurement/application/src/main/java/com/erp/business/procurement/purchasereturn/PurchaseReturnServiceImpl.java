@@ -25,6 +25,10 @@ import com.erp.business.procurement.purchasereturn.infrastructure.persistence.Pu
 import com.erp.business.procurement.shared.domain.DocumentSequence;
 import com.erp.business.procurement.shared.infrastructure.persistence.DocumentSequenceRepository;
 import com.erp.business.procurement.shared.security.ProcurementPermissions;
+import com.erp.business.procurement.supplierpayment.domain.PaymentMethod;
+import com.erp.business.procurement.supplierpayment.domain.SupplierPayment;
+import com.erp.business.procurement.supplierpayment.domain.SupplierPaymentStatus;
+import com.erp.business.procurement.supplierpayment.infrastructure.persistence.SupplierPaymentRepository;
 import com.erp.platform.business.context.BusinessContextAccessor;
 import com.erp.platform.common.exception.ResourceNotFoundException;
 import com.erp.platform.common.exception.ValidationException;
@@ -62,6 +66,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
     private final WarehouseService warehouseService;
     private final PurchaseReturnMapper returnMapper;
     private final BusinessContextAccessor context;
+    private final SupplierPaymentRepository supplierPaymentRepository;
 
     public PurchaseReturnServiceImpl(
             PurchaseReturnRepository returnRepository,
@@ -72,7 +77,8 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
             StockMovementService stockMovementService,
             WarehouseService warehouseService,
             PurchaseReturnMapper returnMapper,
-            BusinessContextAccessor context
+            BusinessContextAccessor context,
+            SupplierPaymentRepository supplierPaymentRepository
     ) {
         this.returnRepository = returnRepository;
         this.returnLineRepository = returnLineRepository;
@@ -83,6 +89,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
         this.warehouseService = warehouseService;
         this.returnMapper = returnMapper;
         this.context = context;
+        this.supplierPaymentRepository = supplierPaymentRepository;
     }
 
     @Override
@@ -297,8 +304,38 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
         PurchaseInvoice invoice = invoiceRepository.findByIdForUpdate(tenantId, companyId, purchaseReturn.getPurchaseInvoiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase invoice " + purchaseReturn.getPurchaseInvoiceId() + " was not found"));
 
-        invoice.recordDebitNote(purchaseReturn.getTotalAmount());
+        BigDecimal previousBalance = invoice.getBalanceAmount();
+        BigDecimal debitNoteTotal = purchaseReturn.getTotalAmount();
+        invoice.recordDebitNote(debitNoteTotal);
         invoiceRepository.save(invoice);
+
+        // If the debit note exceeds the outstanding invoice balance,
+        // book the excess amount as an unallocated advance credit with the supplier.
+        BigDecimal excess = debitNoteTotal.subtract(previousBalance);
+        if (excess.compareTo(BigDecimal.ZERO) > 0) {
+            String advPaymentNumber = "ADV-DN-" + purchaseReturn.getDebitNoteNumber();
+            SupplierPayment advanceCredit = SupplierPayment.builder()
+                    .paymentNumber(advPaymentNumber)
+                    .paymentDate(purchaseReturn.getReturnDate() != null ? purchaseReturn.getReturnDate() : LocalDate.now())
+                    .supplierId(purchaseReturn.getSupplierId())
+                    .supplierCode(purchaseReturn.getSupplierCode())
+                    .supplierName(purchaseReturn.getSupplierName())
+                    .amount(excess)
+                    .unallocatedAmount(excess)
+                    .paymentMethod(PaymentMethod.OTHER)
+                    .referenceNo("DN-" + purchaseReturn.getDebitNoteNumber())
+                    .currency(purchaseReturn.getCurrency())
+                    .status(SupplierPaymentStatus.POSTED)
+                    .notes("Automatic Debit Note credit from Purchase Return " + purchaseReturn.getDebitNoteNumber()
+                            + " exceeding settled invoice " + invoice.getInvoiceNumber())
+                    .postedAt(Instant.now())
+                    .postedBy(currentUser())
+                    .build();
+            advanceCredit.assignScope(tenantId, companyId);
+            supplierPaymentRepository.save(advanceCredit);
+            log.info("Created supplier advance credit {} of {} {} from Debit Note {}",
+                    advPaymentNumber, excess, purchaseReturn.getCurrency(), purchaseReturn.getDebitNoteNumber());
+        }
 
         PurchaseReturn saved = returnRepository.save(purchaseReturn);
 
@@ -327,6 +364,15 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
                     .ifPresent(inv -> {
                         inv.reverseDebitNote(purchaseReturn.getTotalAmount());
                         invoiceRepository.save(inv);
+                    });
+
+            // Void any advance credit generated by this return
+            supplierPaymentRepository.findByTenantIdAndCompanyIdAndReferenceNo(
+                    tenantId, companyId, "DN-" + purchaseReturn.getDebitNoteNumber())
+                    .ifPresent(creditAdv -> {
+                        creditAdv.cancel(currentUser(), "Purchase return " + purchaseReturn.getDebitNoteNumber() + " was cancelled");
+                        supplierPaymentRepository.save(creditAdv);
+                        log.info("Cancelled supplier advance credit for Debit Note {}", purchaseReturn.getDebitNoteNumber());
                     });
 
             // Reverse stock movement if it was posted to inventory

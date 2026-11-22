@@ -61,7 +61,22 @@ public class KitchenOrderLine extends TenantScopedEntity<Long> {
     @Builder.Default
     private int course = 1;
 
+    @Column(name = "station", length = 50)
+    @Builder.Default
+    private String station = "KITCHEN";
+
+    @Column(name = "modifiers", length = 500)
+    private String modifiers;
+
+    @Column(name = "modifier_price", precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal modifierPrice = BigDecimal.ZERO;
+
     public void assignKitchenOrder(Long kitchenOrderId) {
         this.kitchenOrderId = kitchenOrderId;
+    }
+
+    public BigDecimal getEffectiveModifierPrice() {
+        return modifierPrice != null ? modifierPrice : BigDecimal.ZERO;
     }
 }

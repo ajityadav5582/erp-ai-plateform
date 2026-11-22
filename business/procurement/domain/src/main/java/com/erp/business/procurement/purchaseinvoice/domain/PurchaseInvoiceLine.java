@@ -187,6 +187,58 @@ public class PurchaseInvoiceLine extends TenantScopedEntity<Long> {
     }
 
     /**
+     * Creates a direct invoice line (for services or direct expenses) without a receipt line.
+     */
+    public static PurchaseInvoiceLine direct(Integer lineNumber, Long itemId, String itemCode,
+                                             String itemName, String uomCode,
+                                             BigDecimal quantity, BigDecimal unitPrice,
+                                             BigDecimal discountRate, BigDecimal taxRate,
+                                             String description) {
+
+        validateQuantity(quantity);
+        if (unitPrice == null || unitPrice.signum() < 0) {
+            throw new IllegalArgumentException("Unit price cannot be negative");
+        }
+        if (itemId == null) {
+            throw new IllegalArgumentException("Item is required");
+        }
+        if (itemCode == null || itemCode.isBlank()) {
+            throw new IllegalArgumentException("Item code is required");
+        }
+        if (itemName == null || itemName.isBlank()) {
+            throw new IllegalArgumentException("Item name is required");
+        }
+        if (uomCode == null || uomCode.isBlank()) {
+            throw new IllegalArgumentException("Unit of measure is required");
+        }
+
+        BigDecimal discount = discountRate == null ? BigDecimal.ZERO : discountRate;
+        BigDecimal tax = taxRate == null ? BigDecimal.ZERO : taxRate;
+        validatePercentage(discount, "Discount");
+        validatePercentage(tax, "Tax rate");
+
+        BigDecimal gross = quantity.multiply(unitPrice);
+        BigDecimal net = gross.multiply(
+                        ONE_HUNDRED.subtract(discount).divide(ONE_HUNDRED, 10, RoundingMode.HALF_UP))
+                .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        return PurchaseInvoiceLine.builder()
+                .lineNumber(lineNumber)
+                .goodsReceiptLineId(null)
+                .itemId(itemId)
+                .itemCode(itemCode)
+                .itemName(itemName)
+                .uomCode(uomCode)
+                .quantity(quantity.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP))
+                .unitPrice(unitPrice.setScale(MONEY_SCALE, RoundingMode.HALF_UP))
+                .discountPercentage(discount.setScale(2, RoundingMode.HALF_UP))
+                .taxRate(tax.setScale(2, RoundingMode.HALF_UP))
+                .lineAmount(net)
+                .description(description)
+                .build();
+    }
+
+    /**
      * Returns the tax due on this line.
      */
     public BigDecimal taxAmount() {

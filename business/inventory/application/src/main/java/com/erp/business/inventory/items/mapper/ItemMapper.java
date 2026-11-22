@@ -20,6 +20,10 @@ public class ItemMapper {
         String uomCode = item.getUom() != null ? item.getUom().getCode() : null;
         String uomName = item.getUom() != null ? item.getUom().getName() : null;
 
+        Long secondaryUomId = item.getSecondaryUom() != null ? item.getSecondaryUom().getId() : null;
+        String secondaryUomCode = item.getSecondaryUom() != null ? item.getSecondaryUom().getCode() : null;
+        String secondaryUomName = item.getSecondaryUom() != null ? item.getSecondaryUom().getName() : null;
+
         return new ItemResponse(
                 item.getId(),
                 item.getTenantId(),
@@ -43,6 +47,12 @@ public class ItemMapper {
                 item.getExciseRate(),
                 item.getExciseAmount(),
                 item.getSellingPrice(),
+                item.getWholesalePrice(),
+                item.getMinSellingPrice(),
+                secondaryUomId,
+                secondaryUomCode,
+                secondaryUomName,
+                item.getConversionFactor(),
                 item.getPurchasePrice(),
                 item.getMrp(),
                 item.getIsVatInclusive(),
@@ -75,6 +85,7 @@ public class ItemMapper {
 
         Long uomId = item.getUom() != null ? item.getUom().getId() : null;
         String uomCode = item.getUom() != null ? item.getUom().getCode() : null;
+        String secondaryUomCode = item.getSecondaryUom() != null ? item.getSecondaryUom().getCode() : null;
 
         return new ItemListResponse(
                 item.getId(),
@@ -91,6 +102,10 @@ public class ItemMapper {
                 item.getTaxabilityType(),
                 item.getVatRate(),
                 item.getSellingPrice(),
+                item.getWholesalePrice(),
+                item.getMinSellingPrice(),
+                secondaryUomCode,
+                item.getConversionFactor(),
                 item.getPurchasePrice(),
                 item.getMrp(),
                 item.getIsPurchasable(),

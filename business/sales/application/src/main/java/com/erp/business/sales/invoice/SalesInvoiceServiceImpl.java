@@ -7,6 +7,10 @@ import com.erp.business.sales.invoice.domain.SalesInvoice;
 import com.erp.business.sales.invoice.domain.SalesInvoiceLine;
 import com.erp.business.sales.invoice.domain.SalesInvoiceStatus;
 import com.erp.business.sales.invoice.domain.VatType;
+import com.erp.business.inventory.interfaces.stock.StockMovementLineRequest;
+import com.erp.business.inventory.interfaces.stock.StockMovementService;
+import com.erp.business.inventory.interfaces.stock.StockReceiptRequest;
+import com.erp.business.sales.invoice.dto.CreateDirectSalesInvoiceRequest;
 import com.erp.business.sales.invoice.dto.CreateInvoiceRequest;
 import com.erp.business.sales.invoice.dto.CreatePosInvoiceRequest;
 import com.erp.business.sales.invoice.dto.InvoiceDecisionRequest;
@@ -33,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -61,6 +66,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
     private final CompanyRepository companyRepository;
     private final TaxRateService taxRateService;
     private final com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService;
+    private final StockMovementService stockMovementService;
 
     public SalesInvoiceServiceImpl(SalesInvoiceRepository invoiceRepository,
                                    SalesOrderService salesOrderService,
@@ -72,7 +78,8 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
                                    BusinessContextAccessor context,
                                    CompanyRepository companyRepository,
                                    TaxRateService taxRateService,
-                                   com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService) {
+                                   com.erpai.integration.ird.outbox.service.IrdOutboxService irdOutboxService,
+                                   StockMovementService stockMovementService) {
         this.invoiceRepository = invoiceRepository;
         this.salesOrderService = salesOrderService;
         this.itemService = itemService;
@@ -84,6 +91,7 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
         this.companyRepository = companyRepository;
         this.taxRateService = taxRateService;
         this.irdOutboxService = irdOutboxService;
+        this.stockMovementService = stockMovementService;
     }
 
     @Override
@@ -142,6 +150,114 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
 
     @Override
     @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_CREATE)
+    public SalesInvoiceResponse createDirectInvoice(Long tenantId, Long companyId, CreateDirectSalesInvoiceRequest request) {
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("Tax Invoice must contain at least one line item.");
+        }
+
+        for (InvoiceLineRequest lineRequest : request.lines()) {
+            if (lineRequest.quantity() == null || lineRequest.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Invoice line quantity must be greater than zero.");
+            }
+            if (lineRequest.unitPrice() != null && lineRequest.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Unit price must not be negative.");
+            }
+        }
+
+        String customerCode = "WALK-IN";
+        String customerName = "Cash Customer";
+        String customerPan = request.customerPanNumber();
+
+        if (request.customerId() != null) {
+            Customer customer = customerRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, request.customerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + request.customerId()));
+            customerCode = customer.getCode();
+            customerName = customer.getName();
+            if (customer.getPanNumber() != null && !customer.getPanNumber().isBlank()) {
+                customerPan = customer.getPanNumber();
+            }
+        } else if (request.customerName() != null && !request.customerName().isBlank()) {
+            customerName = request.customerName().trim();
+        }
+
+        String periodKey = context.findFiscalYearId() != null
+                ? "FY" + context.findFiscalYearId() : "CY" + request.invoiceDate().getYear();
+        String invoiceNumber = documentNumberService.nextNumber(
+                tenantId, companyId, DOCUMENT_TYPE, periodKey, NUMBER_PREFIX);
+
+        boolean companyVatRegistered = companyRepository.findById(companyId)
+                .map(c -> c.isVatEffectiveAsOf(request.invoiceDate()))
+                .orElse(false);
+        boolean isTaxInvoice = companyVatRegistered
+                && customerPan != null && !customerPan.isBlank();
+
+        SalesInvoice invoice = SalesInvoice.draft(
+                invoiceNumber, null, null,
+                null, null,
+                request.customerId(), customerCode, customerName,
+                customerPan, request.invoiceDate(), request.dueDate(),
+                isTaxInvoice, "NPR", context.findFiscalYearId(), null,
+                request.notes());
+        invoice.assignScope(tenantId, companyId);
+
+        int lineNumber = 1;
+        for (InvoiceLineRequest lineRequest : request.lines()) {
+            invoice.addLine(buildLine(lineNumber++, lineRequest));
+        }
+
+        SalesInvoice saved = invoiceRepository.save(invoice);
+        saved.issue(currentUser());
+
+        // Decrement warehouse inventory atomically if warehouse specified
+        if (request.warehouseId() != null && stockMovementService != null) {
+            List<StockMovementLineRequest> stockLines = new java.util.ArrayList<>();
+            for (SalesInvoiceLine line : saved.getLines()) {
+                ItemService.ItemResponse item = itemService.findById(line.getItemId()).orElse(null);
+                if (item == null || Boolean.TRUE.equals(item.getIsStockable())) {
+                    stockLines.add(new StockMovementLineRequest(
+                            request.warehouseId(), line.getItemId(), line.getUomCode(), line.getQuantity()
+                    ));
+                }
+            }
+            if (!stockLines.isEmpty()) {
+                StockReceiptRequest stockRequest = new StockReceiptRequest(
+                        "SALES_INVOICE", saved.getId(), saved.getInvoiceNumber(),
+                        Instant.now(), currentUser(), "Direct Sales Tax Invoice Outbound Issue", stockLines
+                );
+                stockMovementService.postIssue(stockRequest);
+            }
+        }
+
+        // IRD CBMS outbox enqueue
+        com.erpai.integration.ird.port.FiscalBillCommand command = new com.erpai.integration.ird.port.FiscalBillCommand(
+                saved.getTenantId(),
+                saved.getCompanyId(),
+                saved.getInvoiceNumber(),
+                null,
+                null,
+                saved.getCustomerPanNumber(),
+                saved.getCustomerName() != null ? saved.getCustomerName() : "Cash Customer",
+                saved.getTotalAmount(),
+                saved.getTaxableAmount(),
+                saved.getVatAmount(),
+                saved.getExemptAmount(),
+                true,
+                saved.getInvoiceDate()
+        );
+
+        irdOutboxService.enqueueSalesBill(saved.getTenantId(), saved.getCompanyId(), saved.getId(), command,
+                com.erpai.integration.ird.outbox.entity.IrdSourceModule.SALES);
+
+        // Instant settlement if requested
+        if (Boolean.TRUE.equals(request.isSettled()) && saved.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
+            saved.recordPayment(saved.getTotalAmount());
+        }
+
+        return invoiceMapper.toResponse(invoiceRepository.save(saved));
+    }
+
+    @Override
+    @RequiresPermission(SalesInvoicePermissions.SALES_INVOICE_CREATE)
     public SalesInvoiceResponse createPosInvoice(Long tenantId, Long companyId, CreatePosInvoiceRequest request) {
         java.util.Optional<SalesInvoice> existing = invoiceRepository
                 .findByTenantIdAndCompanyIdAndPosTransactionId(tenantId, companyId, request.posTransactionId());
@@ -177,6 +293,9 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
 
         SalesInvoice saved = invoiceRepository.save(invoice);
         saved.issue(currentUser());
+        if (saved.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
+            saved.recordPayment(saved.getTotalAmount());
+        }
         saved = invoiceRepository.save(saved);
 
         // IRD CBMS outbox enqueue (POS-originated invoices are issued immediately)
@@ -403,6 +522,11 @@ public class SalesInvoiceServiceImpl implements SalesInvoiceService {
                 && vatType == VatType.TAXABLE && vatRate != null && vatRate.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal divisor = BigDecimal.ONE.add(vatRate.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
             unitPrice = unitPrice.divide(divisor, 4, RoundingMode.HALF_UP);
+        }
+
+        if (unitPrice != null && item.getMinSellingPrice() != null && unitPrice.compareTo(item.getMinSellingPrice()) < 0) {
+            throw new IllegalArgumentException("Unit price " + unitPrice + " for item " + item.getName()
+                    + " is below minimum selling price floor (" + item.getMinSellingPrice() + ")");
         }
         return SalesInvoiceLine.create(
                 lineNumber, item.getId(), item.getSku(), item.getName(),

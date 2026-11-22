@@ -9,4 +9,7 @@ import java.util.Optional;
 public interface PosTableRepository extends JpaRepository<PosTable, Long> {
     Optional<PosTable> findByTenantIdAndCompanyIdAndId(Long tenantId, Long companyId, Long id);
     List<PosTable> findByTenantIdAndCompanyId(Long tenantId, Long companyId);
+    boolean existsByTenantIdAndCompanyIdAndTableNumber(Long tenantId, Long companyId, String tableNumber);
+    boolean existsByTenantIdAndCompanyIdAndTableNumberAndIdNot(Long tenantId, Long companyId, String tableNumber, Long id);
+    long countByTenantIdAndCompanyId(Long tenantId, Long companyId);
 }

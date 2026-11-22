@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, MoreVertical, Search, Wallet } from "lucide-react";
+import { ArrowRight, Eye, MoreVertical, Plus, Search, Wallet } from "lucide-react";
 import {
   useGetSupplierPaymentsQuery,
   type SupplierPayment,
@@ -57,22 +57,27 @@ const SupplierPaymentDetailsSheet = dynamic(
   { ssr: false, loading: () => null }
 );
 
+const RecordSupplierPaymentDialog = dynamic(
+  () =>
+    import("@/components/procurement/record-supplier-payment-dialog").then((mod) => ({
+      default: mod.RecordSupplierPaymentDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 const COLUMNS = 9;
 
 /**
  * The record of money paid out to suppliers.
  *
- * This screen is deliberately read-only. A payment is created from the invoice it
- * settles, not from a list of past payments, because the amount, currency and supplier
- * all belong to that invoice — starting from here would mean asking the clerk to
- * re-supply facts the system already holds, and getting them wrong would misfile the
- * payment. The header action points at the invoices that still owe money.
+ * Supports both single-invoice payments and multi-invoice batch settlements.
  */
 export default function SupplierPaymentsPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [detailsId, setDetailsId] = useState<number | null>(null);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   const listParams = useMemo(
     () => ({ page, size: pageSize, sort: "paymentDate,desc" }),
@@ -99,7 +104,7 @@ export default function SupplierPaymentsPage() {
     return payments.filter(
       (payment) =>
         payment.paymentNumber.toLowerCase().includes(normalizedTerm) ||
-        payment.invoiceNumber.toLowerCase().includes(normalizedTerm) ||
+        (payment.invoiceNumber ?? "").toLowerCase().includes(normalizedTerm) ||
         payment.supplierName.toLowerCase().includes(normalizedTerm) ||
         payment.supplierCode.toLowerCase().includes(normalizedTerm) ||
         (payment.referenceNo ?? "").toLowerCase().includes(normalizedTerm)
@@ -140,12 +145,22 @@ export default function SupplierPaymentsPage() {
         count={data?.totalElements}
         countLabel="payments"
         actions={
-          <Button asChild size="sm" className="h-9 gap-1.5">
-            <Link href="/purchase-invoices">
-              Settle an invoice
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setRecordPaymentOpen(true)}
+              className="h-9 gap-1.5 shadow-sm"
+            >
+              <Plus className="size-4" />
+              Record Payment
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+              <Link href="/purchase-invoices">
+                Settle from Invoice
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -235,7 +250,24 @@ export default function SupplierPaymentsPage() {
                     </span>
                   </TableCell>
                   <TableCell className="font-mono text-sm text-muted-foreground">
-                    {payment.invoiceNumber}
+                    {payment.invoiceNumber ? (
+                      payment.invoiceNumber
+                    ) : Number(payment.unallocatedAmount) > 0 && (!payment.allocations || payment.allocations.length === 0) ? (
+                      <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                        Advance Deposit
+                      </span>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary w-fit">
+                          Multi-Invoice
+                        </span>
+                        {Number(payment.unallocatedAmount) > 0 && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                            + {formatMoney(payment.unallocatedAmount, payment.currency)} advance
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <PaymentMethodBadge method={payment.paymentMethod} />
@@ -247,7 +279,12 @@ export default function SupplierPaymentsPage() {
                     <SupplierPaymentStatusBadge status={payment.status} />
                   </TableCell>
                   <TableCell className="text-right text-sm font-medium text-foreground">
-                    {formatMoney(payment.amount, payment.currency)}
+                    <div>{formatMoney(payment.amount, payment.currency)}</div>
+                    {Number(payment.unallocatedAmount) > 0 && (
+                      <div className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400">
+                        avail. {formatMoney(payment.unallocatedAmount, payment.currency)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu modal>
@@ -289,6 +326,14 @@ export default function SupplierPaymentsPage() {
         open={detailsId !== null}
         onOpenChange={(open) => {
           if (!open) setDetailsId(null);
+        }}
+      />
+
+      <RecordSupplierPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        onPaid={() => {
+          refetch();
         }}
       />
     </div>

@@ -58,6 +58,8 @@ export const itemFormSchema = z
     uomId: z
       .string()
       .min(1, "Primary unit of measure is required"),
+    secondaryUomId: z.string().optional().or(z.literal("")),
+    conversionFactor: nonNegativeDecimal("Conversion factor").optional().or(z.literal("")),
     itemType: z.enum(ITEM_TYPES, {
       errorMap: () => ({ message: "Select whether this is a good or a service" }),
     }),
@@ -81,11 +83,9 @@ export const itemFormSchema = z
     exciseAmount: nonNegativeDecimal("Excise amount"),
 
     // --- Pricing ---
-    sellingPrice: z
-      .string()
-      .min(1, "Selling price is required")
-      .refine((v) => !Number.isNaN(Number(v)), { message: "Selling price must be a number" })
-      .refine((v) => Number(v) >= 0, { message: "Selling price must be zero or greater" }),
+    sellingPrice: nonNegativeDecimal("Selling price"),
+    wholesalePrice: nonNegativeDecimal("Wholesale price").optional().or(z.literal("")),
+    minSellingPrice: nonNegativeDecimal("Minimum selling price").optional().or(z.literal("")),
     purchasePrice: nonNegativeDecimal("Purchase price"),
     mrp: nonNegativeDecimal("MRP"),
     isVatInclusive: z.boolean(),
@@ -99,10 +99,56 @@ export const itemFormSchema = z
   isComponent: z.boolean(),
   isManufactured: z.boolean(),
   minStockLevel: nonNegativeDecimal("Minimum stock level"),
-    reorderLevel: nonNegativeDecimal("Reorder level"),
-    reorderQuantity: nonNegativeDecimal("Reorder quantity"),
+  reorderLevel: nonNegativeDecimal("Reorder level"),
+  reorderQuantity: nonNegativeDecimal("Reorder quantity"),
+
+  // --- Initial Opening Stock (Create only) ---
+  openingQuantity: nonNegativeDecimal("Opening quantity").optional().or(z.literal("")),
+  openingCostPrice: nonNegativeDecimal("Opening cost price").optional().or(z.literal("")),
+  openingWarehouseId: z.string().optional().or(z.literal("")),
   })
   .superRefine((values, ctx) => {
+    // Opening stock validation
+    const openingQty = values.openingQuantity ? Number(values.openingQuantity) : 0;
+    if (openingQty > 0 && (!values.openingWarehouseId || values.openingWarehouseId.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["openingWarehouseId"],
+        message: "Warehouse is required when opening stock quantity is entered",
+      });
+    }
+
+    // Selling price is required only when the item is marked as sellable
+    if (values.isSellable) {
+      if (!values.sellingPrice || values.sellingPrice.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sellingPrice"],
+          message: "Selling price is required for sellable items",
+        });
+      }
+    }
+
+    if (values.minSellingPrice && values.sellingPrice) {
+      const minP = Number(values.minSellingPrice);
+      const sellP = Number(values.sellingPrice);
+      if (!Number.isNaN(minP) && !Number.isNaN(sellP) && minP > sellP) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["minSellingPrice"],
+          message: "Minimum selling price cannot exceed selling price",
+        });
+      }
+    }
+
+    if (values.secondaryUomId && (!values.conversionFactor || Number(values.conversionFactor) <= 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["conversionFactor"],
+        message: "Conversion factor (> 0) is required when secondary packaging unit is selected",
+      });
+    }
+
     const vatRate = values.vatRate === "" ? undefined : Number(values.vatRate);
     const exciseRate = values.exciseRate === "" ? undefined : Number(values.exciseRate);
     const exciseAmount = values.exciseAmount === "" ? undefined : Number(values.exciseAmount);
@@ -161,31 +207,81 @@ export const itemFormDefaults: ItemFormValues = {
   descriptionNp: "",
   categoryId: "",
   uomId: "",
+  secondaryUomId: "",
+  conversionFactor: "",
   itemType: "GOODS",
   taxabilityType: "TAXABLE",
-    vatRate: "",
+  vatRate: "13",
   exciseType: "NONE",
   exciseRate: "",
   exciseAmount: "",
   sellingPrice: "",
+  wholesalePrice: "",
+  minSellingPrice: "",
   purchasePrice: "",
   mrp: "",
-  isVatInclusive: true,
+  isVatInclusive: false,
   isInventoryTracked: true,
   isBatchTracked: false,
   isExpiryTracked: false,
-  isPurchasable: false,
-  isSellable: false,
+  isPurchasable: true,
+  isSellable: true,
   isComponent: false,
   isManufactured: false,
   minStockLevel: "",
   reorderLevel: "",
   reorderQuantity: "",
+  openingQuantity: "",
+  openingCostPrice: "",
+  openingWarehouseId: "",
 };
 
-/** Empty string -> undefined, so the backend keeps its stored value. */
-function optionalNumber(value: string): number | undefined {
-  return value === "" ? undefined : Number(value);
+/**
+ * Returns tailored initial form values based on the active company's business type.
+ * Provides frictionless defaults (e.g. Services, Pharmacy batch/expiry tracking)
+ * without constraining user freedom.
+ */
+export function getDefaultItemFormValues(
+  businessType?: string | null
+): ItemFormValues {
+  const base: ItemFormValues = { ...itemFormDefaults };
+  if (!businessType) return base;
+
+  const type = businessType.toUpperCase();
+
+  if (type === "SERVICES") {
+    return {
+      ...base,
+      itemType: "SERVICE",
+      isPurchasable: true,
+      isSellable: true,
+      isInventoryTracked: false,
+      isBatchTracked: false,
+      isExpiryTracked: false,
+      isComponent: false,
+      isManufactured: false,
+    };
+  }
+
+  if (type === "PHARMACY") {
+    return {
+      ...base,
+      itemType: "GOODS",
+      isInventoryTracked: true,
+      isBatchTracked: true,
+      isExpiryTracked: true,
+      isPurchasable: true,
+      isSellable: true,
+    };
+  }
+
+  return base;
+}
+
+/** Empty string, null, or undefined -> undefined, so the backend keeps its stored value. */
+function optionalNumber(value?: string | null): number | undefined {
+  if (value === "" || value === undefined || value === null) return undefined;
+  return Number(value);
 }
 
 /** Empty string -> undefined, so the backend stores null for that field. */
@@ -215,7 +311,11 @@ export function toCreateItemRequest(values: ItemFormValues): CreateItemRequest {
     sku: values.sku.trim(),
     nameEn: values.nameEn.trim(),
     uomId: Number(values.uomId),
-    sellingPrice: Number(values.sellingPrice),
+    secondaryUomId: values.secondaryUomId ? Number(values.secondaryUomId) : undefined,
+    conversionFactor: optionalNumber(values.conversionFactor ?? ""),
+    sellingPrice: optionalNumber(values.sellingPrice) ?? 0,
+    wholesalePrice: optionalNumber(values.wholesalePrice ?? ""),
+    minSellingPrice: optionalNumber(values.minSellingPrice ?? ""),
     barcode: optionalTextValue(values.barcode),
     hsCode: optionalTextValue(values.hsCode),
     nameNp: optionalTextValue(values.nameNp),
@@ -239,6 +339,9 @@ export function toCreateItemRequest(values: ItemFormValues): CreateItemRequest {
     minStockLevel: optionalNumber(values.minStockLevel),
     reorderLevel: optionalNumber(values.reorderLevel),
     reorderQuantity: optionalNumber(values.reorderQuantity),
+    openingQuantity: optionalNumber(values.openingQuantity ?? ""),
+    openingCostPrice: optionalNumber(values.openingCostPrice ?? ""),
+    openingWarehouseId: values.openingWarehouseId ? Number(values.openingWarehouseId) : undefined,
   };
 }
 
@@ -314,7 +417,17 @@ export function toUpdateItemDiff(
   }
   if (values.exciseType !== original.exciseType) payload.exciseType = values.exciseType;
 
+  const secondaryUomId = values.secondaryUomId ? Number(values.secondaryUomId) : null;
+  if (secondaryUomId !== (original.secondaryUomId ?? null)) {
+    if (secondaryUomId !== null) {
+      payload.secondaryUomId = secondaryUomId;
+    }
+  }
+
   const numberFields = [
+    ["wholesalePrice", values.wholesalePrice, original.wholesalePrice, "wholesale price"],
+    ["minSellingPrice", values.minSellingPrice, original.minSellingPrice, "minimum selling price"],
+    ["conversionFactor", values.conversionFactor, original.conversionFactor, "conversion factor"],
     ["vatRate", values.vatRate, original.vatRate, "VAT rate"],
     ["exciseRate", values.exciseRate, original.exciseRate, "excise rate"],
     ["exciseAmount", values.exciseAmount, original.exciseAmount, "excise amount"],
@@ -375,6 +488,8 @@ export function itemToFormValues(item: Item): ItemFormValues {
     descriptionNp: item.descriptionNp ?? "",
     categoryId: item.categoryId?.toString() ?? "",
     uomId: item.uomId.toString(),
+    secondaryUomId: item.secondaryUomId ? item.secondaryUomId.toString() : "",
+    conversionFactor: item.conversionFactor === null || item.conversionFactor === undefined ? "" : String(item.conversionFactor),
     itemType: item.itemType ?? "GOODS",
     taxabilityType: item.taxabilityType ?? "TAXABLE",
     vatRate: item.vatRate === null ? "" : String(item.vatRate),
@@ -382,6 +497,8 @@ export function itemToFormValues(item: Item): ItemFormValues {
     exciseRate: item.exciseRate === null ? "" : String(item.exciseRate),
     exciseAmount: item.exciseAmount === null ? "" : String(item.exciseAmount),
     sellingPrice: String(item.sellingPrice ?? ""),
+    wholesalePrice: item.wholesalePrice === null || item.wholesalePrice === undefined ? "" : String(item.wholesalePrice),
+    minSellingPrice: item.minSellingPrice === null || item.minSellingPrice === undefined ? "" : String(item.minSellingPrice),
     purchasePrice: item.purchasePrice === null ? "" : String(item.purchasePrice),
     mrp: item.mrp === null ? "" : String(item.mrp),
     isVatInclusive: item.isVatInclusive ?? true,

@@ -126,6 +126,16 @@ ensure_postgresql() {
             echo "PostgreSQL is ready (via container)."
             return 0
         fi
+
+        # Auto-recover from corrupted replorigin_checkpoint if detected
+        if [ "$i" -eq 5 ] && command -v docker >/dev/null 2>&1; then
+            if docker logs erpai-postgres --tail 20 2>&1 | grep -q "replication checkpoint has wrong magic"; then
+                echo "Detected corrupted replorigin_checkpoint in PostgreSQL volume. Auto-repairing..."
+                docker run --rm -v erp-ai-plateform_postgres_data:/var/lib/postgresql/data alpine rm -f /var/lib/postgresql/data/pg_logical/replorigin_checkpoint 2>/dev/null || true
+                docker restart erpai-postgres 2>/dev/null || true
+            fi
+        fi
+
         sleep 2
     done
 
@@ -165,6 +175,20 @@ docker run --rm --network host \
     -baselineOnMigrate=true \
     -baselineVersion=0 \
     -locations="filesystem:/flyway/sql/platform" \
+    migrate
+
+echo "Applying inventory Flyway migrations..."
+docker run --rm --network host \
+    -v "$ROOT/infrastructure/postgres/flyway:/flyway/sql:ro" \
+    flyway/flyway:11.7.2-alpine \
+    -url="jdbc:postgresql://localhost:$POSTGRES_PORT/$POSTGRES_DB" \
+    -user="$POSTGRES_USER" \
+    -password="$POSTGRES_PASSWORD" \
+    -baselineOnMigrate=true \
+    -baselineVersion=0 \
+    -table=inventory_flyway_schema_history \
+    -validateMigrationNaming=true \
+    -locations="filesystem:/flyway/sql/inventory" \
     migrate
 
 # ---------------------------------------------------------------------------

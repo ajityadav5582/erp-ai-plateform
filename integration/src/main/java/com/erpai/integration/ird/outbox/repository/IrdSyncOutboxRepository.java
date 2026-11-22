@@ -42,6 +42,10 @@ public interface IrdSyncOutboxRepository extends JpaRepository<IrdSyncOutboxEnti
     void markSimulated(@Param("id") UUID id, @Param("responseCode") int responseCode, @Param("attemptedAt") Instant attemptedAt);
 
     @Modifying
+    @Query("UPDATE IrdSyncOutboxEntity e SET e.syncStatus = com.erpai.integration.ird.outbox.entity.IrdSyncOutboxStatus.SKIPPED, e.updatedAt = CURRENT_TIMESTAMP WHERE e.id = :id")
+    void markSkipped(@Param("id") UUID id);
+
+    @Modifying
     @Query("""
             UPDATE IrdSyncOutboxEntity e
             SET e.syncStatus = com.erpai.integration.ird.outbox.entity.IrdSyncOutboxStatus.FAILED,

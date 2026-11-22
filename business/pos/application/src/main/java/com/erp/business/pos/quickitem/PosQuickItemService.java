@@ -70,6 +70,11 @@ public interface PosQuickItemService {
     Page<PosQuickItemResponse> searchQuickItems(Long tenantId, Long companyId, String term,
                                                         Pageable pageable);
 
+    Page<PosQuickItemResponse> filterQuickItems(Long tenantId, Long companyId,
+                                                Long registerId,
+                                                String term,
+                                                Pageable pageable);
+
     /**
      * Resolves the terminal grid for a tab/page, applying register-specific
      * overrides over company-wide defaults and enriching with catalogue pricing.

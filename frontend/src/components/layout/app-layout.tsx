@@ -617,9 +617,18 @@ const AppSidebar = React.memo(function AppSidebar({
         };
       }
       if (item.title === "POS" && posMenu?.items) {
+        const filteredPosItems = posMenu.items.filter((menuItem) => {
+          if (isRestaurantOrHospitality) {
+            // For hospitality/restaurant: show Restaurant Terminal, omit duplicate generic Terminal
+            return menuItem.href !== "/pos/terminal";
+          }
+          // For retail/grocery/general: show generic Terminal, omit Restaurant Terminal
+          return menuItem.href !== "/pos/restaurant";
+        });
+
         return {
           ...item,
-          children: posMenu.items.map((menuItem) => ({
+          children: filteredPosItems.map((menuItem) => ({
             title: menuItem.title,
             href: menuItem.href,
             icon: getPosIcon(menuItem.icon),

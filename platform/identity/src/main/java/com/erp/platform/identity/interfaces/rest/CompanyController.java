@@ -9,6 +9,7 @@ import com.erp.platform.identity.domain.Company;
 import com.erp.platform.identity.infrastructure.persistence.CompanyRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/identity/companies")
 @RequiredArgsConstructor
+@Slf4j
 public class CompanyController {
 
     private final CompanyRepository companyRepository;
@@ -81,6 +83,10 @@ public class CompanyController {
         company.updateWardNo(request.wardNo());
         company.updateToleStreet(request.toleStreet());
         company.updateLocation(request.provinceId(), request.districtId(), request.localLevelId(), request.wardNo(), request.toleStreet());
-        return ResponseEntity.ok(CompanyResponse.from(companyRepository.save(company)));
+        company.updateBankDetails(request.bankName(), request.bankAccountName(), request.bankAccountNumber(), request.bankBranch(), request.qrCodeUrl());
+        Company saved = companyRepository.save(company);
+        log.info("COMPLIANCE AUDIT: Company settings updated for companyId={}, tenantId={}, panNumber={}, vatRegNumber={}, bank={}",
+                saved.getId(), tenantId, saved.getPanNumber(), saved.getVatRegistrationNumber(), saved.getBankName());
+        return ResponseEntity.ok(CompanyResponse.from(saved));
     }
 }

@@ -28,6 +28,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
     Page<Item> findByTenantIdAndCompanyId(Long tenantId, Long companyId, Pageable pageable);
 
+    List<Item> findByTenantIdAndCompanyIdOrderBySkuAsc(Long tenantId, Long companyId);
+
     Page<Item> findByTenantIdAndCompanyIdAndIsActiveTrue(Long tenantId, Long companyId, Pageable pageable);
 
     Page<Item> findByTenantIdAndCompanyIdAndCategoryId(Long tenantId, Long companyId, Long categoryId, Pageable pageable);

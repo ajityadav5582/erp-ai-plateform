@@ -129,7 +129,58 @@ class ItemTest {
                             .sellingPrice(new BigDecimal("-0.01")).build()));
             assertThatIllegalArgumentException()
                     .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
+                            .wholesalePrice(new BigDecimal("-5.00")).build()));
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
+                            .minSellingPrice(new BigDecimal("-2.00")).build()));
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
                             .minStockLevel(new BigDecimal("-1")).build()));
+        }
+
+        @Test
+        @DisplayName("rejects minSellingPrice exceeding sellingPrice")
+        void rejectsMinSellingPriceExceedingSellingPrice() {
+            Item item = newItem(); // sellingPrice = 100.00
+
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
+                            .minSellingPrice(new BigDecimal("120.00")).build()))
+                    .withMessageContaining("Minimum selling price cannot exceed selling price");
+        }
+
+        @Test
+        @DisplayName("rejects zero or negative conversion factor")
+        void rejectsNonPositiveConversionFactor() {
+            Item item = newItem();
+
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
+                            .conversionFactor(BigDecimal.ZERO).build()))
+                    .withMessageContaining("Conversion factor must be greater than zero");
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> item.applyChanges(Item.ItemChanges.builder()
+                            .conversionFactor(new BigDecimal("-1.5")).build()))
+                    .withMessageContaining("Conversion factor must be greater than zero");
+        }
+
+        @Test
+        @DisplayName("applies wholesale price, min selling price floor and secondary UOM conversion")
+        void appliesWholesaleMinPriceAndSecondaryUom() {
+            Item item = newItem();
+            Unit boxUnit = Unit.create(TENANT_ID, COMPANY_ID, "Box", "BOX", UnitDimension.COUNT, "box", 0);
+
+            item.applyChanges(Item.ItemChanges.builder()
+                    .wholesalePrice(new BigDecimal("80.00"))
+                    .minSellingPrice(new BigDecimal("75.00"))
+                    .secondaryUom(boxUnit)
+                    .conversionFactor(new BigDecimal("24.0000"))
+                    .build());
+
+            assertThat(item.getWholesalePrice()).isEqualByComparingTo("80.00");
+            assertThat(item.getMinSellingPrice()).isEqualByComparingTo("75.00");
+            assertThat(item.getSecondaryUom()).isEqualTo(boxUnit);
+            assertThat(item.getConversionFactor()).isEqualByComparingTo("24.0000");
         }
 
         @Test
@@ -271,6 +322,21 @@ class ItemTest {
             assertThat(item.getExciseType()).isEqualTo(ExciseType.PERCENTAGE);
             assertThat(item.getExciseRate()).isEqualByComparingTo("5.00");
         }
+
+        @Test
+        @DisplayName("SERVICE items default to purchasable and sellable")
+        void serviceItemDefaultsPurchasable() {
+            Item.UsageFlags serviceFlags = Item.UsageFlags.forType(ItemType.SERVICE);
+            assertThat(serviceFlags.isPurchasable()).isTrue();
+            assertThat(serviceFlags.isSellable()).isTrue();
+            assertThat(serviceFlags.isComponent()).isFalse();
+            assertThat(serviceFlags.isManufactured()).isFalse();
+
+            Item serviceItem = Item.create(TENANT_ID, COMPANY_ID, "SRV-1", "Cloud Hosting", UOM,
+                    BigDecimal.ZERO, Item.ItemChanges.builder().itemType(ItemType.SERVICE).build());
+            assertThat(serviceItem.getIsPurchasable()).isTrue();
+            assertThat(serviceItem.getIsSellable()).isTrue();
+        }
     }
 
     @Nested
@@ -299,6 +365,39 @@ class ItemTest {
 
             item.deactivate();
             assertThatIllegalStateException().isThrownBy(item::deactivate);
+        }
+    }
+
+    @Nested
+    @DisplayName("uom conversion")
+    class UomConversion {
+
+        @Test
+        @DisplayName("converts secondary quantity to base quantity accurately")
+        void convertsSecondaryToBase() {
+            Unit boxUom = Unit.create(TENANT_ID, COMPANY_ID, "Box", "BOX", UnitDimension.COUNT, "box", 0);
+            Item item = Item.create(TENANT_ID, COMPANY_ID, "SKU-BOX", "Box Item", UOM, PRICE,
+                    Item.ItemChanges.builder()
+                            .secondaryUom(boxUom)
+                            .conversionFactor(new BigDecimal("12.00"))
+                            .build());
+
+            BigDecimal baseQty = item.toBaseQuantity(new BigDecimal("5"));
+            assertThat(baseQty).isEqualByComparingTo("60.00");
+        }
+
+        @Test
+        @DisplayName("converts base quantity to secondary quantity accurately")
+        void convertsBaseToSecondary() {
+            Unit boxUom = Unit.create(TENANT_ID, COMPANY_ID, "Box", "BOX", UnitDimension.COUNT, "box", 0);
+            Item item = Item.create(TENANT_ID, COMPANY_ID, "SKU-BOX", "Box Item", UOM, PRICE,
+                    Item.ItemChanges.builder()
+                            .secondaryUom(boxUom)
+                            .conversionFactor(new BigDecimal("12.00"))
+                            .build());
+
+            BigDecimal secondaryQty = item.toSecondaryQuantity(new BigDecimal("60"));
+            assertThat(secondaryQty).isEqualByComparingTo("5.0000");
         }
     }
 }

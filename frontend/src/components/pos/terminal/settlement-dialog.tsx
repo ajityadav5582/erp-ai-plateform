@@ -28,9 +28,9 @@ import {
 import { useGetActiveCustomersQuery } from "@/services/customer.service";
 import { formatPosCurrency } from "@/lib/pos-format";
 import { computeNepalTax } from "@/lib/pos-tax";
+import { cn } from "@/lib/utils";
 
 const WALK_IN = "walk-in";
-const QUICK_CASH = [100, 500, 1000];
 
 interface SettlementDialogProps {
   open: boolean;
@@ -44,6 +44,7 @@ interface SettlementDialogProps {
     customerId?: number;
     customerName?: string;
     customerPanNumber?: string;
+    discountAmount?: number;
   }) => void;
 }
 
@@ -56,6 +57,7 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
   const [customerPan, setCustomerPan] = React.useState("");
   const [discount, setDiscount] = React.useState(0);
   const [nonTaxable, setNonTaxable] = React.useState(0);
+  const [customerSearch, setCustomerSearch] = React.useState("");
 
   React.useEffect(() => {
     if (open) {
@@ -66,11 +68,24 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
       setCustomerPan("");
       setDiscount(0);
       setNonTaxable(0);
+      setCustomerSearch("");
     }
   }, [open]);
 
   const isWalkIn = customerId === WALK_IN;
-  const selectedCustomer = (customers ?? []).find((c) => String(c.id) === customerId);
+  const customerList = customers ?? [];
+  const selectedCustomer = customerList.find((c) => String(c.id) === customerId);
+
+  const filteredCustomers = React.useMemo(() => {
+    if (!customerSearch.trim()) return customerList.slice(0, 50);
+    const q = customerSearch.toLowerCase().trim();
+    return customerList.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.panNumber && c.panNumber.includes(q)) ||
+        (c.phone && c.phone.includes(q))
+    ).slice(0, 50);
+  }, [customerList, customerSearch]);
 
   const tenderedValue = Number(tendered);
   const hasTendered = tendered.trim() !== "" && Number.isFinite(tenderedValue);
@@ -79,7 +94,7 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
 
   const tax = computeNepalTax(total, discount, nonTaxable, 0.13);
 
-  const submit = () => {
+  const submit = React.useCallback(() => {
     onConfirm({
       paymentMethod: method,
       amountTendered: method === "CASH" && hasTendered ? tenderedValue : undefined,
@@ -87,8 +102,19 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
       customerId: isWalkIn ? undefined : selectedCustomer?.id,
       customerName: isWalkIn ? undefined : selectedCustomer?.name,
       customerPanNumber: customerPan.trim() || undefined,
+      discountAmount: discount > 0 ? discount : undefined,
     });
-  };
+  }, [
+    onConfirm,
+    method,
+    hasTendered,
+    tenderedValue,
+    reference,
+    isWalkIn,
+    selectedCustomer,
+    customerPan,
+    discount,
+  ]);
 
   // Hotkeys
   React.useEffect(() => {
@@ -102,7 +128,7 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, isSubmitting, isShort]);
+  }, [open, isSubmitting, isShort, submit]);
 
   const isTaxInvoice = customerPan.trim().length === 9;
 
@@ -119,12 +145,23 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
         <div className="space-y-4">
           {/* Customer */}
           <div className="space-y-2">
-            <Label>Customer</Label>
+            <div className="flex items-center justify-between">
+              <Label>Customer</Label>
+              {customerList.length > 10 && (
+                <input
+                  type="text"
+                  placeholder="Filter name/phone/PAN..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="h-6 text-xs px-2 border rounded bg-background"
+                />
+              )}
+            </div>
             <Select
               value={customerId}
               onValueChange={(value) => {
                 setCustomerId(value);
-                const customer = (customers ?? []).find((c) => String(c.id) === value);
+                const customer = customerList.find((c) => String(c.id) === value);
                 setCustomerPan(customer?.panNumber ?? "");
               }}
             >
@@ -133,10 +170,11 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={WALK_IN}>Walk-in customer</SelectItem>
-                {(customers ?? []).map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <SelectItem key={customer.id} value={String(customer.id)}>
                     {customer.name}
-                    {customer.panNumber ? ` · ${customer.panNumber}` : ""}
+                    {customer.phone ? ` · ${customer.phone}` : ""}
+                    {customer.panNumber ? ` (PAN: ${customer.panNumber})` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -161,11 +199,16 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
                 key={option}
                 type="button"
                 variant={method === option ? "default" : "outline"}
-                className="h-14 flex-col gap-1"
+                className={cn(
+                  "h-14 flex-col gap-1 transition-all",
+                  method === option
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card hover:bg-accent hover:text-accent-foreground text-foreground"
+                )}
                 onClick={() => setMethod(option)}
               >
                 {option === "CASH" ? <Banknote className="h-5 w-5" /> : option === "CARD" ? <CreditCard className="h-5 w-5" /> : <Wallet className="h-5 w-5" />}
-                <span className="text-xs">{POS_PAYMENT_METHOD_LABELS[option]}</span>
+                <span className="text-xs font-semibold">{POS_PAYMENT_METHOD_LABELS[option]}</span>
               </Button>
             ))}
           </div>
@@ -207,14 +250,51 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
                 className="h-12 text-lg"
               />
               <div className="flex flex-wrap gap-2">
-                {QUICK_CASH.map((amount) => (
-                  <Button key={amount} type="button" variant="secondary" size="sm" onClick={() => setTendered(String(amount))}>
-                    Rs {amount}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setTendered(tax.grandTotal.toFixed(2))}
+                >
+                  Exact (Rs {tax.grandTotal.toFixed(2)})
+                </Button>
+                {/* Nepali quick currency note adders */}
+                {[50, 100, 500, 1000].map((amt) => (
+                  <Button
+                    key={amt}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="font-mono text-xs border-border bg-card hover:bg-accent hover:text-accent-foreground text-foreground font-medium"
+                    onClick={() => {
+                      const cur = Number(tendered) || 0;
+                      setTendered(String(cur + amt));
+                    }}
+                  >
+                    +{amt}
                   </Button>
                 ))}
-                <Button type="button" variant="secondary" size="sm" onClick={() => setTendered(tax.grandTotal.toFixed(2))}>
-                  Exact
-                </Button>
+                {/* Dynamic round-up options */}
+                {tax.grandTotal > 0 && Math.ceil(tax.grandTotal / 500) * 500 > tax.grandTotal && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setTendered(String(Math.ceil(tax.grandTotal / 500) * 500))}
+                  >
+                    Rs {Math.ceil(tax.grandTotal / 500) * 500}
+                  </Button>
+                )}
+                {tax.grandTotal > 0 && Math.ceil(tax.grandTotal / 1000) * 1000 > tax.grandTotal && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setTendered(String(Math.ceil(tax.grandTotal / 1000) * 1000))}
+                  >
+                    Rs {Math.ceil(tax.grandTotal / 1000) * 1000}
+                  </Button>
+                )}
               </div>
               {hasTendered && (
                 <p className={isShort ? "text-sm text-destructive" : "text-sm text-emerald-600"}>
@@ -239,10 +319,16 @@ export function SettlementDialog({ open, onOpenChange, total, isSubmitting, onCo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-border hover:bg-accent hover:text-accent-foreground"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button type="button" onClick={submit} disabled={isSubmitting || isShort}>
+          <Button type="button" onClick={submit} disabled={isSubmitting || isShort} className="bg-primary text-primary-foreground font-semibold">
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Complete sale
           </Button>

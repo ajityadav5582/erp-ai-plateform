@@ -48,6 +48,11 @@ public class PosMenuController {
                 "Ring up sales: scan items, take payment, print receipts"));
 
         items.add(new MenuItem(
+                "Restaurant Terminal", "/pos/restaurant", "table",
+                PosScanPermissions.POS_SCAN,
+                "Table management, KDS, modifiers, takeaway & delivery operations"));
+
+        items.add(new MenuItem(
                 "Transactions", "/pos/transactions", "receipt",
                 PosTransactionPermissions.POS_TRANSACTION_VIEW,
                 "View and void completed sales"));

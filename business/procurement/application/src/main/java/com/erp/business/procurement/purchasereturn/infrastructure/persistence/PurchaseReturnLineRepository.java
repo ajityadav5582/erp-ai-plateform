@@ -15,7 +15,7 @@ public interface PurchaseReturnLineRepository extends JpaRepository<PurchaseRetu
     @Query("SELECT COALESCE(SUM(l.returnQuantity), 0) FROM PurchaseReturnLine l "
          + "JOIN l.purchaseReturn r "
          + "WHERE l.tenantId = :tenantId AND l.companyId = :companyId "
-         + "AND l.purchaseInvoiceLineId = :invoiceLineId AND r.status <> 'CANCELLED'")
+         + "AND l.purchaseInvoiceLineId = :invoiceLineId AND r.status <> com.erp.business.procurement.purchasereturn.domain.PurchaseReturnStatus.CANCELLED")
     BigDecimal sumReturnedQuantityForInvoiceLine(
             @Param("tenantId") Long tenantId,
             @Param("companyId") Long companyId,
@@ -24,7 +24,7 @@ public interface PurchaseReturnLineRepository extends JpaRepository<PurchaseRetu
     @Query("SELECT l.purchaseInvoiceLineId, COALESCE(SUM(l.returnQuantity), 0) FROM PurchaseReturnLine l "
          + "JOIN l.purchaseReturn r "
          + "WHERE l.tenantId = :tenantId AND l.companyId = :companyId "
-         + "AND r.purchaseInvoiceId = :invoiceId AND r.status <> 'CANCELLED' "
+         + "AND r.purchaseInvoiceId = :invoiceId AND r.status <> com.erp.business.procurement.purchasereturn.domain.PurchaseReturnStatus.CANCELLED "
          + "GROUP BY l.purchaseInvoiceLineId")
     List<Object[]> sumReturnedQuantitiesByInvoiceId(
             @Param("tenantId") Long tenantId,

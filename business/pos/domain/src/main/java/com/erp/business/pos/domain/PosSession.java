@@ -307,12 +307,15 @@ public class PosSession extends TenantScopedEntity<Long> {
      * Updates session totals when a transaction is completed. Called by the
      * application service inside the same transaction as the completion.
      *
-     * @param paymentMethod the method used to pay
-     * @param totalAmount   the transaction's gross total (including VAT)
-     * @param vatAmount     the VAT portion of the total
+     * @param paymentMethod      the method used to pay
+     * @param totalAmount        the transaction's gross total (including VAT)
+     * @param vatAmount          the VAT portion of the total
+     * @param splitCashAmount    for SPLIT payments: the cash component
+     * @param splitDigitalAmount for SPLIT payments: the digital/card component
      */
     public void recordCompletedTransaction(
-            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount) {
+            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount,
+            BigDecimal splitCashAmount, BigDecimal splitDigitalAmount) {
         requireOpen("record a completed transaction on");
         Objects.requireNonNull(paymentMethod, "Payment method is required");
 
@@ -327,20 +330,38 @@ public class PosSession extends TenantScopedEntity<Long> {
             case CASH -> this.totalCashSales = totalCashSales.add(amount);
             case CARD -> this.totalCardSales = totalCardSales.add(amount);
             case DIGITAL_WALLET -> this.totalWalletSales = totalWalletSales.add(amount);
+            case SPLIT -> {
+                BigDecimal cashPortion = scale(splitCashAmount);
+                BigDecimal digitalPortion = scale(splitDigitalAmount);
+                this.totalCashSales = totalCashSales.add(cashPortion);
+                this.totalWalletSales = totalWalletSales.add(digitalPortion);
+                BigDecimal remainder = amount.subtract(cashPortion).subtract(digitalPortion);
+                if (remainder.compareTo(BigDecimal.ZERO) > 0) {
+                    this.totalOtherSales = totalOtherSales.add(remainder);
+                }
+            }
             default -> this.totalOtherSales = totalOtherSales.add(amount);
         }
+    }
+
+    public void recordCompletedTransaction(
+            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount) {
+        recordCompletedTransaction(paymentMethod, totalAmount, vatAmount, ZERO, ZERO);
     }
 
     /**
      * Reverses session totals when a completed transaction is voided. Called
      * by the application service inside the same transaction as the void.
      *
-     * @param paymentMethod the method that was used to pay
-     * @param totalAmount   the transaction's gross total
-     * @param vatAmount     the VAT portion
+     * @param paymentMethod      the method that was used to pay
+     * @param totalAmount        the transaction's gross total
+     * @param vatAmount          the VAT portion
+     * @param splitCashAmount    for SPLIT payments: the cash component
+     * @param splitDigitalAmount for SPLIT payments: the digital component
      */
     public void recordVoidedTransaction(
-            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount) {
+            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount,
+            BigDecimal splitCashAmount, BigDecimal splitDigitalAmount) {
         requireOpen("record a voided transaction on");
         Objects.requireNonNull(paymentMethod, "Payment method is required");
 
@@ -355,8 +376,23 @@ public class PosSession extends TenantScopedEntity<Long> {
             case CASH -> this.totalCashSales = totalCashSales.subtract(amount).max(ZERO);
             case CARD -> this.totalCardSales = totalCardSales.subtract(amount).max(ZERO);
             case DIGITAL_WALLET -> this.totalWalletSales = totalWalletSales.subtract(amount).max(ZERO);
+            case SPLIT -> {
+                BigDecimal cashPortion = scale(splitCashAmount);
+                BigDecimal digitalPortion = scale(splitDigitalAmount);
+                this.totalCashSales = totalCashSales.subtract(cashPortion).max(ZERO);
+                this.totalWalletSales = totalWalletSales.subtract(digitalPortion).max(ZERO);
+                BigDecimal remainder = amount.subtract(cashPortion).subtract(digitalPortion);
+                if (remainder.compareTo(BigDecimal.ZERO) > 0) {
+                    this.totalOtherSales = totalOtherSales.subtract(remainder).max(ZERO);
+                }
+            }
             default -> this.totalOtherSales = totalOtherSales.subtract(amount).max(ZERO);
         }
+    }
+
+    public void recordVoidedTransaction(
+            PosPaymentMethod paymentMethod, BigDecimal totalAmount, BigDecimal vatAmount) {
+        recordVoidedTransaction(paymentMethod, totalAmount, vatAmount, ZERO, ZERO);
     }
 
     // -----------------------------------------------------------------------

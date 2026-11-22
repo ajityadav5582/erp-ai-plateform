@@ -208,6 +208,61 @@ public class PosTransaction extends TenantScopedEntity<Long> {
     @Builder.Default
     private BigDecimal subtotalAmount = ZERO;
 
+    @Column(name = "discount_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal discountAmount = ZERO;
+
+    @Column(name = "service_charge_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal serviceChargeAmount = ZERO;
+
+    @Size(max = 255)
+    @Column(name = "discount_reason", length = 255)
+    private String discountReason;
+
+    @Size(max = 64)
+    @Column(name = "room_number", length = 64)
+    private String roomNumber;
+
+    @Size(max = 255)
+    @Column(name = "guest_name", length = 255)
+    private String guestName;
+
+    @Column(name = "split_payment_details", columnDefinition = "TEXT")
+    private String splitPaymentDetails;
+
+    @Column(name = "split_cash_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal splitCashAmount = ZERO;
+
+    @Column(name = "split_digital_amount", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal splitDigitalAmount = ZERO;
+
+    @Column(name = "order_type", length = 32)
+    @Builder.Default
+    private String orderType = "DINE_IN";
+
+    @Size(max = 32)
+    @Column(name = "token_number", length = 32)
+    private String tokenNumber;
+
+    @Size(max = 64)
+    @Column(name = "delivery_partner", length = 64)
+    private String deliveryPartner;
+
+    @Size(max = 500)
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
+
+    @Size(max = 32)
+    @Column(name = "customer_phone", length = 32)
+    private String customerPhone;
+
+    @Column(name = "delivery_charge", nullable = false, precision = 19, scale = 4)
+    @Builder.Default
+    private BigDecimal deliveryCharge = ZERO;
+
     @Column(name = "taxable_amount", nullable = false, precision = 19, scale = 4)
     @Builder.Default
     private BigDecimal taxableAmount = ZERO;
@@ -494,6 +549,59 @@ public class PosTransaction extends TenantScopedEntity<Long> {
     // -----------------------------------------------------------------------
 
     /**
+     * Applies hospitality discount and service charge adjustments and re-rolls totals.
+     */
+    public void applyHospitalityBilling(BigDecimal discountAmount, String discountReason, BigDecimal serviceChargeAmount) {
+        requireStatus(PosTransactionStatus.OPEN, "apply billing adjustments on");
+        this.discountAmount = (discountAmount != null && discountAmount.compareTo(BigDecimal.ZERO) >= 0)
+                ? discountAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : ZERO;
+        this.discountReason = discountReason;
+        this.serviceChargeAmount = (serviceChargeAmount != null && serviceChargeAmount.compareTo(BigDecimal.ZERO) >= 0)
+                ? serviceChargeAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : ZERO;
+        recalculateTotals();
+    }
+
+    /**
+     * Records room or split payment metadata.
+     */
+    public void setHospitalityDetails(String roomNumber, String guestName, String splitPaymentDetails,
+                                      BigDecimal splitCashAmount, BigDecimal splitDigitalAmount) {
+        this.roomNumber = roomNumber;
+        this.guestName = guestName;
+        this.splitPaymentDetails = splitPaymentDetails;
+        this.splitCashAmount = (splitCashAmount != null && splitCashAmount.compareTo(BigDecimal.ZERO) >= 0)
+                ? splitCashAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : ZERO;
+        this.splitDigitalAmount = (splitDigitalAmount != null && splitDigitalAmount.compareTo(BigDecimal.ZERO) >= 0)
+                ? splitDigitalAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : ZERO;
+    }
+
+    public void setHospitalityDetails(String roomNumber, String guestName, String splitPaymentDetails) {
+        setHospitalityDetails(roomNumber, guestName, splitPaymentDetails, ZERO, ZERO);
+    }
+
+    /**
+     * Records takeaway or delivery metadata and charges.
+     */
+    public void setDeliveryAndTokenDetails(String orderType, String tokenNumber, String deliveryPartner,
+                                          String deliveryAddress, String customerPhone, BigDecimal deliveryCharge) {
+        if (orderType != null && !orderType.isBlank()) {
+            this.orderType = orderType;
+        }
+        this.tokenNumber = tokenNumber;
+        this.deliveryPartner = deliveryPartner;
+        this.deliveryAddress = deliveryAddress;
+        this.customerPhone = customerPhone;
+        this.deliveryCharge = (deliveryCharge != null && deliveryCharge.compareTo(BigDecimal.ZERO) >= 0)
+                ? deliveryCharge.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : ZERO;
+        recalculateTotals();
+    }
+
+    /**
      * Recomputes every derived money field from the current lines.
      * The single writer — called after every line mutation so the header
      * totals are always consistent with the line set.
@@ -516,11 +624,35 @@ public class PosTransaction extends TenantScopedEntity<Long> {
         }
 
         this.subtotalAmount  = subtotal.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.taxableAmount   = taxable.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         this.exemptAmount    = exempt.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         this.zeroRatedAmount = zeroRated.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.vatAmount       = vat.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        this.totalAmount     = subtotal.add(vat).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        if ((this.discountAmount != null && this.discountAmount.compareTo(BigDecimal.ZERO) > 0)
+                || (this.serviceChargeAmount != null && this.serviceChargeAmount.compareTo(BigDecimal.ZERO) > 0)) {
+            BigDecimal netSubtotal = subtotal.subtract(this.discountAmount != null ? this.discountAmount : ZERO);
+            if (netSubtotal.compareTo(BigDecimal.ZERO) < 0) {
+                netSubtotal = BigDecimal.ZERO;
+            }
+            BigDecimal taxableBase = netSubtotal.add(this.serviceChargeAmount != null ? this.serviceChargeAmount : ZERO);
+
+            if (isTaxInvoice) {
+                this.taxableAmount = taxableBase.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+                this.vatAmount = this.taxableAmount.multiply(new BigDecimal("0.13")).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+                this.totalAmount = this.taxableAmount.add(this.vatAmount).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            } else {
+                this.taxableAmount = ZERO;
+                this.vatAmount = ZERO;
+                this.totalAmount = taxableBase.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            }
+        } else {
+            this.taxableAmount   = taxable.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            this.vatAmount       = vat.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            this.totalAmount     = subtotal.add(vat).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        }
+
+        if (this.deliveryCharge != null && this.deliveryCharge.compareTo(BigDecimal.ZERO) > 0) {
+            this.totalAmount = this.totalAmount.add(this.deliveryCharge).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        }
     }
 
     // -----------------------------------------------------------------------

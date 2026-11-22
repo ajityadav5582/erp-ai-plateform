@@ -136,6 +136,20 @@ export interface CreateInvoiceRequest {
   lines: InvoiceLineRequest[];
 }
 
+export interface CreateDirectSalesInvoiceRequest {
+  customerId?: number | null;
+  customerName?: string | null;
+  customerPanNumber?: string | null;
+  warehouseId?: number | null;
+  invoiceDate: string;
+  dueDate?: string | null;
+  isSettled?: boolean;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  notes?: string | null;
+  lines: InvoiceLineRequest[];
+}
+
 export interface InvoiceDecisionRequest {
   reason: string;
 }
@@ -183,6 +197,11 @@ export const salesInvoiceApi = api.injectEndpoints({
       invalidatesTags: ["SalesInvoice", "SalesOrder"],
     }),
 
+    createDirectInvoice: build.mutation<SalesInvoice, CreateDirectSalesInvoiceRequest>({
+      query: (body) => ({ url: `${BASE_URL}/direct`, method: "POST", data: body }),
+      invalidatesTags: ["SalesInvoice"],
+    }),
+
     issueInvoice: build.mutation<SalesInvoice, number>({
       query: (id) => ({ url: `${BASE_URL}/${id}/issue`, method: "POST" }),
       invalidatesTags: (_r, _e, id) => [{ type: "SalesInvoice", id }, "SalesInvoice"],
@@ -205,6 +224,7 @@ export const {
   useGetInvoiceQuery,
   useGetTaxInvoiceViewQuery,
   useCreateInvoiceMutation,
+  useCreateDirectInvoiceMutation,
   useIssueInvoiceMutation,
   useCancelInvoiceMutation,
 } = salesInvoiceApi;

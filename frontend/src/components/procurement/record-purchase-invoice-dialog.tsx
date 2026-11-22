@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SupplierBalanceBadge } from "@/components/procurement/supplier-balance-badge";
 
 /**
  * A single editable invoice line.
@@ -76,6 +77,8 @@ export function RecordPurchaseInvoiceDialog({
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<EditableLine[]>([]);
+  const [isTdsApplicable, setIsTdsApplicable] = useState(false);
+  const [tdsRate, setTdsRate] = useState("1.5");
 
   const {
     data: receipt,
@@ -92,6 +95,8 @@ export function RecordPurchaseInvoiceDialog({
       setInvoiceDate("");
       setDueDate("");
       setNotes("");
+      setIsTdsApplicable(false);
+      setTdsRate("1.5");
       setLines(
         receipt.lines.map((line) => ({
           goodsReceiptLineId: line.id,
@@ -145,6 +150,21 @@ export function RecordPurchaseInvoiceDialog({
 
   const canSubmit = invoiceNumber.trim().length > 0 && lines.length > 0 && !isLoading;
 
+  const totals = useMemo(() => {
+    let subtotal = 0;
+    for (const line of lines) {
+      const q = Number(line.quantity) || 0;
+      const p = Number(line.unitPrice) || 0;
+      subtotal += q * p;
+    }
+    const tax = subtotal * 0.13;
+    const gross = subtotal + tax;
+    const rate = Number(tdsRate) || 0;
+    const tds = isTdsApplicable ? subtotal * (rate / 100) : 0;
+    const netPayable = gross - tds;
+    return { subtotal, tax, gross, tds, netPayable };
+  }, [lines, isTdsApplicable, tdsRate]);
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
@@ -153,9 +173,6 @@ export function RecordPurchaseInvoiceDialog({
       const unitPrice = Number(line.unitPrice);
       const entry: CreateInvoiceLineRequest = { goodsReceiptLineId: line.goodsReceiptLineId };
 
-      // Only send a number when it is actually a number. An empty or unparseable field
-      // is omitted so the server falls back to the received figure, rather than being
-      // sent as NaN and failing validation on a value the user never meant to set.
       if (Number.isFinite(quantity) && line.quantity.trim() !== "") {
         entry.quantity = quantity;
       }
@@ -172,14 +189,15 @@ export function RecordPurchaseInvoiceDialog({
         ...(invoiceDate ? { invoiceDate } : {}),
         ...(dueDate ? { dueDate } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        isTdsApplicable,
+        tdsRate: isTdsApplicable ? Number(tdsRate) : 0,
         lines: payload,
       }).unwrap();
 
       toast.success(`Supplier invoice ${invoice.invoiceNumber} recorded`, {
-        description: `${formatMoney(
-          invoice.totalAmount,
-          invoice.currency
-        )} payable.`,
+        description: isTdsApplicable
+          ? `${formatMoney(invoice.netPayableAmount ?? invoice.totalAmount, invoice.currency)} net payable (TDS withheld: ${formatMoney(invoice.tdsAmount ?? 0, invoice.currency)}).`
+          : `${formatMoney(invoice.totalAmount, invoice.currency)} payable.`,
       });
       onCreated?.(invoice);
       onOpenChange(false);
@@ -192,7 +210,7 @@ export function RecordPurchaseInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[94vh] w-[96vw] max-w-[96vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1400px] overflow-y-auto p-4 sm:p-6 lg:p-7 xl:p-8">
         <DialogHeader>
           <DialogTitle>Record supplier invoice</DialogTitle>
           <DialogDescription>
@@ -209,6 +227,7 @@ export function RecordPurchaseInvoiceDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            <SupplierBalanceBadge supplierId={receipt?.supplierId} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="invoice-number">
@@ -328,6 +347,67 @@ export function RecordPurchaseInvoiceDialog({
                   );
                 })}
               </ul>
+            </div>
+
+            {/* Nepal TDS (Withholding Tax) Configuration & Financial Summary */}
+            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="tds-applicable"
+                    checked={isTdsApplicable}
+                    onChange={(e) => setIsTdsApplicable(e.target.checked)}
+                    className="size-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="tds-applicable" className="text-sm font-semibold cursor-pointer">
+                    Apply Nepal TDS (Withholding Tax) — Section 88/89
+                  </Label>
+                </div>
+                {isTdsApplicable && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="tds-rate-select" className="text-xs text-muted-foreground whitespace-nowrap">
+                      TDS Rate:
+                    </Label>
+                    <select
+                      id="tds-rate-select"
+                      value={tdsRate}
+                      onChange={(e) => setTdsRate(e.target.value)}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium"
+                    >
+                      <option value="1.5">1.5% — Goods Supply / Contract (Sec 89)</option>
+                      <option value="10.0">10.0% — Professional Services (Sec 88)</option>
+                      <option value="15.0">15.0% — House Rent / Lease (Sec 88)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Calculation Breakdown */}
+              <div className="rounded-md border border-border/80 bg-muted/40 p-3 text-xs space-y-1.5 font-mono">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal:</span>
+                  <span>{formatMoney(totals.subtotal, receipt?.currency ?? "NPR")}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>VAT (13%):</span>
+                  <span>+{formatMoney(totals.tax, receipt?.currency ?? "NPR")}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground font-semibold">
+                  <span>Gross Invoice Total:</span>
+                  <span>{formatMoney(totals.gross, receipt?.currency ?? "NPR")}</span>
+                </div>
+                {isTdsApplicable && (
+                  <div className="flex justify-between text-amber-700 dark:text-amber-400 font-medium">
+                    <span>Less TDS Withheld ({tdsRate}% on Subtotal):</span>
+                    <span>-{formatMoney(totals.tds, receipt?.currency ?? "NPR")}</span>
+                  </div>
+                )}
+                <div className="border-t border-border/80 pt-2 flex justify-between font-bold text-sm text-foreground font-mono">
+                  <span>Net Payable to Supplier:</span>
+                  <span className="text-primary">{formatMoney(totals.netPayable, receipt?.currency ?? "NPR")}</span>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

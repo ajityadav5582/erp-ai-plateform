@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, MoreVertical, Receipt, RotateCcw, Search, Wallet } from "lucide-react";
+import { Coins, Eye, MoreVertical, Plus, Receipt, RotateCcw, Search, Wallet, Zap } from "lucide-react";
 import {
   useGetPurchaseInvoicesQuery,
   useGetOutstandingInvoicesQuery,
@@ -65,6 +65,30 @@ const CreatePurchaseReturnDialog = dynamic(
   { ssr: false, loading: () => null }
 );
 
+const CreateDirectPurchaseInvoiceDialog = dynamic(
+  () =>
+    import("@/components/procurement/create-direct-purchase-invoice-dialog").then((mod) => ({
+      default: mod.CreateDirectPurchaseInvoiceDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
+const ApplyAdvanceCreditDialog = dynamic(
+  () =>
+    import("@/components/procurement/apply-advance-credit-dialog").then((mod) => ({
+      default: mod.ApplyAdvanceCreditDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
+const FastMatchPoDialog = dynamic(
+  () =>
+    import("@/components/procurement/fast-match-po-dialog").then((mod) => ({
+      default: mod.FastMatchPoDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
+
 type InvoiceScope = "all" | "outstanding";
 
 const COLUMNS = 9;
@@ -94,6 +118,9 @@ export default function PurchaseInvoicesPage() {
   const [detailsId, setDetailsId] = useState<number | null>(null);
   const [returnInvoiceId, setReturnInvoiceId] = useState<number | null>(null);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [directInvoiceDialogOpen, setDirectInvoiceDialogOpen] = useState(false);
+  const [fastMatchDialogOpen, setFastMatchDialogOpen] = useState(false);
+  const [applyAdvanceInvoice, setApplyAdvanceInvoice] = useState<PurchaseInvoice | null>(null);
 
   const listParams = useMemo(
     () => ({ page, size: pageSize }),
@@ -129,10 +156,10 @@ export default function PurchaseInvoicesPage() {
     if (!normalizedTerm) return invoices;
     return invoices.filter(
       (invoice) =>
-        invoice.invoiceNumber.toLowerCase().includes(normalizedTerm) ||
-        invoice.grnNumber.toLowerCase().includes(normalizedTerm) ||
-        invoice.supplierName.toLowerCase().includes(normalizedTerm) ||
-        invoice.supplierCode.toLowerCase().includes(normalizedTerm)
+        invoice.invoiceNumber?.toLowerCase().includes(normalizedTerm) ||
+        (invoice.grnNumber && invoice.grnNumber.toLowerCase().includes(normalizedTerm)) ||
+        invoice.supplierName?.toLowerCase().includes(normalizedTerm) ||
+        invoice.supplierCode?.toLowerCase().includes(normalizedTerm)
     );
   }, [invoices, normalizedTerm]);
 
@@ -173,9 +200,28 @@ export default function PurchaseInvoicesPage() {
     <div className="flex flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
       <ListPageHeader
         title="Purchase Invoices"
-        description="Supplier invoices recorded against received goods, and the balances still to be paid."
+        description="Supplier invoices recorded against received goods or direct service expenses, and balances still to be paid."
         count={allQuery.data?.totalElements}
         countLabel="invoices"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setFastMatchDialogOpen(true)}
+              className="gap-1.5 border-amber-300 bg-amber-50/50 hover:bg-amber-100/50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200"
+            >
+              <Zap className="size-4 text-amber-600 fill-amber-500" />
+              Fast-Match PO
+            </Button>
+            <Button
+              onClick={() => setDirectInvoiceDialogOpen(true)}
+              className="gap-1.5"
+            >
+              <Plus className="size-4" />
+              Record Direct Invoice
+            </Button>
+          </div>
+        }
       />
 
       <ScopeTabs
@@ -293,7 +339,13 @@ export default function PurchaseInvoicesPage() {
                       </span>
                     </TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground">
-                      {invoice.grnNumber}
+                      {invoice.grnNumber ? (
+                        <span>{invoice.grnNumber}</span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-xs text-muted-foreground font-sans">
+                          Direct / Service
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(invoice.invoiceDate)}
@@ -317,6 +369,11 @@ export default function PurchaseInvoicesPage() {
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {formatAmount(invoice.totalAmount)}
+                      {invoice.isTdsApplicable && (
+                        <span className="block text-[11px] text-amber-600 font-normal">
+                          Net: {formatAmount(invoice.netPayableAmount ?? invoice.totalAmount)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-sm font-medium">
                       {Number(invoice.balanceAmount) > 0 ? (
@@ -340,6 +397,12 @@ export default function PurchaseInvoicesPage() {
                             <Eye className="mr-2 size-4 text-muted-foreground" />
                             <span>View details</span>
                           </DropdownMenuItem>
+                          {Number(invoice.balanceAmount) > 0 && invoice.status !== "CANCELLED" && (
+                            <DropdownMenuItem onClick={() => setApplyAdvanceInvoice(invoice)}>
+                              <Coins className="mr-2 size-4 text-amber-500" />
+                              <span>Apply advance</span>
+                            </DropdownMenuItem>
+                          )}
                           {invoice.status !== "CANCELLED" && (
                             <DropdownMenuItem
                               onClick={() => {
@@ -387,6 +450,27 @@ export default function PurchaseInvoicesPage() {
         onOpenChange={setReturnDialogOpen}
         initialInvoiceId={returnInvoiceId}
         onCreated={() => refetch()}
+      />
+
+      <CreateDirectPurchaseInvoiceDialog
+        open={directInvoiceDialogOpen}
+        onOpenChange={setDirectInvoiceDialogOpen}
+        onCreated={() => refetch()}
+      />
+
+      <FastMatchPoDialog
+        open={fastMatchDialogOpen}
+        onOpenChange={setFastMatchDialogOpen}
+        onCreated={() => refetch()}
+      />
+
+      <ApplyAdvanceCreditDialog
+        open={applyAdvanceInvoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setApplyAdvanceInvoice(null);
+        }}
+        invoice={applyAdvanceInvoice}
+        onApplied={() => refetch()}
       />
     </div>
   );

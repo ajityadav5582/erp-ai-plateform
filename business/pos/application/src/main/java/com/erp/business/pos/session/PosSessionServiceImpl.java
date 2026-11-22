@@ -171,6 +171,23 @@ public class PosSessionServiceImpl implements PosSessionService {
                 .map(sessionMapper::toResponse);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission(PosSessionPermissions.POS_SESSION_VIEW)
+    public Page<PosSessionResponse> filterSessions(Long tenantId, Long companyId,
+                                                   PosSessionStatus status,
+                                                   Long registerId,
+                                                   String term,
+                                                   Pageable pageable) {
+        String cleanTerm = (term != null && !term.isBlank()) ? term.trim() : null;
+        if (cleanTerm == null) {
+            return sessionRepository.filterSessionsNoTerm(tenantId, companyId, status, registerId, pageable)
+                    .map(sessionMapper::toResponse);
+        }
+        return sessionRepository.filterSessionsWithPattern(tenantId, companyId, status, registerId, "%" + cleanTerm.toLowerCase() + "%", pageable)
+                .map(sessionMapper::toResponse);
+    }
+
     private PosSession load(Long tenantId, Long companyId, Long id) {
         return sessionRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, id)
                 .orElseThrow(() -> new PosSessionNotFoundException("Session not found with ID: " + id));

@@ -7,6 +7,8 @@ import com.erp.business.pos.poscompanyconfig.infrastructure.persistence.PosCompa
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 @Transactional
 public class PosCompanyConfigServiceImpl implements PosCompanyConfigService {
@@ -22,7 +24,7 @@ public class PosCompanyConfigServiceImpl implements PosCompanyConfigService {
     public PosCompanyConfigResponse get(Long tenantId, Long companyId) {
         return repository.findByTenantIdAndCompanyId(tenantId, companyId)
                 .map(this::toResponse)
-                .orElse(null);
+                .orElseGet(() -> defaultResponse(tenantId, companyId));
     }
 
     @Override
@@ -71,7 +73,9 @@ public class PosCompanyConfigServiceImpl implements PosCompanyConfigService {
             return true; // null/blank => all methods enabled (backward compatible)
         }
         for (String m : config.getEnabledPaymentMethods().split(",")) {
-            if (m.trim().equalsIgnoreCase(paymentMethod.trim())) {
+            String trimmed = m.trim();
+            if (trimmed.equalsIgnoreCase(paymentMethod.trim())
+                    || (trimmed.equalsIgnoreCase("OTHER") && (paymentMethod.equalsIgnoreCase("ROOM_CHARGE") || paymentMethod.equalsIgnoreCase("SPLIT")))) {
                 return true;
             }
         }
@@ -91,6 +95,22 @@ public class PosCompanyConfigServiceImpl implements PosCompanyConfigService {
                 c.getDefaultWarehouseId(),
                 c.getPriceListId(),
                 c.getRestaurantSettings()
+        );
+    }
+
+    private PosCompanyConfigResponse defaultResponse(Long tenantId, Long companyId) {
+        return new PosCompanyConfigResponse(
+                null,
+                tenantId,
+                companyId,
+                "CASH,CARD,DIGITAL_WALLET,BANK_TRANSFER,SPLIT,ROOM_CHARGE,OTHER",
+                true,
+                BigDecimal.ZERO,
+                "NONE",
+                null,
+                null,
+                null,
+                null
         );
     }
 }

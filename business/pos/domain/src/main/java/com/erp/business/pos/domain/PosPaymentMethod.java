@@ -27,6 +27,12 @@ public enum PosPaymentMethod {
     /** Cheque — uncommon for retail POS but included for completeness. */
     CHEQUE,
 
+    /** Hotel guest room charge — billed to hotel room folio. */
+    ROOM_CHARGE,
+
+    /** Split payment across multiple tenders (e.g. cash + wallet). */
+    SPLIT,
+
     /** Any other method; the reference field should describe it. */
     OTHER
 }

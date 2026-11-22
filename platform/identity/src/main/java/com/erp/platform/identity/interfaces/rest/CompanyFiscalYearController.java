@@ -75,9 +75,34 @@ public class CompanyFiscalYearController {
         requireCompany(tenantId, companyId);
         CompanyFiscalYear selected = fiscalYearRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, fiscalYearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fiscal year not found"));
+        if (selected.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot activate a locked fiscal year. Please unlock it first.");
+        }
         fiscalYearRepository.findByTenantIdAndCompanyIdOrderByStartDateDesc(tenantId, companyId)
                 .forEach(CompanyFiscalYear::deactivate);
         selected.activate();
+        return CompanyFiscalYearResponse.from(selected);
+    }
+
+    @PutMapping("/{fiscalYearId}/lock")
+    @Transactional
+    public CompanyFiscalYearResponse lock(@PathVariable Long companyId, @PathVariable Long fiscalYearId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        requireCompany(tenantId, companyId);
+        CompanyFiscalYear selected = fiscalYearRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, fiscalYearId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fiscal year not found"));
+        selected.lock("system");
+        return CompanyFiscalYearResponse.from(selected);
+    }
+
+    @PutMapping("/{fiscalYearId}/unlock")
+    @Transactional
+    public CompanyFiscalYearResponse unlock(@PathVariable Long companyId, @PathVariable Long fiscalYearId) {
+        Long tenantId = currentTenantProvider.getCurrentTenantId();
+        requireCompany(tenantId, companyId);
+        CompanyFiscalYear selected = fiscalYearRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, fiscalYearId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fiscal year not found"));
+        selected.unlock();
         return CompanyFiscalYearResponse.from(selected);
     }
 

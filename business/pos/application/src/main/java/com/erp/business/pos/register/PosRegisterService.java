@@ -34,6 +34,11 @@ public interface PosRegisterService {
 
     Page<PosRegisterResponse> searchRegisters(Long tenantId, Long companyId, String term, Pageable pageable);
 
+    Page<PosRegisterResponse> filterRegisters(Long tenantId, Long companyId,
+                                              PosRegisterStatus status,
+                                              String term,
+                                              Pageable pageable);
+
     PosRegisterResponse updateRegister(Long tenantId, Long companyId, Long id, UpdatePosRegisterRequest request);
 
     PosRegisterResponse activateRegister(Long tenantId, Long companyId, Long id);

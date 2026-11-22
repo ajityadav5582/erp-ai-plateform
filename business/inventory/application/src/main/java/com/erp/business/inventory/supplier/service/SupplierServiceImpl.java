@@ -52,8 +52,13 @@ public class SupplierServiceImpl implements SupplierService {
                 request.vatRegistrationStatus() != null ? request.vatRegistrationStatus()
                         : com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.UNKNOWN;
 
+        String vatRegNumber = request.vatRegistrationNumber() != null ? request.vatRegistrationNumber().trim() : null;
+        if ((vatRegNumber == null || vatRegNumber.isBlank()) && request.taxId() != null && !request.taxId().isBlank()) {
+            vatRegNumber = request.taxId().trim();
+        }
+
         if (status == com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.VAT_REGISTERED
-                && (request.vatRegistrationNumber() == null || request.vatRegistrationNumber().isBlank())) {
+                && (vatRegNumber == null || vatRegNumber.isBlank())) {
             throw new IllegalArgumentException("VAT registration number is required for VAT-registered suppliers");
         }
         if (request.vatEffectiveFrom() != null && request.vatEffectiveTo() != null
@@ -67,7 +72,7 @@ public class SupplierServiceImpl implements SupplierService {
                 request.taxId(), request.paymentTermsDays(), request.currency()
         );
         supplier.setVatRegistrationStatus(status);
-        supplier.setVatRegistrationNumber(request.vatRegistrationNumber());
+        supplier.setVatRegistrationNumber(vatRegNumber);
         supplier.setVatEffectiveFrom(request.vatEffectiveFrom());
         supplier.setVatEffectiveTo(request.vatEffectiveTo());
 
@@ -134,15 +139,28 @@ public class SupplierServiceImpl implements SupplierService {
         );
 
         if (request.vatRegistrationStatus() != null) {
+            String effectiveVatNumber = request.vatRegistrationNumber() != null && !request.vatRegistrationNumber().isBlank()
+                    ? request.vatRegistrationNumber().trim()
+                    : supplier.getVatRegistrationNumber();
+            if (effectiveVatNumber == null || effectiveVatNumber.isBlank()) {
+                String effectiveTaxId = request.taxId() != null && !request.taxId().isBlank()
+                        ? request.taxId().trim()
+                        : supplier.getTaxId();
+                if (effectiveTaxId != null && !effectiveTaxId.isBlank()) {
+                    effectiveVatNumber = effectiveTaxId.trim();
+                }
+            }
             if (request.vatRegistrationStatus() == com.erp.business.inventory.domain.Supplier.VatRegistrationStatus.VAT_REGISTERED
-                    && (request.vatRegistrationNumber() == null || request.vatRegistrationNumber().isBlank())
-                    && (supplier.getVatRegistrationNumber() == null || supplier.getVatRegistrationNumber().isBlank())) {
+                    && (effectiveVatNumber == null || effectiveVatNumber.isBlank())) {
                 throw new IllegalArgumentException("VAT registration number is required for VAT-registered suppliers");
             }
             supplier.setVatRegistrationStatus(request.vatRegistrationStatus());
+            if (effectiveVatNumber != null && !effectiveVatNumber.isBlank()) {
+                supplier.setVatRegistrationNumber(effectiveVatNumber);
+            }
         }
         if (request.vatRegistrationNumber() != null) {
-            supplier.setVatRegistrationNumber(request.vatRegistrationNumber());
+            supplier.setVatRegistrationNumber(request.vatRegistrationNumber().trim());
         }
         if (request.vatEffectiveFrom() != null) {
             supplier.setVatEffectiveFrom(request.vatEffectiveFrom());

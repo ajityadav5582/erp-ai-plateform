@@ -3,14 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Plus, X, MapPin, Briefcase, Settings } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { ACTIVE_FISCAL_SELECTION_STORAGE_KEY } from "@/config/company-context";
 import { getApiErrorMessage } from "@/services/error-handler";
 import {
   useCreateCompanyMutation,
   useGetCompaniesQuery,
+  useLazyGetCompanyFiscalYearsQuery,
+  type Company,
   type BusinessType,
   type CompanyType,
   type FiscalYearType,
@@ -28,6 +32,7 @@ export default function CompaniesPage() {
   const router = useRouter();
   const { data: companies = [], isLoading, isError, refetch } = useGetCompaniesQuery();
   const [createCompany, { isLoading: isCreating }] = useCreateCompanyMutation();
+  const [fetchFiscalYears] = useLazyGetCompanyFiscalYearsQuery();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Basic Information
@@ -88,10 +93,17 @@ export default function CompaniesPage() {
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+
+    const trimmedPan = panNumber.trim();
+    if (!/^\d{9}$/.test(trimmedPan)) {
+      setError("Nepal PAN number must be exactly 9 numeric digits.");
+      return;
+    }
+
     try {
       const createdCompany = await createCompany({
         companyName: companyName.trim(),
-        panNumber: panNumber.trim(),
+        panNumber: trimmedPan,
         city: city.trim(),
         phone: phone.trim(),
         email: email.trim(),
@@ -99,7 +111,9 @@ export default function CompaniesPage() {
         businessType: businessType as BusinessType,
         fiscalYearType: fiscalYearType as FiscalYearType,
         vatRegistered,
-        vatRegistrationNumber: vatRegistered && vatRegistrationNumber.trim() ? vatRegistrationNumber.trim() : undefined,
+        vatRegistrationNumber: vatRegistered
+          ? (vatRegistrationNumber.trim() || trimmedPan)
+          : undefined,
         provinceId: provinceId ?? undefined,
         districtId: districtId ?? undefined,
         localLevelId: localLevelId ?? undefined,
@@ -109,10 +123,58 @@ export default function CompaniesPage() {
       }).unwrap();
       resetForm();
       setIsCreateOpen(false);
+      refetch();
+      toast.success("Company created! Head office, warehouse & active fiscal year configured.");
+
+      try {
+        const years = await fetchFiscalYears(createdCompany.id).unwrap();
+        const activeYear = years.find((y) => y.active) || years[0];
+        if (activeYear) {
+          window.localStorage.setItem(
+            ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
+            JSON.stringify({
+              companyId: createdCompany.id,
+              fiscalYearId: activeYear.id,
+              companyName: createdCompany.companyName,
+              fiscalYearName: activeYear.name,
+              businessType: createdCompany.businessType ?? null,
+            })
+          );
+          router.push("/");
+          return;
+        }
+      } catch {
+        // Fallback to fiscal years page if needed
+      }
       router.push(`/companies/${createdCompany.id}/fiscal-years`);
     } catch (cause) {
       setError(getApiErrorMessage(cause));
     }
+  };
+
+  const handleSelectCompany = async (targetCompany: Company) => {
+    try {
+      const years = await fetchFiscalYears(targetCompany.id).unwrap();
+      const activeYear = years.find((y) => y.active) || years[0];
+      if (activeYear) {
+        window.localStorage.setItem(
+          ACTIVE_FISCAL_SELECTION_STORAGE_KEY,
+          JSON.stringify({
+            companyId: targetCompany.id,
+            fiscalYearId: activeYear.id,
+            companyName: targetCompany.companyName,
+            fiscalYearName: activeYear.name,
+            businessType: targetCompany.businessType ?? null,
+          })
+        );
+        toast.success(`Switched to ${targetCompany.companyName}`);
+        router.push("/");
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    router.push(`/companies/${targetCompany.id}/fiscal-years`);
   };
 
   const selectCls =
@@ -191,11 +253,22 @@ export default function CompaniesPage() {
                       <Input
                         id="panNumber"
                         value={panNumber}
-                        onChange={(e) => setPanNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 9);
+                          setPanNumber(val);
+                          if (vatRegistered && (!vatRegistrationNumber || vatRegistrationNumber === panNumber)) {
+                            setVatRegistrationNumber(val);
+                          }
+                        }}
                         maxLength={9}
                         required
                         placeholder="9-digit PAN (e.g. 601234567)"
                       />
+                      {panNumber.length > 0 && panNumber.length < 9 && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                          Nepal PAN must be exactly 9 digits ({panNumber.length}/9 entered)
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="phone">
@@ -269,18 +342,26 @@ export default function CompaniesPage() {
                         required
                       >
                         <option value="" disabled>Select business type</option>
-                        <option value="RESTAURANT">Restaurant</option>
-                        <option value="CAFE">Cafe</option>
-                        <option value="HOTEL">Hotel</option>
-                        <option value="SWEETS_RETAIL">Sweets Retail</option>
-                        <option value="GENERAL_RETAIL">General Retail</option>
-                        <option value="GROCERY">Grocery</option>
-                        <option value="HARDWARE">Hardware</option>
-                        <option value="SANITARY">Sanitary</option>
-                        <option value="PHARMACY">Pharmacy</option>
-                        <option value="CLOTHING">Clothing</option>
-                        <option value="SERVICES">Services</option>
-                        <option value="OTHER">Other</option>
+                        <optgroup label="Food & Hospitality">
+                          <option value="RESTAURANT">Restaurant</option>
+                          <option value="CAFE">Cafe</option>
+                          <option value="HOTEL">Hotel</option>
+                          <option value="SWEETS_RETAIL">Sweets Retail</option>
+                        </optgroup>
+                        <optgroup label="Retail & Wholesale">
+                          <option value="GENERAL_RETAIL">General Retail</option>
+                          <option value="GROCERY">Grocery</option>
+                          <option value="HARDWARE">Hardware</option>
+                          <option value="SANITARY">Sanitary</option>
+                          <option value="CLOTHING">Clothing</option>
+                        </optgroup>
+                        <optgroup label="Healthcare">
+                          <option value="PHARMACY">Pharmacy</option>
+                        </optgroup>
+                        <optgroup label="Services & Other">
+                          <option value="SERVICES">Services</option>
+                          <option value="OTHER">Other</option>
+                        </optgroup>
                       </select>
                     </div>
 
@@ -307,7 +388,13 @@ export default function CompaniesPage() {
                       <input
                         type="checkbox"
                         checked={vatRegistered}
-                        onChange={(e) => setVatRegistered(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setVatRegistered(checked);
+                          if (checked && !vatRegistrationNumber.trim()) {
+                            setVatRegistrationNumber(panNumber.trim());
+                          }
+                        }}
                         className="size-4 accent-primary"
                       />
                       <div>
@@ -324,7 +411,7 @@ export default function CompaniesPage() {
                           value={vatRegistrationNumber}
                           onChange={(e) => setVatRegistrationNumber(e.target.value)}
                           maxLength={30}
-                          placeholder="VAT number (defaults to PAN if omitted)"
+                          placeholder="Defaults to PAN if identical"
                         />
                       </div>
                     )}
@@ -541,7 +628,7 @@ export default function CompaniesPage() {
                       <Button
                         className="flex-1 w-full"
                         variant="outline"
-                        onClick={() => router.push(`/companies/${company.id}/fiscal-years`)}
+                        onClick={() => void handleSelectCompany(company)}
                       >
                         Select company
                       </Button>

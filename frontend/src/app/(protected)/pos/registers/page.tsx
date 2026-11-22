@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Monitor, PauseCircle, Pencil, PlayCircle, Plus, RefreshCw } from "lucide-react";
+import { Monitor, PauseCircle, Pencil, PlayCircle, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,7 @@ import {
   useActivatePosRegisterMutation,
   useDeactivatePosRegisterMutation,
   type PosRegister,
+  type PosRegisterStatus,
 } from "@/services/pos-register.service";
 import { useGetActiveWarehousesQuery } from "@/services/warehouse.service";
 import { useGetBranchesQuery, type BranchListResponse } from "@/services/branch.service";
@@ -54,9 +55,16 @@ const NO_BRANCH = "none";
  */
 export default function PosRegistersPage() {
   const [page, setPage] = React.useState(0);
+  const [statusFilter, setStatusFilter] = React.useState<string>("ALL");
+  const [term, setTerm] = React.useState("");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<PosRegister | null>(null);
-  const { data, isLoading, isFetching, refetch } = useGetPosRegistersQuery({ page, size: 20 });
+  const { data, isLoading, isFetching, refetch } = useGetPosRegistersQuery({
+    page,
+    size: 20,
+    status: statusFilter === "ALL" ? undefined : (statusFilter as PosRegisterStatus),
+    term: term.trim() || undefined,
+  });
   const [createRegister, { isLoading: isCreating }] = useCreatePosRegisterMutation();
   const [updateRegister, { isLoading: isUpdating }] = useUpdatePosRegisterMutation();
   const [activateRegister] = useActivatePosRegisterMutation();
@@ -211,6 +219,38 @@ export default function PosRegistersPage() {
           </Button>
         </div>
       </header>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search register name or code..."
+            value={term}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setPage(0);
+            }}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={statusFilter}
+          onValueChange={(val) => {
+            setStatusFilter(val);
+            setPage(0);
+          }}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Status</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="INACTIVE">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {isLoading ? (
         <TableSkeletonRows columns={5} rows={5} />

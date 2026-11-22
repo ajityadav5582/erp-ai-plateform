@@ -35,6 +35,8 @@ public record CheckoutRequest(
         @NotNull(message = "Session is required")
         Long sessionId,
 
+        Long tableId,
+
         Long customerId,
 
         String customerName,
@@ -52,6 +54,56 @@ public record CheckoutRequest(
 
         String paymentReference,
 
-        String notes
+        String notes,
+
+        BigDecimal discountAmount,
+
+        String discountReason,
+
+        BigDecimal serviceChargeAmount,
+
+        String roomNumber,
+
+        String guestName,
+
+        String splitPaymentDetails,
+
+        BigDecimal splitCashAmount,
+
+        BigDecimal splitDigitalAmount,
+
+        String orderType,
+
+        String tokenNumber,
+
+        String deliveryPartner,
+
+        String deliveryAddress,
+
+        String customerPhone,
+
+        BigDecimal deliveryCharge
 ) {
+    public CheckoutRequest(Long sessionId, Long customerId, String customerName, String customerPanNumber,
+                           List<CheckoutLineRequest> lines, PosPaymentMethod paymentMethod, BigDecimal amountTendered,
+                           String paymentReference, String notes) {
+        this(sessionId, null, customerId, customerName, customerPanNumber, lines, paymentMethod, amountTendered, paymentReference, notes,
+                BigDecimal.ZERO, null, BigDecimal.ZERO, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, "DINE_IN", null, null, null, null, BigDecimal.ZERO);
+    }
+
+    public CheckoutRequest(Long sessionId, Long tableId, Long customerId, String customerName, String customerPanNumber,
+                           List<CheckoutLineRequest> lines, PosPaymentMethod paymentMethod, BigDecimal amountTendered,
+                           String paymentReference, String notes) {
+        this(sessionId, tableId, customerId, customerName, customerPanNumber, lines, paymentMethod, amountTendered, paymentReference, notes,
+                BigDecimal.ZERO, null, BigDecimal.ZERO, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, tableId != null ? "DINE_IN" : "TAKEAWAY", null, null, null, null, BigDecimal.ZERO);
+    }
+
+    public CheckoutRequest(Long sessionId, Long tableId, Long customerId, String customerName, String customerPanNumber,
+                           List<CheckoutLineRequest> lines, PosPaymentMethod paymentMethod, BigDecimal amountTendered,
+                           String paymentReference, String notes, BigDecimal discountAmount, String discountReason,
+                           BigDecimal serviceChargeAmount, String roomNumber, String guestName, String splitPaymentDetails) {
+        this(sessionId, tableId, customerId, customerName, customerPanNumber, lines, paymentMethod, amountTendered, paymentReference, notes,
+                discountAmount, discountReason, serviceChargeAmount, roomNumber, guestName, splitPaymentDetails, BigDecimal.ZERO, BigDecimal.ZERO,
+                tableId != null ? "DINE_IN" : "TAKEAWAY", null, null, null, null, BigDecimal.ZERO);
+    }
 }

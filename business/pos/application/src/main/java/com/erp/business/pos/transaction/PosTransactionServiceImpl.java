@@ -17,6 +17,7 @@ import com.erp.platform.identity.infrastructure.persistence.CompanyRepository;
 import com.erp.business.pos.domain.PosTransactionStatus;
 import com.erp.business.pos.pricing.PosPricingService;
 import com.erp.business.pos.pricing.PricedLine;
+import com.erp.business.pos.restaurant.PosTableService;
 import com.erp.business.pos.poscompanyconfig.PosCompanyConfigService;
 import com.erp.business.pos.register.exception.PosRegisterNotFoundException;
 import com.erp.business.pos.register.infrastructure.persistence.PosRegisterRepository;
@@ -46,7 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * POS checkout use-case implementation.
@@ -89,6 +92,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
     private final StockMovementService stockMovementService;
     private final PosTransactionMapper transactionMapper;
     private final DocumentNumberService documentNumberService;
+    private final PosTableService posTableService;
     private final BusinessContextAccessor context;
 
     public PosTransactionServiceImpl(PosTransactionRepository transactionRepository,
@@ -103,6 +107,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                                      PosTransactionMapper transactionMapper,
                                      DocumentNumberService documentNumberService,
                                      CompanyRepository companyRepository,
+                                     PosTableService posTableService,
                                      BusinessContextAccessor context) {
         this.transactionRepository = transactionRepository;
         this.idempotencyRepository = idempotencyRepository;
@@ -116,6 +121,7 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         this.stockMovementService = stockMovementService;
         this.transactionMapper = transactionMapper;
         this.documentNumberService = documentNumberService;
+        this.posTableService = posTableService;
         this.context = context;
     }
 
@@ -207,16 +213,46 @@ public class PosTransactionServiceImpl implements PosTransactionService {
 
         // Persist first: the aggregate needs its id before it can own lines.
         PosTransaction saved = transactionRepository.save(transaction);
+        Map<Long, ItemService.ItemResponse> itemCache = new HashMap<>();
         int lineNumber = 1;
         for (CheckoutLineRequest lineRequest : request.lines()) {
-            saved.addLine(buildLine(lineNumber++, lineRequest, vatApplicable));
+            saved.addLine(buildLine(lineNumber++, lineRequest, vatApplicable, itemCache));
+        }
+
+        if (request.discountAmount() != null || request.serviceChargeAmount() != null) {
+            saved.applyHospitalityBilling(
+                    request.discountAmount(),
+                    request.discountReason(),
+                    request.serviceChargeAmount()
+            );
+        }
+        if (request.roomNumber() != null || request.guestName() != null || request.splitPaymentDetails() != null
+                || request.splitCashAmount() != null || request.splitDigitalAmount() != null) {
+            saved.setHospitalityDetails(
+                    request.roomNumber(),
+                    request.guestName(),
+                    request.splitPaymentDetails(),
+                    request.splitCashAmount(),
+                    request.splitDigitalAmount()
+            );
+        }
+        if (request.orderType() != null || request.tokenNumber() != null || request.deliveryPartner() != null
+                || request.deliveryAddress() != null || request.customerPhone() != null || request.deliveryCharge() != null) {
+            saved.setDeliveryAndTokenDetails(
+                    request.orderType(),
+                    request.tokenNumber(),
+                    request.deliveryPartner(),
+                    request.deliveryAddress(),
+                    request.customerPhone(),
+                    request.deliveryCharge()
+            );
         }
 
         // Allocate the number, then deduct stock, then complete — the domain
         // contract. All three share this transaction, so a failure at any step
         // rolls the whole sale back, number allocation included.
         String transactionNumber = allocateNumber(tenantId, companyId, saved);
-        StockReceiptRequest stockRequest = buildStockRequest(saved, transactionNumber);
+        StockReceiptRequest stockRequest = buildStockRequest(saved, transactionNumber, itemCache);
         if (!stockRequest.lines().isEmpty()) {
             stockMovementService.postIssue(stockRequest);
             // If completing the sale or saving the session fails and the checkout rolls
@@ -231,12 +267,19 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         PosTransaction completed = transactionRepository.save(saved);
 
         session.recordCompletedTransaction(
-                completed.getPaymentMethod(), completed.getTotalAmount(), completed.getVatAmount());
+                completed.getPaymentMethod(), completed.getTotalAmount(), completed.getVatAmount(),
+                completed.getSplitCashAmount(), completed.getSplitDigitalAmount());
         sessionRepository.save(session);
 
         if (idempotencyRecord != null) {
             idempotencyRecord.complete(completed.getId());
             idempotencyRepository.save(idempotencyRecord);
+        }
+
+        if (request.tableId() != null) {
+            posTableService.closeTableSessionOnCheckout(tenantId, companyId, request.tableId(), completed.getId());
+        } else if (request.tokenNumber() != null) {
+            posTableService.closeTakeawayOrderOnCheckout(tenantId, companyId, request.tokenNumber(), completed.getId());
         }
 
         // Durable integration outbox: one job per completed POS transaction.
@@ -350,7 +393,8 @@ public class PosTransactionServiceImpl implements PosTransactionService {
             PosSession session = loadSession(tenantId, companyId, transaction.getSessionId());
             stockMovementService.reverseIssue(buildStockRequest(transaction, transaction.getTransactionNumber()));
             session.recordVoidedTransaction(
-                    transaction.getPaymentMethod(), transaction.getTotalAmount(), transaction.getVatAmount());
+                    transaction.getPaymentMethod(), transaction.getTotalAmount(), transaction.getVatAmount(),
+                    transaction.getSplitCashAmount(), transaction.getSplitDigitalAmount());
             sessionRepository.save(session);
         }
 
@@ -438,6 +482,24 @@ public class PosTransactionServiceImpl implements PosTransactionService {
                 .map(transactionMapper::toResponse);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission(PosTransactionPermissions.POS_TRANSACTION_VIEW)
+    public Page<PosTransactionResponse> filterTransactions(Long tenantId, Long companyId,
+                                                           PosTransactionStatus status,
+                                                           Long registerId,
+                                                           Long sessionId,
+                                                           String term,
+                                                           Pageable pageable) {
+        String cleanTerm = (term != null && !term.isBlank()) ? term.trim() : null;
+        if (cleanTerm == null) {
+            return transactionRepository.filterTransactionsNoTerm(tenantId, companyId, status, registerId, sessionId, pageable)
+                    .map(transactionMapper::toResponse);
+        }
+        return transactionRepository.filterTransactionsWithPattern(tenantId, companyId, status, registerId, sessionId, "%" + cleanTerm.toLowerCase() + "%", pageable)
+                .map(transactionMapper::toResponse);
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
@@ -473,9 +535,16 @@ public class PosTransactionServiceImpl implements PosTransactionService {
      * item cannot be added to a customer receipt regardless of what the client sends.
      */
     private PosTransactionLine buildLine(int lineNumber, CheckoutLineRequest request, boolean vatApplicable) {
-        ItemService.ItemResponse item = itemService.findById(request.itemId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Item not found with ID: " + request.itemId()));
+        return buildLine(lineNumber, request, vatApplicable, null);
+    }
+
+    private PosTransactionLine buildLine(int lineNumber, CheckoutLineRequest request, boolean vatApplicable,
+                                         Map<Long, ItemService.ItemResponse> itemCache) {
+        ItemService.ItemResponse item = itemCache != null
+                ? itemCache.computeIfAbsent(request.itemId(), id -> itemService.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Item not found with ID: " + id)))
+                : itemService.findById(request.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("Item not found with ID: " + request.itemId()));
 
         // Enforce the sellable flag: only items that have been explicitly enabled
         // for sale may appear on a POS transaction. This prevents staff from
@@ -513,6 +582,11 @@ public class PosTransactionServiceImpl implements PosTransactionService {
      * the movements already posted rather than deducting stock twice.
      */
     private StockReceiptRequest buildStockRequest(PosTransaction transaction, String transactionNumber) {
+        return buildStockRequest(transaction, transactionNumber, null);
+    }
+
+    private StockReceiptRequest buildStockRequest(PosTransaction transaction, String transactionNumber,
+                                                  Map<Long, ItemService.ItemResponse> itemCache) {
         // Only inventory-tracked items consume stock. Non-tracked items (services,
         // and products such as tea that are produced internally and never purchased)
         // are sold without a stock movement, so a zero on-hand balance never blocks
@@ -520,7 +594,9 @@ public class PosTransactionServiceImpl implements PosTransactionService {
         // reference cannot create a phantom stock movement.
         List<StockMovementLineRequest> stockLines = transaction.getLines().stream()
                 .filter(line -> {
-                    ItemService.ItemResponse item = itemService.findById(line.getItemId()).orElse(null);
+                    ItemService.ItemResponse item = itemCache != null && itemCache.containsKey(line.getItemId())
+                            ? itemCache.get(line.getItemId())
+                            : itemService.findById(line.getItemId()).orElse(null);
                     return item != null && Boolean.TRUE.equals(item.getIsStockable());
                 })
                 .map(line -> new StockMovementLineRequest(

@@ -34,6 +34,8 @@ const METHOD_ICONS: Record<PosPaymentMethod, React.ReactNode> = {
   DIGITAL_WALLET: <Wallet className="h-5 w-5" />,
   BANK_TRANSFER: <Wallet className="h-5 w-5" />,
   CHEQUE: <Banknote className="h-5 w-5" />,
+  ROOM_CHARGE: <Wallet className="h-5 w-5" />,
+  SPLIT: <Wallet className="h-5 w-5" />,
   OTHER: <Wallet className="h-5 w-5" />,
 };
 

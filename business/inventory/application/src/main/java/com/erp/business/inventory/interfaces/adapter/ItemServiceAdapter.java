@@ -137,8 +137,13 @@ public class ItemServiceAdapter implements ItemService {
             @Override public Long getAvailableStock() { return null; }
             @Override public Long getReservedStock() { return null; }
             @Override public java.math.BigDecimal getSellingPrice() { return internal.sellingPrice(); }
+            @Override public java.math.BigDecimal getWholesalePrice() { return internal.wholesalePrice(); }
+            @Override public java.math.BigDecimal getMinSellingPrice() { return internal.minSellingPrice(); }
             @Override public java.math.BigDecimal getVatRate() { return internal.vatRate(); }
             @Override public Boolean getIsVatInclusive() { return internal.isVatInclusive(); }
+            @Override public Long getSecondaryUomId() { return internal.secondaryUomId(); }
+            @Override public String getSecondaryUomCode() { return internal.secondaryUomCode(); }
+            @Override public java.math.BigDecimal getConversionFactor() { return internal.conversionFactor(); }
             @Override public Boolean getIsPurchasable() { return internal.isPurchasable(); }
             @Override public Boolean getIsSellable() { return internal.isSellable(); }
             @Override public Boolean getIsComponent() { return internal.isComponent(); }
@@ -164,6 +169,10 @@ public class ItemServiceAdapter implements ItemService {
             @Override public Boolean getIsStockable() { return null; } // Not in list response
             @Override public Long getAvailableStock() { return null; }
             @Override public Long getReservedStock() { return null; }
+            @Override public java.math.BigDecimal getWholesalePrice() { return internal.wholesalePrice(); }
+            @Override public java.math.BigDecimal getMinSellingPrice() { return internal.minSellingPrice(); }
+            @Override public String getSecondaryUomCode() { return internal.secondaryUomCode(); }
+            @Override public java.math.BigDecimal getConversionFactor() { return internal.conversionFactor(); }
             @Override public Boolean getIsPurchasable() { return internal.isPurchasable(); }
             @Override public Boolean getIsSellable() { return internal.isSellable(); }
             @Override public Boolean getIsComponent() { return internal.isComponent(); }

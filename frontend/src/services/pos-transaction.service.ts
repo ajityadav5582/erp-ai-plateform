@@ -12,6 +12,8 @@ export const POS_PAYMENT_METHODS = [
   "DIGITAL_WALLET",
   "BANK_TRANSFER",
   "CHEQUE",
+  "ROOM_CHARGE",
+  "SPLIT",
   "OTHER",
 ] as const;
 export type PosPaymentMethod = (typeof POS_PAYMENT_METHODS)[number];
@@ -19,9 +21,11 @@ export type PosPaymentMethod = (typeof POS_PAYMENT_METHODS)[number];
 export const POS_PAYMENT_METHOD_LABELS: Record<PosPaymentMethod, string> = {
   CASH: "Cash",
   CARD: "Card",
-  DIGITAL_WALLET: "Digital Wallet",
+  DIGITAL_WALLET: "Digital Wallet (Fonepay/QR)",
   BANK_TRANSFER: "Bank Transfer",
   CHEQUE: "Cheque",
+  ROOM_CHARGE: "Room Charge (Hotel Guest)",
+  SPLIT: "Split Payment",
   OTHER: "Other",
 };
 
@@ -77,6 +81,20 @@ export interface PosTransaction {
   warehouseName: string;
   currency: string;
   subtotalAmount: number;
+  discountAmount?: number;
+  serviceChargeAmount?: number;
+  discountReason?: string | null;
+  roomNumber?: string | null;
+  guestName?: string | null;
+  splitPaymentDetails?: string | null;
+  splitCashAmount?: number;
+  splitDigitalAmount?: number;
+  orderType?: string | null;
+  tokenNumber?: string | null;
+  deliveryPartner?: string | null;
+  deliveryAddress?: string | null;
+  customerPhone?: string | null;
+  deliveryCharge?: number;
   taxableAmount: number;
   exemptAmount: number;
   zeroRatedAmount: number;
@@ -96,6 +114,7 @@ export interface PosTransaction {
   cbmsRetryCount: number;
   notes: string | null;
   lines: PosTransactionLine[];
+  printCount?: number;
   version: number;
 }
 
@@ -115,6 +134,7 @@ export interface CheckoutLineRequest {
 
 export interface CheckoutRequest {
   sessionId: number;
+  tableId?: number;
   customerId?: number;
   customerName?: string;
   customerPanNumber?: string;
@@ -123,6 +143,20 @@ export interface CheckoutRequest {
   amountTendered?: number;
   paymentReference?: string;
   notes?: string;
+  discountAmount?: number;
+  discountReason?: string;
+  serviceChargeAmount?: number;
+  roomNumber?: string;
+  guestName?: string;
+  splitPaymentDetails?: string;
+  splitCashAmount?: number;
+  splitDigitalAmount?: number;
+  orderType?: string;
+  tokenNumber?: string;
+  deliveryPartner?: string;
+  deliveryAddress?: string;
+  customerPhone?: string;
+  deliveryCharge?: number;
 }
 
 export interface ParkTransactionRequest {

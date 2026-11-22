@@ -44,9 +44,14 @@ public record CreateItemRequest(
         BigDecimal exciseRate,
         BigDecimal exciseAmount,
 
-        @NotNull(message = "Selling price is required")
         @DecimalMin(value = "0.0", message = "Selling price must not be negative")
         BigDecimal sellingPrice,
+
+        BigDecimal wholesalePrice,
+        BigDecimal minSellingPrice,
+
+        Long secondaryUomId,
+        BigDecimal conversionFactor,
 
         BigDecimal purchasePrice,
         BigDecimal mrp,
@@ -81,6 +86,17 @@ public record CreateItemRequest(
          * Whether this item is the output of a Recipe / Bill of Materials.
          * When null, defaults are derived from itemType (e.g. FINISHED_GOODS → true).
          */
-        Boolean isManufactured
+        Boolean isManufactured,
+
+        /**
+         * Optional opening stock balance on creation.
+         */
+        @DecimalMin(value = "0.0", message = "Opening quantity must not be negative")
+        BigDecimal openingQuantity,
+
+        @DecimalMin(value = "0.0", message = "Opening cost price must not be negative")
+        BigDecimal openingCostPrice,
+
+        Long openingWarehouseId
 ) {
 }

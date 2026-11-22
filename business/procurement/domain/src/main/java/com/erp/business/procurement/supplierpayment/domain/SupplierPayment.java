@@ -2,11 +2,13 @@ package com.erp.business.procurement.supplierpayment.domain;
 
 import com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoice;
 import com.erp.platform.data.entity.TenantScopedEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
@@ -23,6 +25,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Money paid to a supplier against an invoice.
@@ -76,11 +80,11 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
     @Column(name = "branch_id")
     private Long branchId;
 
-    /** The invoice being settled. */
-    @Column(name = "purchase_invoice_id", nullable = false)
+    /** The invoice being settled for single-invoice payments (legacy/shortcut); null for multi-invoice. */
+    @Column(name = "purchase_invoice_id")
     private Long purchaseInvoiceId;
 
-    @Column(name = "invoice_number", nullable = false, length = 60)
+    @Column(name = "invoice_number", length = 60)
     private String invoiceNumber;
 
     @NotNull(message = "Payment date is required")
@@ -100,6 +104,14 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
     @NotNull(message = "Amount is required")
     @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
+
+    @Builder.Default
+    @Column(name = "unallocated_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal unallocatedAmount = BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<SupplierPaymentAllocation> allocations = new ArrayList<>();
 
     @Column(name = "currency", nullable = false, length = 3)
     @Builder.Default
@@ -143,7 +155,41 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
     private String cancellationReason;
 
     /**
-     * Creates a posted payment against an invoice.
+     * Adds an allocation to this payment.
+     */
+    public void addAllocation(SupplierPaymentAllocation allocation) {
+        if (allocation != null) {
+            if (this.allocations == null) {
+                this.allocations = new ArrayList<>();
+            }
+            this.allocations.add(allocation);
+            allocation.setPayment(this);
+            if (getTenantId() != null && getCompanyId() != null) {
+                allocation.assignScope(getTenantId(), getCompanyId());
+            }
+        }
+    }
+
+    /**
+     * Deducts an amount from the unallocated advance funds when applied against an invoice.
+     *
+     * @param amountToDeduct the amount being applied to settle an invoice
+     */
+    public void deductUnallocated(BigDecimal amountToDeduct) {
+        if (amountToDeduct == null || amountToDeduct.signum() <= 0) {
+            throw new IllegalArgumentException("Deduction amount must be greater than zero");
+        }
+        if (this.unallocatedAmount == null || this.unallocatedAmount.compareTo(amountToDeduct) < 0) {
+            throw new IllegalStateException("Insufficient unallocated advance balance: available "
+                    + (this.unallocatedAmount == null ? BigDecimal.ZERO : this.unallocatedAmount)
+                    + ", requested " + amountToDeduct);
+        }
+        this.unallocatedAmount = this.unallocatedAmount.subtract(amountToDeduct)
+                .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Creates a posted payment against an invoice (single-invoice shortcut / legacy).
      *
      * @param paymentNumber the allocated document number
      * @param paymentDate   the date the money moved, defaults to today when null
@@ -154,7 +200,7 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
      * @param invoice       the invoice being settled
      * @param notes         free text notes, may be null
      * @param actor         the acting user id
-     * @return a new unsaved payment
+     * @return a new unsaved payment with its allocation line
      */
     public static SupplierPayment post(String paymentNumber, LocalDate paymentDate,
                                        BigDecimal amount, PaymentMethod method,
@@ -168,7 +214,7 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
             throw new IllegalArgumentException("A payment method is required");
         }
 
-        return SupplierPayment.builder()
+        SupplierPayment payment = SupplierPayment.builder()
                 .paymentNumber(paymentNumber)
                 .paymentDate(paymentDate == null ? LocalDate.now() : paymentDate)
                 .fiscalYearId(invoice.getFiscalYearId())
@@ -179,7 +225,90 @@ public class SupplierPayment extends TenantScopedEntity<Long> {
                 .supplierCode(invoice.getSupplierCode())
                 .supplierName(invoice.getSupplierName())
                 .amount(amount.setScale(MONEY_SCALE, RoundingMode.HALF_UP))
+                .unallocatedAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP))
                 .currency(invoice.getCurrency())
+                .paymentMethod(method)
+                .referenceNo(referenceNo)
+                .paidFrom(paidFrom)
+                .status(SupplierPaymentStatus.POSTED)
+                .notes(notes)
+                .postedAt(Instant.now())
+                .postedBy(actor)
+                .build();
+
+        SupplierPaymentAllocation allocation = SupplierPaymentAllocation.of(
+                payment,
+                invoice.getId(),
+                invoice.getInvoiceNumber(),
+                amount,
+                BigDecimal.ZERO,
+                notes
+        );
+        payment.addAllocation(allocation);
+        return payment;
+    }
+
+    /**
+     * Creates a posted multi-invoice payment against one supplier.
+     *
+     * @param paymentNumber     the allocated document number
+     * @param paymentDate       the date the money moved
+     * @param totalAmount       total amount of money paid
+     * @param unallocatedAmount advance balance not allocated to any invoice
+     * @param method            payment method
+     * @param referenceNo       cheque / transaction reference
+     * @param paidFrom          branch / bank account
+     * @param supplierId        the supplier being paid
+     * @param supplierCode      supplier code
+     * @param supplierName      supplier name
+     * @param currency          currency (defaults to NPR)
+     * @param branchId          branch id
+     * @param fiscalYearId      fiscal year id
+     * @param notes             notes
+     * @param actor             user id
+     * @return a new unsaved multi-invoice payment
+     */
+    public static SupplierPayment postMultiInvoice(String paymentNumber,
+                                                   LocalDate paymentDate,
+                                                   BigDecimal totalAmount,
+                                                   BigDecimal unallocatedAmount,
+                                                   PaymentMethod method,
+                                                   String referenceNo,
+                                                   String paidFrom,
+                                                   Long supplierId,
+                                                   String supplierCode,
+                                                   String supplierName,
+                                                   String currency,
+                                                   Long branchId,
+                                                   Long fiscalYearId,
+                                                   String notes,
+                                                   String actor) {
+
+        if (totalAmount == null || totalAmount.signum() <= 0) {
+            throw new IllegalArgumentException("Payment amount must be greater than zero");
+        }
+        if (method == null) {
+            throw new IllegalArgumentException("A payment method is required");
+        }
+        if (supplierId == null) {
+            throw new IllegalArgumentException("Supplier is required");
+        }
+
+        BigDecimal unallocated = unallocatedAmount != null
+                ? unallocatedAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        return SupplierPayment.builder()
+                .paymentNumber(paymentNumber)
+                .paymentDate(paymentDate == null ? LocalDate.now() : paymentDate)
+                .fiscalYearId(fiscalYearId)
+                .branchId(branchId)
+                .supplierId(supplierId)
+                .supplierCode(supplierCode != null ? supplierCode : "")
+                .supplierName(supplierName != null ? supplierName : "")
+                .amount(totalAmount.setScale(MONEY_SCALE, RoundingMode.HALF_UP))
+                .unallocatedAmount(unallocated)
+                .currency(currency != null && !currency.isBlank() ? currency : "NPR")
                 .paymentMethod(method)
                 .referenceNo(referenceNo)
                 .paidFrom(paidFrom)

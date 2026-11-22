@@ -44,6 +44,20 @@ public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice
             @Param("companyId") Long companyId,
             @Param("id") Long id);
 
+    /**
+     * Loads multiple invoices under pessimistic write locks.
+     *
+     * <p>Callers must pass IDs sorted in canonical (ascending) order to guarantee
+     * deterministic lock acquisition and eliminate database deadlocks.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM PurchaseInvoice i WHERE i.tenantId = :tenantId "
+         + "AND i.companyId = :companyId AND i.id IN :ids")
+    java.util.List<PurchaseInvoice> findAllByIdForUpdate(
+            @Param("tenantId") Long tenantId,
+            @Param("companyId") Long companyId,
+            @Param("ids") java.util.List<Long> ids);
+
     boolean existsByTenantIdAndCompanyIdAndId(Long tenantId, Long companyId, Long id);
 
     /**
@@ -65,6 +79,22 @@ public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice
          + "(com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceStatus.APPROVED, "
          + " com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceStatus.PARTIALLY_PAID)")
     Page<PurchaseInvoice> findOutstanding(Long tenantId, Long companyId, Pageable pageable);
+
+    /**
+     * Invoices still owing money for a specific supplier, oldest due date first.
+     */
+    @Query("SELECT i FROM PurchaseInvoice i WHERE i.tenantId = :tenantId "
+         + "AND i.companyId = :companyId AND i.supplierId = :supplierId AND i.status IN "
+         + "(com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceStatus.APPROVED, "
+         + " com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceStatus.PARTIALLY_PAID)")
+    Page<PurchaseInvoice> findOutstandingBySupplier(
+            @Param("tenantId") Long tenantId,
+            @Param("companyId") Long companyId,
+            @Param("supplierId") Long supplierId,
+            Pageable pageable);
+
+    java.util.List<PurchaseInvoice> findByTenantIdAndCompanyIdAndSupplierId(
+            Long tenantId, Long companyId, Long supplierId);
 
     /**
      * Whether this supplier already has an invoice carrying that number.
