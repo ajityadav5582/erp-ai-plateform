@@ -110,6 +110,22 @@ public class PosRegisterServiceImpl implements PosRegisterService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission(PosRegisterPermissions.POS_REGISTER_VIEW)
+    public Page<PosRegisterResponse> filterRegisters(Long tenantId, Long companyId,
+                                                     PosRegisterStatus status,
+                                                     String term,
+                                                     Pageable pageable) {
+        String cleanTerm = (term != null && !term.isBlank()) ? term.trim() : null;
+        if (cleanTerm == null) {
+            return registerRepository.filterRegistersNoTerm(tenantId, companyId, status, pageable)
+                    .map(registerMapper::toResponse);
+        }
+        return registerRepository.filterRegistersWithPattern(tenantId, companyId, status, "%" + cleanTerm.toLowerCase() + "%", pageable)
+                .map(registerMapper::toResponse);
+    }
+
+    @Override
     @RequiresPermission(PosRegisterPermissions.POS_REGISTER_UPDATE)
     public PosRegisterResponse updateRegister(Long tenantId, Long companyId, Long id, UpdatePosRegisterRequest request) {
         PosRegister register = load(tenantId, companyId, id);

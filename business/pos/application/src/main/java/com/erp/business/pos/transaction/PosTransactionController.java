@@ -117,10 +117,14 @@ public class PosTransactionController {
 
     @GetMapping
     public ResponseEntity<Page<PosTransactionResponse>> listTransactions(
+            @RequestParam(value = "status", required = false) PosTransactionStatus status,
+            @RequestParam(value = "registerId", required = false) Long registerId,
+            @RequestParam(value = "sessionId", required = false) Long sessionId,
+            @RequestParam(value = "term", required = false) String term,
             @PageableDefault(size = 20, sort = {"transactionDate", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(transactionService.listTransactions(
-                context.getTenantId(), context.getCompanyId(), pageable));
+        return ResponseEntity.ok(transactionService.filterTransactions(
+                context.getTenantId(), context.getCompanyId(), status, registerId, sessionId, term, pageable));
     }
 
     @GetMapping("/search")
@@ -128,8 +132,8 @@ public class PosTransactionController {
             @RequestParam("term") String term,
             @PageableDefault(size = 20, sort = {"transactionDate", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(transactionService.searchTransactions(
-                context.getTenantId(), context.getCompanyId(), term, pageable));
+        return ResponseEntity.ok(transactionService.filterTransactions(
+                context.getTenantId(), context.getCompanyId(), null, null, null, term, pageable));
     }
 
     @GetMapping("/by-status")
@@ -137,8 +141,8 @@ public class PosTransactionController {
             @RequestParam("status") PosTransactionStatus status,
             @PageableDefault(size = 20, sort = {"transactionDate", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(transactionService.listTransactionsByStatus(
-                context.getTenantId(), context.getCompanyId(), status, pageable));
+        return ResponseEntity.ok(transactionService.filterTransactions(
+                context.getTenantId(), context.getCompanyId(), status, null, null, null, pageable));
     }
 
     @GetMapping("/by-session")
@@ -146,8 +150,8 @@ public class PosTransactionController {
             @RequestParam("sessionId") Long sessionId,
             @PageableDefault(size = 20, sort = {"transactionDate", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(transactionService.listTransactionsBySession(
-                context.getTenantId(), context.getCompanyId(), sessionId, pageable));
+        return ResponseEntity.ok(transactionService.filterTransactions(
+                context.getTenantId(), context.getCompanyId(), null, null, sessionId, null, pageable));
     }
 
     @GetMapping("/by-register")
@@ -155,8 +159,8 @@ public class PosTransactionController {
             @RequestParam("registerId") Long registerId,
             @PageableDefault(size = 20, sort = {"transactionDate", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(transactionService.listTransactionsByRegister(
-                context.getTenantId(), context.getCompanyId(), registerId, pageable));
+        return ResponseEntity.ok(transactionService.filterTransactions(
+                context.getTenantId(), context.getCompanyId(), null, registerId, null, null, pageable));
     }
 
     @GetMapping("/by-number")

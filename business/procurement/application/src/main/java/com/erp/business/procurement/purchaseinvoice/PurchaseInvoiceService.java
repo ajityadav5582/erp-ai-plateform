@@ -30,4 +30,16 @@ public interface PurchaseInvoiceService {
 
     /** Invoices still owing money. The accounts payable ageing worklist. */
     Page<PurchaseInvoiceResponse> findOutstanding(Long tenantId, Long companyId, Pageable pageable);
+
+    /** Invoices still owing money for a specific supplier. */
+    Page<PurchaseInvoiceResponse> findOutstanding(Long tenantId, Long companyId, Long supplierId, Pageable pageable);
+
+    /**
+     * Fast-match flow: atomically records the Goods Receipt and the matching Purchase Invoice
+     * against an approved Purchase Order when delivery and tax invoice arrive simultaneously.
+     */
+    PurchaseInvoiceResponse fastMatchPurchaseOrder(
+            Long tenantId, Long companyId,
+            com.erp.business.procurement.purchaseinvoice.dto.FastMatchPoRequest request,
+            String actor);
 }

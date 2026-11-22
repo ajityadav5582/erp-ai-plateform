@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
+  CheckSquare,
   FileText,
   Loader2,
   Package,
+  RefreshCw,
   RotateCcw,
-  Warehouse,
+  Square,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -20,7 +24,6 @@ import {
 } from "@/services/purchase-return.service";
 import {
   useGetPurchaseInvoicesQuery,
-  type PurchaseInvoice,
 } from "@/services/purchase-invoice.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { formatMoney, formatQuantity } from "@/lib/procurement-format";
@@ -47,6 +50,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PurchaseInvoiceCombobox } from "@/components/procurement/purchase-invoice-combobox";
 
 const RETURN_REASONS = [
   "Defective / Damaged Goods",
@@ -101,13 +105,14 @@ export function CreatePurchaseReturnDialog({
   // Load available invoices
   const { data: invoicesData, isLoading: isLoadingInvoices } =
     useGetPurchaseInvoicesQuery(
-      { page: 0, size: 100 },
+      { page: 0, size: 200 },
       { skip: !open }
     );
 
+  const rawInvoices = invoicesData?.content;
   const invoices = useMemo(
-    () => invoicesData?.content.filter((i) => i.status !== "CANCELLED") ?? [],
-    [invoicesData]
+    () => rawInvoices?.filter((i) => i.status !== "CANCELLED") ?? [],
+    [rawInvoices]
   );
 
   const selectedInvoice = useMemo(
@@ -126,30 +131,36 @@ export function CreatePurchaseReturnDialog({
   const {
     data: returnableLinesData,
     isLoading: isLoadingLines,
+    isError: isLinesError,
+    error: linesError,
+    refetch: refetchLines,
   } = useGetReturnableLinesQuery(selectedInvoiceId ?? 0, {
     skip: !open || !selectedInvoiceId,
   });
 
-  // Populate line draft states
+  // Populate line draft states whenever new invoice lines are fetched
   useEffect(() => {
     if (returnableLinesData && returnableLinesData.length > 0) {
       setLines(
-        returnableLinesData.map((line) => ({
-          included: line.returnableQuantity > 0,
-          purchaseInvoiceLineId: line.purchaseInvoiceLineId,
-          itemId: line.itemId,
-          itemCode: line.itemCode,
-          itemName: line.itemName,
-          uomCode: line.uomCode,
-          invoicedQuantity: line.invoicedQuantity,
-          alreadyReturnedQuantity: line.alreadyReturnedQuantity,
-          returnableQuantity: line.returnableQuantity,
-          returnQuantity: line.returnableQuantity > 0 ? line.returnableQuantity : 0,
-          unitPrice: line.unitPrice,
-          taxCategory: line.taxCategory,
-          taxRate: line.taxRate,
-          remarks: "",
-        }))
+        returnableLinesData.map((line) => {
+          const returnable = line.returnableQuantity ?? 0;
+          return {
+            included: returnable > 0,
+            purchaseInvoiceLineId: line.purchaseInvoiceLineId,
+            itemId: line.itemId,
+            itemCode: line.itemCode,
+            itemName: line.itemName,
+            uomCode: line.uomCode,
+            invoicedQuantity: line.invoicedQuantity,
+            alreadyReturnedQuantity: line.alreadyReturnedQuantity,
+            returnableQuantity: returnable,
+            returnQuantity: returnable > 0 ? returnable : 0,
+            unitPrice: line.unitPrice,
+            taxCategory: line.taxCategory,
+            taxRate: line.taxRate,
+            remarks: "",
+          };
+        })
       );
     } else {
       setLines([]);
@@ -196,38 +207,83 @@ export function CreatePurchaseReturnDialog({
     };
   }, [lines]);
 
+  const eligibleLinesCount = useMemo(
+    () => lines.filter((l) => l.returnableQuantity > 0).length,
+    [lines]
+  );
+
+  const activeSelectedLines = useMemo(
+    () =>
+      lines.filter(
+        (l) =>
+          l.included &&
+          typeof l.returnQuantity === "number" &&
+          l.returnQuantity > 0
+      ),
+    [lines]
+  );
+
   const handleLineQtyChange = (idx: number, val: string) => {
     setLines((prev) => {
-      const next = [...prev];
-      const line = { ...next[idx] };
-      if (val === "") {
-        line.returnQuantity = "";
-      } else {
-        const parsed = Number(val);
-        line.returnQuantity = Math.max(
-          0,
-          Math.min(line.returnableQuantity, isNaN(parsed) ? 0 : parsed)
-        );
-      }
-      next[idx] = line;
-      return next;
+      const targetLine = prev[idx];
+      if (!targetLine) return prev;
+      const parsed = Number(val);
+      const returnable = targetLine.returnableQuantity ?? 0;
+      const newQty: number | "" =
+        val === "" ? "" : Math.max(0, Math.min(returnable, isNaN(parsed) ? 0 : parsed));
+      return prev.map((l, i) => (i === idx ? { ...l, returnQuantity: newQty } : l));
     });
+  };
+
+  const handleSetMaxQty = (idx: number) => {
+    setLines((prev) =>
+      prev.map((l, i) =>
+        i === idx ? { ...l, included: true, returnQuantity: l.returnableQuantity } : l
+      )
+    );
   };
 
   const handleToggleInclude = (idx: number, included: boolean) => {
-    setLines((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], included };
-      return next;
-    });
+    setLines((prev) =>
+      prev.map((l, i) => {
+        if (i !== idx) return l;
+        const newQty =
+          included && (l.returnQuantity === 0 || l.returnQuantity === "")
+            ? l.returnableQuantity
+            : l.returnQuantity;
+        return { ...l, included, returnQuantity: newQty };
+      })
+    );
+  };
+
+  const handleSelectAll = (select: boolean) => {
+    setLines((prev) =>
+      prev.map((l) => ({
+        ...l,
+        included: select && l.returnableQuantity > 0,
+        returnQuantity:
+          select && l.returnableQuantity > 0
+            ? l.returnQuantity || l.returnableQuantity
+            : l.returnQuantity,
+      }))
+    );
+  };
+
+  const handleReturnAllFull = () => {
+    setLines((prev) =>
+      prev.map((l) => ({
+        ...l,
+        included: l.returnableQuantity > 0,
+        returnQuantity: l.returnableQuantity > 0 ? l.returnableQuantity : 0,
+      }))
+    );
+    toast.success("Applied full eligible quantities for all items.");
   };
 
   const handleLineRemarksChange = (idx: number, remarks: string) => {
-    setLines((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], remarks };
-      return next;
-    });
+    setLines((prev) =>
+      prev.map((l, i) => (i === idx ? { ...l, remarks } : l))
+    );
   };
 
   const handleSubmit = async (autoPost: boolean) => {
@@ -236,14 +292,7 @@ export function CreatePurchaseReturnDialog({
       return;
     }
 
-    const activeLines = lines.filter(
-      (l) =>
-        l.included &&
-        typeof l.returnQuantity === "number" &&
-        l.returnQuantity > 0
-    );
-
-    if (activeLines.length === 0) {
+    if (activeSelectedLines.length === 0) {
       toast.error(
         "Please select at least one line item and enter a return quantity greater than zero."
       );
@@ -260,7 +309,7 @@ export function CreatePurchaseReturnDialog({
       returnDate,
       reason: finalReason,
       notes: notes.trim() || undefined,
-      lines: activeLines.map((l) => ({
+      lines: activeSelectedLines.map((l) => ({
         purchaseInvoiceLineId: l.purchaseInvoiceLineId,
         itemId: l.itemId,
         returnQuantity: Number(l.returnQuantity),
@@ -327,27 +376,19 @@ export function CreatePurchaseReturnDialog({
         <div className="space-y-6 pt-2">
           {/* Section 1: Header / Invoice Selection */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Invoice Selector */}
+            {/* Searchable Invoice Selector */}
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
               <Label className="text-xs font-semibold">
                 Original Purchase Invoice <span className="text-destructive">*</span>
               </Label>
-              <Select
-                value={selectedInvoiceId ? String(selectedInvoiceId) : ""}
-                onValueChange={(val) => setSelectedInvoiceId(Number(val))}
-                disabled={isLoadingInvoices || !!initialInvoiceId}
-              >
-                <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Select supplier invoice…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {invoices.map((inv) => (
-                    <SelectItem key={inv.id} value={String(inv.id)} className="text-xs">
-                      {inv.invoiceNumber} — {inv.supplierName} ({formatMoney(inv.totalAmount, inv.currency)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PurchaseInvoiceCombobox
+                value={selectedInvoiceId}
+                invoices={invoices}
+                isLoading={isLoadingInvoices}
+                disabled={isSaving || !!initialInvoiceId}
+                placeholder="Search invoice number, supplier or PAN…"
+                onSelect={(inv) => setSelectedInvoiceId(inv ? inv.id : null)}
+              />
             </div>
 
             {/* Return Date (AD & BS) */}
@@ -411,17 +452,19 @@ export function CreatePurchaseReturnDialog({
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground">Supplier</span>
                   <p className="font-semibold text-foreground truncate">{selectedInvoice.supplierName}</p>
-                  <p className="text-[10px] text-muted-foreground">PAN: {selectedInvoice.supplierTaxId || "—"}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">PAN: {selectedInvoice.supplierTaxId || "—"}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground">Invoice No & Date</span>
                   <p className="font-semibold font-mono text-foreground">{selectedInvoice.invoiceNumber}</p>
-                  <p className="text-[10px] text-muted-foreground">{selectedInvoice.invoiceDate}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selectedInvoice.invoiceDate} {safeAdToBsISO(selectedInvoice.invoiceDate) ? `(${safeAdToBsISO(selectedInvoice.invoiceDate)})` : ""}
+                  </p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground">Original GRN</span>
-                  <p className="font-semibold font-mono text-foreground">{selectedInvoice.grnNumber}</p>
-                  <p className="text-[10px] text-muted-foreground">PO: {selectedInvoice.poNumber}</p>
+                  <p className="font-semibold font-mono text-foreground">{selectedInvoice.grnNumber || "—"}</p>
+                  <p className="text-[10px] text-muted-foreground">PO: {selectedInvoice.poNumber || "—"}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground">Invoiced Total</span>
@@ -431,15 +474,17 @@ export function CreatePurchaseReturnDialog({
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground">Payable Balance</span>
-                  <p className="font-semibold font-mono text-primary">
+                  <p className="font-semibold font-mono text-primary font-bold">
                     {formatMoney(selectedInvoice.balanceAmount, selectedInvoice.currency)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground">Paid Amount</span>
-                  <p className="font-semibold font-mono text-muted-foreground">
-                    {formatMoney(selectedInvoice.paidAmount, selectedInvoice.currency)}
-                  </p>
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground">Status</span>
+                  <div className="mt-0.5">
+                    <Badge variant="outline" className="text-[11px] font-mono">
+                      {selectedInvoice.status}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </div>
@@ -447,59 +492,127 @@ export function CreatePurchaseReturnDialog({
 
           {/* Section 2: Return Items Table */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Package className="size-4 text-destructive" />
                 <h3 className="text-sm font-bold text-foreground">Items to Return</h3>
-                <Badge variant="secondary" className="text-[10px]">
-                  {lines.filter((l) => l.included).length} of {lines.length} Selected
-                </Badge>
+                {lines.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {activeSelectedLines.length} of {eligibleLinesCount} Eligible Selected
+                  </Badge>
+                )}
               </div>
-              <p className="text-[11px] text-muted-foreground hidden sm:block">
-                Check items to return and adjust quantities within eligible return limits.
-              </p>
+
+              {/* Quick Batch Actions */}
+              {lines.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReturnAllFull}
+                    disabled={eligibleLinesCount === 0 || isSaving}
+                    className="h-7 text-[11px] gap-1 text-primary hover:text-primary"
+                  >
+                    <Sparkles className="size-3" />
+                    <span>Return Full (All Items)</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSelectAll(true)}
+                    disabled={eligibleLinesCount === 0 || isSaving}
+                    className="h-7 text-[11px] gap-1"
+                  >
+                    <CheckSquare className="size-3" />
+                    <span>Select All</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSelectAll(false)}
+                    disabled={isSaving}
+                    className="h-7 text-[11px] gap-1 text-muted-foreground"
+                  >
+                    <Square className="size-3" />
+                    <span>Clear</span>
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {isLoadingLines ? (
-              <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            {/* Error State */}
+            {isLinesError ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-2">
+                <AlertTriangle className="size-8 text-destructive" />
+                <p className="text-xs font-semibold text-destructive">
+                  Failed to load returnable items for this invoice.
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {getApiErrorMessage(linesError)}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchLines()}
+                  className="mt-2 text-xs gap-1.5"
+                >
+                  <RefreshCw className="size-3" />
+                  <span>Retry Fetching Items</span>
+                </Button>
+              </div>
+            ) : isLoadingLines ? (
+              <div className="flex h-40 flex-col items-center justify-center rounded-xl border border-border bg-card space-y-2">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Fetching returnable items and verified quantities…</p>
+              </div>
+            ) : !selectedInvoiceId ? (
+              <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-4 text-center">
+                <Package className="size-8 text-muted-foreground/40 mb-1" />
+                <p className="text-xs font-medium text-foreground">
+                  Select a purchase invoice above to view and return items.
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Items, invoiced quantities, and remaining returnable balances will automatically populate.
+                </p>
               </div>
             ) : lines.length === 0 ? (
-              <div className="flex h-32 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-4 text-center">
-                <AlertCircle className="size-6 text-muted-foreground/60 mb-1" />
+              <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-4 text-center">
+                <AlertCircle className="size-8 text-muted-foreground/60 mb-1" />
                 <p className="text-xs font-medium text-foreground">
-                  {selectedInvoiceId
-                    ? "All items on this invoice have already been returned."
-                    : "Select a purchase invoice to view returnable items."}
+                  All items on this invoice have already been returned.
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  There are no eligible remaining quantities on invoice #{selectedInvoice?.invoiceNumber}.
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="min-w-[760px] lg:min-w-full w-full text-left text-xs">
                     <thead className="border-b bg-muted/60 text-[11px] font-semibold uppercase text-muted-foreground">
                       <tr>
                         <th className="py-2.5 pl-3 pr-2 w-[4%] text-center">
                           <Checkbox
-                            checked={lines.length > 0 && lines.every((l) => l.included)}
-                            onCheckedChange={(checked) =>
-                              setLines((prev) =>
-                                prev.map((l) => ({
-                                  ...l,
-                                  included: !!checked && l.returnableQuantity > 0,
-                                }))
-                              )
+                            checked={
+                              lines.length > 0 &&
+                              lines.filter((l) => l.returnableQuantity > 0).every((l) => l.included)
                             }
+                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                            disabled={eligibleLinesCount === 0}
                           />
                         </th>
                         <th className="py-2.5 px-2 w-[34%] min-w-[220px]">Item Description</th>
-                        <th className="py-2.5 px-2 w-[12%] text-right">Invoiced / Prev Ret</th>
-                        <th className="py-2.5 px-2 w-[14%] text-center min-w-[110px]">
+                        <th className="py-2.5 px-2 w-[14%] text-right">Invoiced / Prev Ret</th>
+                        <th className="py-2.5 px-2 w-[16%] text-center min-w-[130px]">
                           Return Qty *
                         </th>
-                        <th className="py-2.5 px-2 w-[12%] text-right">Unit Price</th>
-                        <th className="py-2.5 px-2 w-[10%] text-center">VAT %</th>
-                        <th className="py-2.5 pl-2 pr-3 w-[14%] text-right">Return Total</th>
+                        <th className="py-2.5 px-2 w-[11%] text-right">Unit Price</th>
+                        <th className="py-2.5 px-2 w-[9%] text-center">VAT %</th>
+                        <th className="py-2.5 pl-2 pr-3 w-[12%] text-right">Return Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -511,14 +624,17 @@ export function CreatePurchaseReturnDialog({
                         const subtotal = qty * line.unitPrice;
                         const tax = (subtotal * line.taxRate) / 100;
                         const lineTotal = subtotal + tax;
+                        const isFullyReturned = line.returnableQuantity <= 0;
 
                         return (
                           <tr
                             key={line.purchaseInvoiceLineId}
                             className={`transition-colors ${
-                              line.included
+                              isFullyReturned
+                                ? "bg-muted/20 opacity-50"
+                                : line.included
                                 ? "bg-card hover:bg-muted/30"
-                                : "bg-muted/10 opacity-60"
+                                : "bg-muted/5 opacity-60"
                             }`}
                           >
                             {/* Checkbox */}
@@ -528,21 +644,28 @@ export function CreatePurchaseReturnDialog({
                                 onCheckedChange={(checked) =>
                                   handleToggleInclude(idx, !!checked)
                                 }
-                                disabled={line.returnableQuantity <= 0}
+                                disabled={isFullyReturned}
                               />
                             </td>
 
                             {/* Item details */}
                             <td className="py-2.5 px-2 align-top">
-                              <div className="font-medium text-foreground">
-                                {line.itemName}
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-foreground">
+                                  {line.itemName}
+                                </span>
+                                {isFullyReturned && (
+                                  <Badge variant="secondary" className="text-[9px] py-0 px-1">
+                                    Fully Returned
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono mt-0.5">
                                 <span>{line.itemCode}</span>
                                 <span>•</span>
                                 <span>{line.uomCode}</span>
                               </div>
-                              {line.included && (
+                              {line.included && !isFullyReturned && (
                                 <Input
                                   placeholder="Line return remarks (optional)…"
                                   value={line.remarks}
@@ -560,25 +683,42 @@ export function CreatePurchaseReturnDialog({
                               <div className="text-[10px] text-muted-foreground">
                                 Ret: {formatQuantity(line.alreadyReturnedQuantity)}
                               </div>
-                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
                                 Max: {formatQuantity(line.returnableQuantity)}
                               </div>
                             </td>
 
-                            {/* Return Quantity input */}
+                            {/* Return Quantity input with Max button */}
                             <td className="py-2.5 px-2 align-top text-center">
-                              <Input
-                                type="number"
-                                min="0.001"
-                                max={line.returnableQuantity}
-                                step="any"
-                                value={line.returnQuantity}
-                                onChange={(e) =>
-                                  handleLineQtyChange(idx, e.target.value)
-                                }
-                                disabled={!line.included || line.returnableQuantity <= 0}
-                                className="h-8 text-xs font-mono text-center"
-                              />
+                              {isFullyReturned ? (
+                                <span className="text-[11px] text-muted-foreground font-mono">0.00</span>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0.000001"
+                                    max={line.returnableQuantity}
+                                    step="any"
+                                    value={line.returnQuantity}
+                                    onChange={(e) =>
+                                      handleLineQtyChange(idx, e.target.value)
+                                    }
+                                    disabled={!line.included}
+                                    className="h-8 text-xs font-mono text-center"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSetMaxQty(idx)}
+                                    disabled={!line.included}
+                                    className="h-8 px-1.5 text-[10px] font-mono shrink-0"
+                                    title="Set to max eligible quantity"
+                                  >
+                                    Max
+                                  </Button>
+                                </div>
+                              )}
                             </td>
 
                             {/* Unit Price */}
@@ -594,7 +734,7 @@ export function CreatePurchaseReturnDialog({
                             {/* Line Total */}
                             <td className="py-2.5 pl-2 pr-3 text-right align-top font-mono font-semibold text-foreground">
                               {formatMoney(
-                                line.included ? lineTotal : 0,
+                                line.included && !isFullyReturned ? lineTotal : 0,
                                 selectedInvoice?.currency ?? "NPR"
                               )}
                             </td>
@@ -662,7 +802,7 @@ export function CreatePurchaseReturnDialog({
             type="button"
             variant="secondary"
             onClick={() => handleSubmit(false)}
-            disabled={isSaving || lines.filter((l) => l.included).length === 0}
+            disabled={isSaving || activeSelectedLines.length === 0}
             className="text-xs gap-1.5"
           >
             {isCreating && !isSubmitting ? (
@@ -676,7 +816,7 @@ export function CreatePurchaseReturnDialog({
           <Button
             type="button"
             onClick={() => handleSubmit(true)}
-            disabled={isSaving || lines.filter((l) => l.included).length === 0}
+            disabled={isSaving || activeSelectedLines.length === 0}
             className="text-xs gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isSubmitting ? (
@@ -691,4 +831,3 @@ export function CreatePurchaseReturnDialog({
     </Dialog>
   );
 }
-

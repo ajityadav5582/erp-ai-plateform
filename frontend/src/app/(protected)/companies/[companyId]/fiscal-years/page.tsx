@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, Check, Plus } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Lock, Plus, Unlock } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ import {
   useGetCompaniesQuery,
   useGetCompanyFiscalYearsQuery,
   useGetMasterFiscalYearsQuery,
+  useLockCompanyFiscalYearMutation,
+  useUnlockCompanyFiscalYearMutation,
 } from "@/services/company.service";
 
 export default function CompanyFiscalYearsPage() {
@@ -27,6 +30,8 @@ export default function CompanyFiscalYearsPage() {
   const { data: masterFiscalYears = [], isLoading: isLoadingMasterYears, isError: isMasterFiscalYearsError, refetch: refetchMasterFiscalYears } = useGetMasterFiscalYearsQuery();
   const [createFiscalYear, { isLoading: isCreating }] = useCreateCompanyFiscalYearMutation();
   const [activateFiscalYear, { isLoading: isActivating }] = useActivateCompanyFiscalYearMutation();
+  const [lockFiscalYear, { isLoading: isLocking }] = useLockCompanyFiscalYearMutation();
+  const [unlockFiscalYear, { isLoading: isUnlocking }] = useUnlockCompanyFiscalYearMutation();
   const [showForm, setShowForm] = useState(false);
   const [masterFiscalYearId, setMasterFiscalYearId] = useState("");
   const [name, setName] = useState("");
@@ -35,6 +40,24 @@ export default function CompanyFiscalYearsPage() {
   const [startDateAd, setStartDateAd] = useState("");
   const [endDateAd, setEndDateAd] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const handleLock = async (fiscalYearId: number) => {
+    try {
+      await lockFiscalYear({ companyId, fiscalYearId }).unwrap();
+      toast.success("Fiscal year period locked against retrospective modifications");
+    } catch (cause) {
+      toast.error(getApiErrorMessage(cause, "Failed to lock fiscal year"));
+    }
+  };
+
+  const handleUnlock = async (fiscalYearId: number) => {
+    try {
+      await unlockFiscalYear({ companyId, fiscalYearId }).unwrap();
+      toast.success("Fiscal year period unlocked");
+    } catch (cause) {
+      toast.error(getApiErrorMessage(cause, "Failed to unlock fiscal year"));
+    }
+  };
 
   useEffect(() => {
     const currentYear = years.find((year) => year.active);
@@ -140,13 +163,82 @@ export default function CompanyFiscalYearsPage() {
         {isLoading ? <Card><CardContent className="py-14 text-center text-sm text-muted-foreground">Loading fiscal years…</CardContent></Card>
           : isError ? <Card><CardContent className="py-14 text-center text-sm text-destructive">Could not load fiscal years.</CardContent></Card>
           : years.length === 0 ? <Card><CardContent className="py-14 text-center text-sm text-muted-foreground">No fiscal years yet. Create one to continue setting up this company.</CardContent></Card>
-          : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{years.map((year) => <Card key={year.id} className={year.active ? "border-primary/50" : ""}>
-            <CardContent className="pt-6"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{year.name}</h3><p className="mt-1 text-xs text-muted-foreground">{year.code}</p></div>{year.active && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300"><Check className="size-3" /> Active</span>}</div>
-              <p className="mt-5 text-sm text-muted-foreground">{year.startDateBs ?? "—"} – {year.endDateBs ?? "—"} <span className="text-xs">(BS)</span></p>
-              <p className="mt-1 text-sm text-muted-foreground">{year.startDateAd ?? "—"} – {year.endDateAd ?? "—"} <span className="text-xs">(AD)</span></p>
-              {year.active ? <Button className="mt-5 w-full" onClick={() => router.push("/")}>Continue to dashboard</Button> : <Button className="mt-5 w-full" variant="outline" disabled={isActivating} onClick={() => void activate(year.id)}>Set as active</Button>}
-            </CardContent>
-          </Card>)}</div>}
+          : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {years.map((year) => (
+                <Card key={year.id} className={year.active ? "border-primary/50 shadow-xs" : year.locked ? "border-amber-500/30 bg-amber-500/[0.02]" : ""}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{year.name}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{year.code}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {year.active && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                            <Check className="size-3" /> Active
+                          </span>
+                        )}
+                        {year.locked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            <Lock className="size-3" /> Locked
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <Unlock className="size-3 text-muted-foreground" /> Open
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="mt-5 text-sm text-muted-foreground">{year.startDateBs ?? "—"} – {year.endDateBs ?? "—"} <span className="text-xs font-medium">(BS)</span></p>
+                    <p className="mt-1 text-sm text-muted-foreground">{year.startDateAd ?? "—"} – {year.endDateAd ?? "—"} <span className="text-xs font-medium">(AD)</span></p>
+
+                    {year.locked && (
+                      <p className="mt-3 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-md">
+                        Locked period. New postings & backdated edits are strictly blocked.
+                      </p>
+                    )}
+
+                    <div className="mt-5 flex flex-col gap-2">
+                      {year.active ? (
+                        <Button className="w-full" onClick={() => router.push("/")}>Continue to dashboard</Button>
+                      ) : (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          disabled={isActivating || year.locked}
+                          onClick={() => void activate(year.id)}
+                        >
+                          {year.locked ? "Cannot activate locked year" : "Set as active"}
+                        </Button>
+                      )}
+
+                      {year.locked ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                          disabled={isUnlocking}
+                          onClick={() => void handleUnlock(year.id)}
+                        >
+                          <Unlock className="size-3.5 mr-1" /> Unlock period
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+                          disabled={isLocking}
+                          onClick={() => void handleLock(year.id)}
+                        >
+                          <Lock className="size-3.5 mr-1" /> Lock fiscal period
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>}
       </div>
     </main>
   );

@@ -92,7 +92,7 @@ const STATUS_CODE_MESSAGES: Record<number, string> = {
  * @param error The error object from RTK Query or Axios
  * @returns A user-friendly error message
  */
-export function getApiErrorMessage(error: unknown): string {
+export function getApiErrorMessage(error: unknown, fallbackMessage?: string): string {
   // Handle Axios-like errors (from RTK Query base query or unwrap)
   if (error && typeof error === "object") {
     const err = error as {
@@ -157,7 +157,7 @@ export function getApiErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "An unexpected error occurred. Please try again.";
+  return fallbackMessage || "An unexpected error occurred. Please try again.";
 }
 
 /**

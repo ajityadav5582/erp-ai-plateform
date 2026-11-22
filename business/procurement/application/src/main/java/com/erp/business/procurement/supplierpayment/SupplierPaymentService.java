@@ -32,4 +32,33 @@ public interface SupplierPaymentService {
     /** The payments made against one invoice. */
     Page<SupplierPaymentResponse> findByInvoice(Long tenantId, Long companyId, Long invoiceId,
                                                 Pageable pageable);
+
+    /**
+     * Lists payments with available unallocated advance balance for a supplier.
+     */
+    java.util.List<SupplierPaymentResponse> findAvailableAdvances(
+            Long tenantId, Long companyId, Long supplierId);
+
+    /**
+     * Applies / offsets available advance credit against an approved purchase invoice.
+     */
+    SupplierPaymentResponse applyAdvance(
+            Long tenantId, Long companyId,
+            com.erp.business.procurement.supplierpayment.dto.ApplyAdvanceRequest request,
+            String actor);
+
+    /**
+     * Real-time balance summary for a supplier: total outstanding payables across unpaid
+     * and partially-paid invoices, and total unallocated advance payments available.
+     */
+    com.erp.business.procurement.supplierpayment.dto.SupplierBalanceSummaryResponse getSupplierBalanceSummary(
+            Long tenantId, Long companyId, Long supplierId);
+
+    /**
+     * Chronological running Statement of Account for a supplier, including opening balance,
+     * purchase invoices, payments, debit notes, and running balance.
+     */
+    com.erp.business.procurement.supplierpayment.dto.SupplierStatementResponse getSupplierStatement(
+            Long tenantId, Long companyId, Long supplierId,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate);
 }

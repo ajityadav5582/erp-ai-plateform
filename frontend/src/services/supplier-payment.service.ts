@@ -60,6 +60,16 @@ export function formatSupplierPaymentStatus(
   );
 }
 
+/** Line-level allocation against a specific purchase invoice. */
+export interface PaymentAllocation {
+  id?: number;
+  purchaseInvoiceId: number;
+  invoiceNumber?: string;
+  allocatedAmount: number;
+  discountAmount?: number;
+  notes?: string | null;
+}
+
 /** Mirrors the backend `SupplierPaymentResponse` record. */
 export interface SupplierPayment {
   id: number;
@@ -68,14 +78,15 @@ export interface SupplierPayment {
   companyId: number;
   branchId: number;
   fiscalYearId: number;
-  /** The invoice this payment settles. */
-  purchaseInvoiceId: number;
-  invoiceNumber: string;
+  /** The invoice this payment settles (for single-invoice) or null (for multi-invoice). */
+  purchaseInvoiceId: number | null;
+  invoiceNumber: string | null;
   paymentDate: string;
   supplierId: number;
   supplierCode: string;
   supplierName: string;
   amount: number;
+  unallocatedAmount: number;
   currency: string;
   paymentMethod: PaymentMethod;
   referenceNo: string | null;
@@ -86,19 +97,24 @@ export interface SupplierPayment {
   postedBy: string | null;
   cancellationReason: string | null;
   createdAt: string;
+  allocations?: PaymentAllocation[];
+}
+
+export interface CreatePaymentAllocationRequest {
+  purchaseInvoiceId: number;
+  allocatedAmount: number;
+  discountAmount?: number;
+  notes?: string;
 }
 
 /**
  * Mirrors the backend `CreatePaymentRequest` record.
  *
- * The amount is required rather than defaulting to the whole balance, because settling
- * in instalments is ordinary and "pay the balance" is rarely what a treasury clerk means
- * when a part payment has fallen overdue. Supplier and currency are deliberately absent:
- * they belong to the invoice being settled, and taking them from the caller would allow
- * a payment to be recorded against an invoice of a different currency.
+ * Supports both single-invoice settlement and multi-invoice allocations.
  */
 export interface CreatePaymentRequest {
-  purchaseInvoiceId: number;
+  purchaseInvoiceId?: number | null;
+  supplierId?: number;
   amount: number;
   paymentMethod: PaymentMethod;
   /** Defaults to today server-side when omitted. */
@@ -106,12 +122,62 @@ export interface CreatePaymentRequest {
   referenceNo?: string;
   paidFrom?: string;
   notes?: string;
+  allocations?: CreatePaymentAllocationRequest[];
+}
+
+export interface ApplyAdvanceRequest {
+  advancePaymentId: number;
+  purchaseInvoiceId: number;
+  amountToApply: number;
+  notes?: string;
 }
 
 export interface GetSupplierPaymentsParams {
   page?: number;
   size?: number;
   sort?: string;
+}
+
+export interface SupplierBalanceSummary {
+  supplierId: number;
+  totalOutstandingPayable: number;
+  totalAvailableAdvance: number;
+  unpaidInvoiceCount: number;
+  availableAdvanceCount: number;
+  currency: string;
+}
+
+export interface SupplierStatementLine {
+  date: string;
+  documentType: "INVOICE" | "PAYMENT" | "DEBIT_NOTE";
+  documentId: number;
+  documentNumber: string;
+  referenceNumber: string | null;
+  description: string;
+  debitAmount: number;
+  creditAmount: number;
+  runningBalance: number;
+}
+
+export interface SupplierStatement {
+  supplierId: number;
+  supplierCode: string;
+  supplierName: string;
+  currency: string;
+  fromDate: string | null;
+  toDate: string | null;
+  openingBalance: number;
+  totalInvoiced: number;
+  totalPaid: number;
+  totalReturns: number;
+  closingBalance: number;
+  lines: SupplierStatementLine[];
+}
+
+export interface GetSupplierStatementParams {
+  supplierId: number;
+  fromDate?: string;
+  toDate?: string;
 }
 
 const BASE_URL = "/procurement/supplier-payments";
@@ -172,6 +238,59 @@ export const supplierPaymentApi = api.injectEndpoints({
       }),
       invalidatesTags: ["SupplierPayment", "PurchaseInvoice"],
     }),
+
+    /** Available unallocated advance payments for a supplier. */
+    getAvailableAdvances: build.query<SupplierPayment[], number>({
+      query: (supplierId) => ({
+        url: `${BASE_URL}/advances/available`,
+        method: "GET",
+        params: { supplierId },
+      }),
+      providesTags: (_result, _error, supplierId) => [
+        { type: "SupplierPayment", id: `supplier-advances-${supplierId}` },
+        "SupplierPayment",
+      ],
+    }),
+
+    /** Apply available advance credit to settle/offset an approved purchase invoice. */
+    applyAdvance: build.mutation<SupplierPayment, ApplyAdvanceRequest>({
+      query: (body) => ({
+        url: `${BASE_URL}/apply-advance`,
+        method: "POST",
+        data: body,
+      }),
+      invalidatesTags: ["SupplierPayment", "PurchaseInvoice"],
+    }),
+
+    /** Live balance summary (total outstanding payable & available advance credit) for a supplier. */
+    getSupplierBalanceSummary: build.query<SupplierBalanceSummary, number>({
+      query: (supplierId) => ({
+        url: `${BASE_URL}/suppliers/${supplierId}/balance-summary`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, supplierId) => [
+        { type: "SupplierPayment", id: `supplier-balance-${supplierId}` },
+        "SupplierPayment",
+        "PurchaseInvoice",
+      ],
+    }),
+
+    /** Chronological running Statement of Account for a supplier. */
+    getSupplierStatement: build.query<SupplierStatement, GetSupplierStatementParams>({
+      query: ({ supplierId, fromDate, toDate }) => ({
+        url: `${BASE_URL}/suppliers/${supplierId}/statement`,
+        method: "GET",
+        params: {
+          ...(fromDate ? { fromDate } : {}),
+          ...(toDate ? { toDate } : {}),
+        },
+      }),
+      providesTags: (_result, _error, { supplierId }) => [
+        { type: "SupplierPayment", id: `supplier-statement-${supplierId}` },
+        "SupplierPayment",
+        "PurchaseInvoice",
+      ],
+    }),
   }),
 });
 
@@ -179,5 +298,9 @@ export const {
   useGetSupplierPaymentsQuery,
   useGetSupplierPaymentQuery,
   useGetSupplierPaymentsByInvoiceQuery,
+  useGetAvailableAdvancesQuery,
+  useGetSupplierBalanceSummaryQuery,
+  useGetSupplierStatementQuery,
   usePaySupplierMutation,
+  useApplyAdvanceMutation,
 } = supplierPaymentApi;

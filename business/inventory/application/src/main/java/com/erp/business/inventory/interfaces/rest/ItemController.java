@@ -1,8 +1,10 @@
 package com.erp.business.inventory.interfaces.rest;
 
 import com.erp.business.inventory.domain.TaxabilityType;
+import com.erp.business.inventory.items.ItemCsvService;
 import com.erp.business.inventory.items.ItemService;
 import com.erp.business.inventory.items.dto.CreateItemRequest;
+import com.erp.business.inventory.items.dto.ItemImportResult;
 import com.erp.business.inventory.items.dto.ItemListResponse;
 import com.erp.business.inventory.items.dto.ItemResponse;
 import com.erp.business.inventory.items.dto.UpdateItemRequest;
@@ -11,6 +13,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,8 +26,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -32,6 +38,7 @@ import java.util.List;
 public class ItemController {
 
     private final ItemService itemService;
+    private final ItemCsvService itemCsvService;
     private final BusinessContextAccessor context;
 
     @PostMapping
@@ -44,6 +51,35 @@ public class ItemController {
         return ResponseEntity
                 .created(uriBuilder.path("/api/v1/inventory/items/{id}").buildAndExpand(response.id()).toUri())
                 .body(response);
+    }
+
+    @GetMapping(value = "/csv/template", produces = "text/csv; charset=UTF-8")
+    public ResponseEntity<byte[]> downloadCsvTemplate() {
+        byte[] csv = itemCsvService.generateTemplateCsv();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"items_template.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv);
+    }
+
+    @GetMapping(value = "/csv/export", produces = "text/csv; charset=UTF-8")
+    public ResponseEntity<byte[]> exportItemsCsv() {
+        Long tenantId = context.getTenantId();
+        Long companyId = context.getCompanyId();
+        byte[] csv = itemCsvService.exportItemsCsv(tenantId, companyId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"items_export.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv);
+    }
+
+    @PostMapping(value = "/csv/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ItemImportResult> importItemsCsv(
+            @RequestParam("file") MultipartFile file) throws IOException {
+        Long tenantId = context.getTenantId();
+        Long companyId = context.getCompanyId();
+        ItemImportResult result = itemCsvService.importItemsCsv(tenantId, companyId, file.getInputStream());
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping

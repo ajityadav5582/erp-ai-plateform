@@ -55,6 +55,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.procurement.purchaseorder.domain",
         "com.erp.business.procurement.goodsreceipt.domain",
         "com.erp.business.procurement.purchaseinvoice.domain",
+        "com.erp.business.procurement.purchasereturn.domain",
         "com.erp.business.procurement.supplierpayment.domain",
         "com.erp.business.procurement.shared.domain",
         "com.erp.business.procurement.workflow.domain"
@@ -64,6 +65,7 @@ import com.erp.platform.security.context.DefaultSecurityContext;
         "com.erp.business.procurement.purchaseorder.infrastructure.persistence",
         "com.erp.business.procurement.goodsreceipt.infrastructure.persistence",
         "com.erp.business.procurement.purchaseinvoice.infrastructure.persistence",
+        "com.erp.business.procurement.purchasereturn.infrastructure.persistence",
         "com.erp.business.procurement.supplierpayment.infrastructure.persistence",
         "com.erp.business.procurement.shared.infrastructure.persistence",
         "com.erp.business.procurement.workflow.infrastructure.persistence"

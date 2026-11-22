@@ -59,9 +59,9 @@ public class IrdImmediateOutboxListener {
         try {
             IrdSyncResult result;
             if (isCreditNote) {
-                result = irdFiscalSyncPort.syncCreditNote(event.creditNoteCommand().withRealtime(true));
+                result = irdFiscalSyncPort.syncCreditNote(event.creditNoteCommand().withRealtime(true), configOpt.get());
             } else {
-                result = irdFiscalSyncPort.syncSalesBill(event.billCommand().withRealtime(true));
+                result = irdFiscalSyncPort.syncSalesBill(event.billCommand().withRealtime(true), configOpt.get());
             }
             int responseCode = (result != null) ? result.getStatusCode() : 0;
 

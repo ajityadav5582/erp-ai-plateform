@@ -47,12 +47,13 @@ export default function PosTerminalPage() {
   const capabilities = usePosCapabilities();
   const isRestaurantType =
     selectedCompany?.businessType === "RESTAURANT" ||
-    selectedCompany?.businessType === "CAFE";
+    selectedCompany?.businessType === "CAFE" ||
+    selectedCompany?.businessType === "HOTEL";
   const isMobile = useIsMobile();
   const { data: openSessions, isLoading: isLoadingSessions } = useGetMyOpenPosSessionsQuery();
   const session = openSessions?.[0] ?? null;
 
-  const cart = usePosCart();
+  const cart = usePosCart(selectedCompany?.id);
   const previousCompanyIdRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     if (
@@ -81,9 +82,14 @@ export default function PosTerminalPage() {
   const isCheckingOutRef = React.useRef(false);
 
   // A new cart is a new logical checkout attempt.
+  const cartItemsSignature = React.useMemo(
+    () => cart.lines.map((l) => `${l.itemId}:${l.quantity}`).join(","),
+    [cart.lines]
+  );
+
   React.useEffect(() => {
     setIdempotencyKey(null);
-  }, [cart.lines.length, cart.lines.map((l) => l.itemId).join(",")]);
+  }, [cartItemsSignature]);
 
   React.useEffect(() => {
     if (isPaymentOpen && !idempotencyKey) {
@@ -133,6 +139,7 @@ export default function PosTerminalPage() {
     customerId?: number;
     customerName?: string;
     customerPanNumber?: string;
+    discountAmount?: number;
   }) => {
     if (!session || isCheckingOutRef.current) return;
     isCheckingOutRef.current = true;
@@ -228,6 +235,10 @@ export default function PosTerminalPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [session, isPaymentOpen, receiptId, cart.lines.length]);
 
+  if (isRestaurantType) {
+    return <RestaurantPosTerminalPage />;
+  }
+
   if (isLoadingSessions) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -267,10 +278,6 @@ export default function PosTerminalPage() {
       </Button>
     </>
   );
-
-  if (isRestaurantType) {
-    return <RestaurantPosTerminalPage />;
-  }
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row">

@@ -17,7 +17,6 @@ import {
   useGetPurchaseReturnQuery,
   usePostPurchaseReturnMutation,
   useRetryStockPostMutation,
-  type PurchaseReturn,
 } from "@/services/purchase-return.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import {

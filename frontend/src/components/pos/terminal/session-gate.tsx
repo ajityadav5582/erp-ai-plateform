@@ -29,8 +29,34 @@ export function SessionGate() {
   const { data: registers, isLoading } = useGetPosRegistersQuery({ status: "ACTIVE", size: 100 });
   const [openSession, { isLoading: isOpening }] = useOpenPosSessionMutation();
 
-  const [registerId, setRegisterId] = React.useState<string>("");
+  const [registerId, setRegisterId] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pos_station_register_id") || "";
+    }
+    return "";
+  });
   const [openingCash, setOpeningCash] = React.useState("0");
+
+  const registerList = React.useMemo(() => registers?.content ?? [], [registers]);
+
+  // Auto-restore saved station register if available in active registers list
+  React.useEffect(() => {
+    if (!registerId && registerList.length > 0) {
+      const saved = localStorage.getItem("pos_station_register_id");
+      if (saved && registerList.some((r) => String(r.id) === saved)) {
+        setRegisterId(saved);
+      }
+    }
+  }, [registerList, registerId]);
+
+  const handleRegisterChange = (val: string) => {
+    setRegisterId(val);
+    try {
+      localStorage.setItem("pos_station_register_id", val);
+    } catch {
+      // ignore
+    }
+  };
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -43,6 +69,11 @@ export function SessionGate() {
         registerId: Number(registerId),
         openingCashAmount: Number(openingCash) || 0,
       }).unwrap();
+      try {
+        localStorage.setItem("pos_station_register_id", registerId);
+      } catch {
+        // ignore
+      }
       toast.success("Session opened. Ready to sell.");
     } catch (error) {
       toast.error(getApiErrorMessage(error) || "Could not open the session.");
@@ -57,8 +88,6 @@ export function SessionGate() {
     );
   }
 
-  const registerList = registers?.content ?? [];
-
   return (
     <div className="mx-auto max-w-md rounded-lg border p-6">
       <div className="mb-4 flex items-center gap-2">
@@ -72,7 +101,7 @@ export function SessionGate() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="register">Register</Label>
-          <Select value={registerId} onValueChange={setRegisterId}>
+          <Select value={registerId} onValueChange={handleRegisterChange}>
             <SelectTrigger id="register" className="h-12">
               <SelectValue placeholder="Select a register" />
             </SelectTrigger>

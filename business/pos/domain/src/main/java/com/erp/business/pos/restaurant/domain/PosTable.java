@@ -83,4 +83,20 @@ public class PosTable extends TenantScopedEntity<Long> {
     public void markBilling() {
         this.status = Status.BILLING;
     }
+
+    public void update(String tableNumber, Integer capacity, String section) {
+        if (tableNumber != null && !tableNumber.isBlank()) {
+            this.tableNumber = tableNumber.trim();
+        }
+        if (capacity != null && capacity > 0) {
+            this.capacity = capacity;
+        }
+        if (section != null) {
+            this.section = section.trim();
+        }
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
+    }
 }

@@ -107,6 +107,21 @@ public class Company extends OptimisticLock<Long> {
     @Column(name = "status", nullable = false, length = 20)
     private CompanyStatus status;
 
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
+
+    @Column(name = "bank_account_name", length = 150)
+    private String bankAccountName;
+
+    @Column(name = "bank_account_number", length = 50)
+    private String bankAccountNumber;
+
+    @Column(name = "bank_branch", length = 100)
+    private String bankBranch;
+
+    @Column(name = "qr_code_url", length = 500)
+    private String qrCodeUrl;
+
     // ==================== Domain Methods ====================
 
     /**
@@ -255,6 +270,24 @@ public class Company extends OptimisticLock<Long> {
         }
         if (effectiveTo != null) {
             this.vatEffectiveTo = effectiveTo;
+        }
+    }
+
+    public void updateBankDetails(String bankName, String bankAccountName, String bankAccountNumber, String bankBranch, String qrCodeUrl) {
+        if (bankName != null) {
+            this.bankName = bankName.isBlank() ? null : bankName.trim();
+        }
+        if (bankAccountName != null) {
+            this.bankAccountName = bankAccountName.isBlank() ? null : bankAccountName.trim();
+        }
+        if (bankAccountNumber != null) {
+            this.bankAccountNumber = bankAccountNumber.isBlank() ? null : bankAccountNumber.trim();
+        }
+        if (bankBranch != null) {
+            this.bankBranch = bankBranch.isBlank() ? null : bankBranch.trim();
+        }
+        if (qrCodeUrl != null) {
+            this.qrCodeUrl = qrCodeUrl.isBlank() ? null : qrCodeUrl.trim();
         }
     }
 

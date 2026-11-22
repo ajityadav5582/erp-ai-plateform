@@ -41,4 +41,10 @@ public interface PosSessionService {
                                                     Long registerId, Pageable pageable);
 
     Page<PosSessionResponse> searchSessions(Long tenantId, Long companyId, String term, Pageable pageable);
+
+    Page<PosSessionResponse> filterSessions(Long tenantId, Long companyId,
+                                            PosSessionStatus status,
+                                            Long registerId,
+                                            String term,
+                                            Pageable pageable);
 }

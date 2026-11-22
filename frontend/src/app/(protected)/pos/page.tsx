@@ -19,14 +19,6 @@ import { useGetCbmsStatusQuery } from "@/services/pos-cbms.service";
 import { usePosCapabilities } from "@/config/pos-capabilities";
 import { formatPosCurrency, formatPosDateTime } from "@/lib/pos-format";
 
-const quickLinks = [
-  { href: "/pos/terminal", label: "Terminal", description: "Ring up a sale", Icon: Monitor },
-  { href: "/pos/sessions", label: "Sessions", description: "Shifts & cash", Icon: Clock },
-  { href: "/pos/transactions", label: "Transactions", description: "Sales & receipts", Icon: ReceiptText },
-  { href: "/pos/registers", label: "Registers", description: "Terminals & warehouses", Icon: Store },
-  { href: "/pos/quick-items", label: "Quick Items", description: "Terminal grid tiles", Icon: LayoutGrid },
-];
-
 /**
  * POS landing dashboard.
  *
@@ -36,6 +28,18 @@ const quickLinks = [
  */
 export default function PosDashboardPage() {
   const capabilities = usePosCapabilities();
+  const isRestaurant = capabilities.orderTypes && capabilities.serviceSelection;
+
+  const dynamicQuickLinks = React.useMemo(() => [
+    isRestaurant
+      ? { href: "/pos/restaurant", label: "Restaurant Terminal", description: "Tables, KOT & orders", Icon: UtensilsCrossed }
+      : { href: "/pos/terminal", label: "Terminal", description: "Ring up a sale", Icon: Monitor },
+    { href: "/pos/sessions", label: "Sessions", description: "Shifts & cash", Icon: Clock },
+    { href: "/pos/transactions", label: "Transactions", description: "Sales & receipts", Icon: ReceiptText },
+    { href: "/pos/registers", label: "Registers", description: "Terminals & warehouses", Icon: Store },
+    { href: "/pos/quick-items", label: "Quick Items", description: "Terminal grid tiles", Icon: LayoutGrid },
+  ], [isRestaurant]);
+
   const { data: openSessions, isLoading: sessionsLoading } = useGetMyOpenPosSessionsQuery();
   const { data: cbms, isLoading: cbmsLoading } = useGetCbmsStatusQuery();
   const { data: recent, isLoading: recentLoading } = useGetPosTransactionsQuery({
@@ -56,8 +60,8 @@ export default function PosDashboardPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/pos/terminal">
-            Open terminal
+          <Link href={isRestaurant ? "/pos/restaurant" : "/pos/terminal"}>
+            {isRestaurant ? "Open restaurant terminal" : "Open terminal"}
             <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>
@@ -163,7 +167,7 @@ export default function PosDashboardPage() {
       <section>
         <h2 className="mb-3 text-sm font-semibold">Go to</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {quickLinks.map(({ href, label, description, Icon }) => (
+          {dynamicQuickLinks.map(({ href, label, description, Icon }) => (
             <Link
               key={href}
               href={href}
@@ -174,16 +178,6 @@ export default function PosDashboardPage() {
               <p className="text-xs text-muted-foreground">{description}</p>
             </Link>
           ))}
-          {capabilities.orderTypes && capabilities.serviceSelection && (
-            <Link
-              href="/pos/restaurant"
-              className="rounded-lg border bg-card p-4 transition-colors hover:bg-accent"
-            >
-              <UtensilsCrossed className="h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">Restaurant Terminal</p>
-              <p className="text-xs text-muted-foreground">Tables & kitchen</p>
-            </Link>
-          )}
         </div>
       </section>
     </div>

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Wallet } from "lucide-react";
+import { Coins, Loader2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useGetPurchaseInvoiceQuery } from "@/services/purchase-invoice.service";
-import { useGetSupplierPaymentsByInvoiceQuery } from "@/services/supplier-payment.service";
+import {
+  useGetSupplierPaymentsByInvoiceQuery,
+  useGetAvailableAdvancesQuery,
+} from "@/services/supplier-payment.service";
 import {
   formatAmount,
   formatDate,
@@ -38,6 +41,7 @@ import {
   PurchaseInvoiceStatusBadge,
 } from "@/components/procurement/procurement-status-badge";
 import { PaySupplierDialog } from "@/components/procurement/pay-supplier-dialog";
+import { ApplyAdvanceCreditDialog } from "@/components/procurement/apply-advance-credit-dialog";
 import type { SupplierPayment } from "@/services/supplier-payment.service";
 
 interface PurchaseInvoiceDetailsSheetProps {
@@ -73,6 +77,7 @@ export function PurchaseInvoiceDetailsSheet({
   onOpenChange,
 }: PurchaseInvoiceDetailsSheetProps) {
   const [payTarget, setPayTarget] = useState<{ invoiceId: number } | null>(null);
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   const {
     data: invoice,
@@ -96,10 +101,25 @@ export function PurchaseInvoiceDetailsSheet({
   const payments = paymentsPage?.content ?? [];
   const canPay = invoice ? Number(invoice.balanceAmount) > 0 : false;
 
+  // Check if this supplier has advance credits available
+  const { data: availableAdvances = [] } = useGetAvailableAdvancesQuery(
+    invoice?.supplierId ?? 0,
+    { skip: !open || !invoice || !canPay }
+  );
+
+  const totalAdvanceCredit = availableAdvances.reduce(
+    (sum, a) => sum + Number(a.unallocatedAmount ?? 0),
+    0
+  );
+
   const handlePaid = (payment: SupplierPayment) => {
     toast.success(`Payment ${payment.paymentNumber} recorded`, {
       description: `${formatMoney(payment.amount, payment.currency)} against invoice ${payment.invoiceNumber}.`,
     });
+    refetch();
+  };
+
+  const handleAdvanceApplied = () => {
     refetch();
   };
 
@@ -155,15 +175,19 @@ export function PurchaseInvoiceDetailsSheet({
                     Invoice
                   </h4>
                   <DetailRow
+                    label="Type"
+                    value={invoice.invoiceType === "DIRECT" ? "Direct Service / Expense" : "Goods Receipt (3-Way)"}
+                  />
+                  <DetailRow
                     label="Invoice date"
                     value={formatDate(invoice.invoiceDate)}
                   />
                   <DetailRow label="Due date" value={formatDate(invoice.dueDate)} />
                   <DetailRow
                     label="Purchase order"
-                    value={invoice.poNumber}
+                    value={invoice.poNumber ?? "—"}
                   />
-                  <DetailRow label="Goods receipt" value={invoice.grnNumber} />
+                  <DetailRow label="Goods receipt" value={invoice.grnNumber ?? "— (Direct Bill)"} />
                   <DetailRow
                     label="Supplier VAT status"
                     value={invoice.supplierVatRegistrationStatus ?? "—"}
@@ -195,13 +219,33 @@ export function PurchaseInvoiceDetailsSheet({
                     value={formatMoney(invoice.taxAmount, invoice.currency)}
                   />
                   <DetailRow
-                    label="Total"
+                    label="Gross Total"
                     value={
-                      <span className="text-base">
+                      <span className={invoice.isTdsApplicable ? "text-sm text-muted-foreground" : "text-base font-semibold"}>
                         {formatMoney(invoice.totalAmount, invoice.currency)}
                       </span>
                     }
                   />
+                  {invoice.isTdsApplicable && (
+                    <>
+                      <DetailRow
+                        label={`TDS Withheld (${invoice.tdsRate ?? 0}%)`}
+                        value={
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            -{formatMoney(invoice.tdsAmount ?? 0, invoice.currency)}
+                          </span>
+                        }
+                      />
+                      <DetailRow
+                        label="Net Payable"
+                        value={
+                          <span className="text-base font-bold text-primary">
+                            {formatMoney(invoice.netPayableAmount ?? invoice.totalAmount, invoice.currency)}
+                          </span>
+                        }
+                      />
+                    </>
+                  )}
                   <DetailRow
                     label="Paid"
                     value={formatMoney(invoice.paidAmount, invoice.currency)}
@@ -222,6 +266,28 @@ export function PurchaseInvoiceDetailsSheet({
                   />
                 </div>
               </div>
+
+              {canPay && totalAdvanceCredit > 0 && (
+                <div className="my-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                  <div className="flex items-center gap-2.5">
+                    <Coins className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div className="text-xs">
+                      <span className="font-semibold text-foreground">
+                        {formatMoney(totalAdvanceCredit, invoice.currency)}
+                      </span>{" "}
+                      in advance credit available from this supplier
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAdvanceDialogOpen(true)}
+                    className="h-7 text-xs border-amber-500/40 text-amber-800 dark:text-amber-200 hover:bg-amber-500/20"
+                  >
+                    Apply Credit
+                  </Button>
+                </div>
+              )}
 
               <div className="py-3">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -348,13 +414,28 @@ export function PurchaseInvoiceDetailsSheet({
           {!isLoading && !error && invoice && (
             <SheetFooter className="border-t border-border pt-4">
               {canPay ? (
-                <Button
-                  size="sm"
-                  onClick={() => setPayTarget({ invoiceId: invoice.id })}
-                >
-                  <Wallet className="mr-2 size-4" aria-hidden="true" />
-                  Pay {formatMoney(invoice.balanceAmount, invoice.currency)}
-                </Button>
+                <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                  {totalAdvanceCredit > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdvanceDialogOpen(true)}
+                      className="border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+                    >
+                      <Coins className="mr-1.5 size-4 text-amber-500" />
+                      Apply Advance ({formatMoney(totalAdvanceCredit, invoice.currency)})
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setPayTarget({ invoiceId: invoice.id })}
+                    className="ml-auto"
+                  >
+                    <Wallet className="mr-2 size-4" aria-hidden="true" />
+                    Pay {formatMoney(invoice.balanceAmount, invoice.currency)}
+                  </Button>
+                </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   This invoice is settled in full. Nothing further is payable.
@@ -371,6 +452,15 @@ export function PurchaseInvoiceDetailsSheet({
           open={payTarget !== null}
           onOpenChange={(next) => !next && setPayTarget(null)}
           onPaid={handlePaid}
+        />
+      )}
+
+      {invoice && (
+        <ApplyAdvanceCreditDialog
+          open={advanceDialogOpen}
+          onOpenChange={setAdvanceDialogOpen}
+          invoice={invoice}
+          onApplied={handleAdvanceApplied}
         />
       )}
     </>

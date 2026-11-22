@@ -83,6 +83,11 @@ const generalSchema = z.object({
   vatRegistrationNumber: z.string().optional().or(z.literal("")),
   vatEffectiveFrom: z.string().optional().or(z.literal("")),
   vatEffectiveTo: z.string().optional().or(z.literal("")),
+  bankName: z.string().optional().or(z.literal("")),
+  bankAccountName: z.string().optional().or(z.literal("")),
+  bankAccountNumber: z.string().optional().or(z.literal("")),
+  bankBranch: z.string().optional().or(z.literal("")),
+  qrCodeUrl: z.string().optional().or(z.literal("")),
 });
 
 type GeneralValues = z.infer<typeof generalSchema>;
@@ -181,6 +186,11 @@ export default memo(function CompanySettingsDrawer({ company, open, onOpenChange
       vatRegistrationNumber: "",
       vatEffectiveFrom: "",
       vatEffectiveTo: "",
+      bankName: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      bankBranch: "",
+      qrCodeUrl: "",
     },
   });
 
@@ -207,6 +217,11 @@ export default memo(function CompanySettingsDrawer({ company, open, onOpenChange
         vatRegistrationNumber: company.vatRegistrationNumber ?? "",
         vatEffectiveFrom: company.vatEffectiveFrom ?? "",
         vatEffectiveTo: company.vatEffectiveTo ?? "",
+        bankName: company.bankName ?? "",
+        bankAccountName: company.bankAccountName ?? "",
+        bankAccountNumber: company.bankAccountNumber ?? "",
+        bankBranch: company.bankBranch ?? "",
+        qrCodeUrl: company.qrCodeUrl ?? "",
       });
       setActiveTab("general");
     }
@@ -242,6 +257,11 @@ export default memo(function CompanySettingsDrawer({ company, open, onOpenChange
           vatRegistrationNumber: values.vatRegistered ? values.vatRegistrationNumber?.trim() : undefined,
           vatEffectiveFrom: values.vatRegistered && values.vatEffectiveFrom ? values.vatEffectiveFrom : undefined,
           vatEffectiveTo: values.vatRegistered && values.vatEffectiveTo ? values.vatEffectiveTo : undefined,
+          bankName: values.bankName?.trim() || undefined,
+          bankAccountName: values.bankAccountName?.trim() || undefined,
+          bankAccountNumber: values.bankAccountNumber?.trim() || undefined,
+          bankBranch: values.bankBranch?.trim() || undefined,
+          qrCodeUrl: values.qrCodeUrl?.trim() || undefined,
         },
       }).unwrap();
       toast.success("Company profile saved");
@@ -478,11 +498,12 @@ export default memo(function CompanySettingsDrawer({ company, open, onOpenChange
         </SheetHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">1. General</TabsTrigger>
-            <TabsTrigger value="tax">2. Tax and IRD</TabsTrigger>
-            <TabsTrigger value="pos">3. POS & Counter</TabsTrigger>
-            <TabsTrigger value="workflows">4. Workflows</TabsTrigger>
+            <TabsTrigger value="tax">2. Tax & IRD</TabsTrigger>
+            <TabsTrigger value="banking">3. Bank & QR</TabsTrigger>
+            <TabsTrigger value="pos">4. POS</TabsTrigger>
+            <TabsTrigger value="workflows">5. Workflows</TabsTrigger>
           </TabsList>
 
           {/* Tab 1 General */}
@@ -653,7 +674,41 @@ export default memo(function CompanySettingsDrawer({ company, open, onOpenChange
             </Card>
           </TabsContent>
 
-          {/* Tab 3 POS & Counter */}
+          {/* Tab 3 Bank & QR */}
+          <TabsContent value="banking" className="space-y-4 pt-4">
+            <Form {...generalForm}>
+              <form onSubmit={generalForm.handleSubmit(onGeneralSubmit)} className="space-y-4">
+                <Card>
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField control={generalForm.control} name="bankName" render={({ field }) => (
+                        <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Nabil Bank Ltd" /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={generalForm.control} name="bankBranch" render={({ field }) => (
+                        <FormItem><FormLabel>Branch</FormLabel><FormControl><Input {...field} placeholder="e.g. New Road" /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={generalForm.control} name="bankAccountName" render={({ field }) => (
+                        <FormItem><FormLabel>Account Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Acme Nepal Pvt Ltd" /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={generalForm.control} name="bankAccountNumber" render={({ field }) => (
+                        <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input {...field} placeholder="e.g. 01201017500012" className="font-mono" /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={generalForm.control} name="qrCodeUrl" render={({ field }) => (
+                        <FormItem className="sm:col-span-2"><FormLabel>Payment QR Image URL</FormLabel><FormControl><Input {...field} placeholder="https://storage.erpai.np/qr/..." /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isUpdating}>
+                    {isUpdating ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Bank Details
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </TabsContent>
+
+          {/* Tab 4 POS & Counter */}
           <TabsContent value="pos" className="space-y-4 pt-4">
             {posLoading ? (
               <div className="flex items-center justify-center p-8"><Loader2 className="size-6 animate-spin" /></div>

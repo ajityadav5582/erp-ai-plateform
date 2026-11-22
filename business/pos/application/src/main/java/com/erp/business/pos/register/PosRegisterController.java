@@ -57,10 +57,12 @@ public class PosRegisterController {
 
     @GetMapping
     public ResponseEntity<Page<PosRegisterResponse>> listRegisters(
+            @RequestParam(value = "status", required = false) PosRegisterStatus status,
+            @RequestParam(value = "term", required = false) String term,
             @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(registerService.listRegisters(
-                context.getTenantId(), context.getCompanyId(), pageable));
+        return ResponseEntity.ok(registerService.filterRegisters(
+                context.getTenantId(), context.getCompanyId(), status, term, pageable));
     }
 
     @GetMapping("/search")
@@ -68,8 +70,8 @@ public class PosRegisterController {
             @RequestParam("term") String term,
             @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(registerService.searchRegisters(
-                context.getTenantId(), context.getCompanyId(), term, pageable));
+        return ResponseEntity.ok(registerService.filterRegisters(
+                context.getTenantId(), context.getCompanyId(), null, term, pageable));
     }
 
     @GetMapping("/by-status")
@@ -77,8 +79,8 @@ public class PosRegisterController {
             @RequestParam("status") PosRegisterStatus status,
             @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(registerService.listRegistersByStatus(
-                context.getTenantId(), context.getCompanyId(), status, pageable));
+        return ResponseEntity.ok(registerService.filterRegisters(
+                context.getTenantId(), context.getCompanyId(), status, null, pageable));
     }
 
     @GetMapping("/active")

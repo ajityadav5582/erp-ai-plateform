@@ -1,9 +1,11 @@
 package com.erpai.integration.ird.infrastructure.fiscal;
 
 import com.erpai.integration.ird.config.IrdProperties;
+import com.erpai.integration.ird.domain.CompanyIrdConfig;
 import com.erpai.integration.ird.port.FiscalBillCommand;
 import com.erpai.integration.ird.port.FiscalCreditNoteCommand;
 import com.erpai.integration.ird.port.IrdSyncResult;
+import com.erpai.integration.ird.port.out.IrdCryptoPort;
 import com.erpai.integration.ird.port.out.IrdFiscalSyncPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -21,8 +23,9 @@ import java.util.Map;
  * <p>Consolidates the previously duplicated {@code CbmsClient} (sales) and
  * {@code PosCbmsClient} (pos) HTTP logic. Maps the fiscal command to the Nepal
  * IRD CBMS payload shape and authenticates with HTTP Basic auth using the
- * configured IRD credentials. When CBMS is disabled or unconfigured (the default
- * in development), pushes are simulated as successful.
+ * configured IRD credentials. Supports multi-company dynamic credentials resolution
+ * from {@link CompanyIrdConfig}. When CBMS is disabled or unconfigured,
+ * pushes are simulated as successful.
  */
 @Slf4j
 @Component
@@ -30,25 +33,40 @@ public class IrdFiscalSyncAdapter implements IrdFiscalSyncPort {
 
     private final IrdProperties properties;
     private final RestClient restClient;
+    private final IrdCryptoPort cryptoPort;
 
-    public IrdFiscalSyncAdapter(IrdProperties properties, RestClient irdRestClient) {
+    public IrdFiscalSyncAdapter(IrdProperties properties, RestClient irdRestClient, IrdCryptoPort cryptoPort) {
         this.properties = properties;
         this.restClient = irdRestClient;
+        this.cryptoPort = cryptoPort;
     }
 
     @Override
     public IrdSyncResult syncSalesBill(FiscalBillCommand command) {
-        if (!properties.isEnabled() || properties.getUsername().isBlank()) {
+        return syncSalesBill(command, null);
+    }
+
+    @Override
+    public IrdSyncResult syncSalesBill(FiscalBillCommand command, CompanyIrdConfig companyConfig) {
+        String username = resolveUsername(companyConfig);
+        String password = resolvePassword(companyConfig);
+        boolean isEnabled = isSyncEnabled(companyConfig);
+
+        if (!isEnabled || username == null || username.isBlank()) {
             log.info("CBMS live sync disabled or unconfigured. Simulating successful IRD push for bill: {}",
                     command.invoiceNumber());
             return new IrdSyncResult(true, 200, "Simulated 200 OK: IRD CBMS Bill recorded successfully", null, true);
         }
 
         try {
+            String sellerPan = (companyConfig != null && companyConfig.getSellerPan() != null)
+                    ? companyConfig.getSellerPan().value()
+                    : command.sellerPan();
+
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("username", properties.getUsername());
-            payload.put("password", properties.getPassword());
-            payload.put("seller_pan", command.sellerPan());
+            payload.put("username", username);
+            payload.put("password", password);
+            payload.put("seller_pan", sellerPan);
             payload.put("buyer_pan", command.buyerPan());
             payload.put("buyer_name", command.buyerName());
             payload.put("fiscal_year", command.fiscalYear());
@@ -63,7 +81,7 @@ public class IrdFiscalSyncAdapter implements IrdFiscalSyncPort {
             String response = restClient.post()
                     .uri("/bill")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", basicAuth())
+                    .header("Authorization", basicAuth(username, password))
                     .body(payload)
                     .retrieve()
                     .body(String.class);
@@ -78,17 +96,30 @@ public class IrdFiscalSyncAdapter implements IrdFiscalSyncPort {
 
     @Override
     public IrdSyncResult syncCreditNote(FiscalCreditNoteCommand command) {
-        if (!properties.isEnabled() || properties.getUsername().isBlank()) {
+        return syncCreditNote(command, null);
+    }
+
+    @Override
+    public IrdSyncResult syncCreditNote(FiscalCreditNoteCommand command, CompanyIrdConfig companyConfig) {
+        String username = resolveUsername(companyConfig);
+        String password = resolvePassword(companyConfig);
+        boolean isEnabled = isSyncEnabled(companyConfig);
+
+        if (!isEnabled || username == null || username.isBlank()) {
             log.info("CBMS live sync disabled or unconfigured. Simulating successful IRD push for return: {}",
                     command.creditNoteNumber());
             return new IrdSyncResult(true, 200, "Simulated 200 OK: IRD CBMS Credit Note recorded successfully", null, true);
         }
 
         try {
+            String sellerPan = (companyConfig != null && companyConfig.getSellerPan() != null)
+                    ? companyConfig.getSellerPan().value()
+                    : command.customerPan();
+
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("username", properties.getUsername());
-            payload.put("password", properties.getPassword());
-            payload.put("seller_pan", command.customerPan()); // placeholder; seller pan not in command
+            payload.put("username", username);
+            payload.put("password", password);
+            payload.put("seller_pan", sellerPan);
             payload.put("buyer_pan", command.customerPan());
             payload.put("fiscal_year", command.fiscalYearCode());
             payload.put("ref_bill_no", command.refInvoiceNumber());
@@ -103,7 +134,7 @@ public class IrdFiscalSyncAdapter implements IrdFiscalSyncPort {
             String response = restClient.post()
                     .uri("/billreturn")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", basicAuth())
+                    .header("Authorization", basicAuth(username, password))
                     .body(payload)
                     .retrieve()
                     .body(String.class);
@@ -121,8 +152,33 @@ public class IrdFiscalSyncAdapter implements IrdFiscalSyncPort {
         return true;
     }
 
-    private String basicAuth() {
-        String creds = properties.getUsername() + ":" + properties.getPassword();
+    private String resolveUsername(CompanyIrdConfig companyConfig) {
+        if (companyConfig != null && companyConfig.getApiUsername() != null && !companyConfig.getApiUsername().isBlank()) {
+            return companyConfig.getApiUsername();
+        }
+        return properties.getUsername();
+    }
+
+    private String resolvePassword(CompanyIrdConfig companyConfig) {
+        if (companyConfig != null && companyConfig.getApiPasswordEncrypted() != null && !companyConfig.getApiPasswordEncrypted().isBlank()) {
+            try {
+                return cryptoPort != null ? cryptoPort.decrypt(companyConfig.getApiPasswordEncrypted()) : companyConfig.getApiPasswordEncrypted();
+            } catch (Exception e) {
+                log.warn("Failed to decrypt company CBMS password, falling back to static config: {}", e.getMessage());
+            }
+        }
+        return properties.getPassword();
+    }
+
+    private boolean isSyncEnabled(CompanyIrdConfig companyConfig) {
+        if (companyConfig != null) {
+            return companyConfig.isCbmsActive();
+        }
+        return properties.isEnabled();
+    }
+
+    private String basicAuth(String username, String password) {
+        String creds = (username != null ? username : "") + ":" + (password != null ? password : "");
         return "Basic " + Base64.getEncoder().encodeToString(creds.getBytes(StandardCharsets.UTF_8));
     }
 }

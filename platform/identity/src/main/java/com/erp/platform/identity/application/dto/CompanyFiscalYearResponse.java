@@ -2,6 +2,7 @@ package com.erp.platform.identity.application.dto;
 
 import com.erp.platform.identity.domain.CompanyFiscalYear;
 import com.erp.platform.identity.domain.FiscalYearType;
+import java.time.Instant;
 
 public record CompanyFiscalYearResponse(
         Long id,
@@ -14,13 +15,16 @@ public record CompanyFiscalYearResponse(
         String startDateAd,
         String endDateAd,
         FiscalYearType calendarType,
-        boolean active
+        boolean active,
+        boolean locked,
+        Instant lockedAt,
+        String lockedBy
 ) {
     public static CompanyFiscalYearResponse from(CompanyFiscalYear year) {
         return new CompanyFiscalYearResponse(year.getId(), year.getCompanyId(), year.getMasterFiscalYearId(),
                 year.getName(), year.getCode(), year.getStartDateBs(), year.getEndDateBs(),
                 year.getStartDateAd() == null ? null : year.getStartDateAd().toString(),
                 year.getEndDateAd() == null ? null : year.getEndDateAd().toString(),
-                year.getCalendarType(), year.isActive());
+                year.getCalendarType(), year.isActive(), year.isLocked(), year.getLockedAt(), year.getLockedBy());
     }
 }

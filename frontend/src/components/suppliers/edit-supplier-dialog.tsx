@@ -75,7 +75,7 @@ const editSupplierSchema = z.object({
     .or(z.literal("")),
   taxId: z
     .string()
-    .max(64, "Tax ID must not exceed 64 characters")
+    .regex(/^$|^[0-9]{9}$/, "PAN must be exactly 9 digits")
     .optional()
     .or(z.literal("")),
   paymentTermsDays: z
@@ -88,7 +88,7 @@ const editSupplierSchema = z.object({
   vatRegistrationStatus: z.enum(VAT_REGISTRATION_STATUSES).optional(),
   vatRegistrationNumber: z
     .string()
-    .max(64, "VAT number must not exceed 64 characters")
+    .regex(/^$|^[0-9]{9}$/, "VAT number must be exactly 9 digits")
     .optional()
     .or(z.literal("")),
   vatEffectiveFrom: z.string().optional().or(z.literal("")),
@@ -306,9 +306,26 @@ export function EditSupplierDialog({ supplier, open, onOpenChange }: EditSupplie
                 name="taxId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax ID</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>PAN / Tax ID</FormLabel>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        ({field.value?.length || 0}/9)
+                      </span>
+                    </div>
                     <FormControl>
-                      <Input placeholder="TAX-123456" disabled={isLoading} {...field} />
+                      <Input
+                        placeholder="e.g. 123456789"
+                        disabled={isLoading}
+                        maxLength={9}
+                        {...field}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 9);
+                          field.onChange(val);
+                          if (form.getValues("vatRegistrationStatus") === "VAT_REGISTERED") {
+                            form.setValue("vatRegistrationNumber", val);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -363,7 +380,15 @@ export function EditSupplierDialog({ supplier, open, onOpenChange }: EditSupplie
                       <FormLabel>VAT Registration Status</FormLabel>
                       <Select
                         value={field.value ?? ""}
-                        onValueChange={(value) => field.onChange(value || undefined)}
+                        onValueChange={(value) => {
+                          field.onChange(value || undefined);
+                          if (value === "VAT_REGISTERED" && !form.getValues("vatRegistrationNumber")) {
+                            const pan = form.getValues("taxId");
+                            if (pan) {
+                              form.setValue("vatRegistrationNumber", pan);
+                            }
+                          }
+                        }}
                         disabled={isLoading}
                       >
                         <FormControl>
@@ -390,9 +415,23 @@ export function EditSupplierDialog({ supplier, open, onOpenChange }: EditSupplie
                     name="vatRegistrationNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>VAT Number</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>VAT Number (Same as PAN)</FormLabel>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            ({field.value?.length || 0}/9)
+                          </span>
+                        </div>
                         <FormControl>
-                          <Input placeholder="VAT-123456" disabled={isLoading} {...field} />
+                          <Input
+                            placeholder="e.g. 123456789"
+                            disabled={isLoading}
+                            maxLength={9}
+                            {...field}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "").slice(0, 9);
+                              field.onChange(val);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

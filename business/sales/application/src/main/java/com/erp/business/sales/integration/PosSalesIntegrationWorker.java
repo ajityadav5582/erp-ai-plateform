@@ -86,7 +86,10 @@ public class PosSalesIntegrationWorker {
                         tx.getCustomerPanNumber(),
                         tx.getTransactionDate(),
                         tx.getNotes(),
-                        lines);
+                        lines,
+                        tx.getDiscountAmount(),
+                        tx.getServiceChargeAmount(),
+                        tx.getDeliveryCharge());
 
                 salesInvoiceService.createPosInvoice(job.getTenantId(), job.getCompanyId(), request);
 

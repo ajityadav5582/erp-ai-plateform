@@ -6,10 +6,15 @@ ALTER TABLE IF EXISTS tax_rates
     ADD COLUMN IF NOT EXISTS created_by VARCHAR(100) DEFAULT 'system',
     ADD COLUMN IF NOT EXISTS updated_by VARCHAR(100) DEFAULT 'system';
 
-UPDATE tax_rates
-   SET created_by = COALESCE(created_by, 'system'),
-       updated_by = COALESCE(updated_by, 'system')
- WHERE created_by IS NULL OR updated_by IS NULL;
+DO $$
+BEGIN
+    IF to_regclass('public.tax_rates') IS NOT NULL THEN
+        UPDATE tax_rates
+           SET created_by = COALESCE(created_by, 'system'),
+               updated_by = COALESCE(updated_by, 'system')
+         WHERE created_by IS NULL OR updated_by IS NULL;
+    END IF;
+END $$;
 
 -- 2. Procurement: CompanyWorkflowConfiguration requires purchase_requisition_approval_required
 ALTER TABLE IF EXISTS company_workflow_configurations

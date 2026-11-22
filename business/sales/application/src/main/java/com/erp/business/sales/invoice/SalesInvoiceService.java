@@ -25,6 +25,13 @@ public interface SalesInvoiceService {
     SalesInvoiceResponse createInvoice(Long tenantId, Long companyId, CreateInvoiceRequest request);
 
     /**
+     * Creates and issues a direct over-the-counter / walk-in sales tax invoice without requiring
+     * a pre-existing SalesOrder. Atomically issues outbound stock from the specified warehouse,
+     * enqueues to the IRD CBMS sync outbox, and optionally settles payment immediately.
+     */
+    SalesInvoiceResponse createDirectInvoice(Long tenantId, Long companyId, com.erp.business.sales.invoice.dto.CreateDirectSalesInvoiceRequest request);
+
+    /**
      * Creates and issues a Sales Invoice for a POS transaction. Idempotent by
      * posTransactionId: a retry returns the existing invoice.
      */

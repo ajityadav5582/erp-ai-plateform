@@ -20,8 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,12 +62,16 @@ class ItemServiceImplCompanyScopingTest {
     private UnitRepository unitRepository;
     @Mock
     private ItemMapper itemMapper;
+    @Mock
+    private com.erp.business.inventory.stock.StockMovementService stockMovementService;
+    @Mock
+    private com.erp.business.inventory.infrastructure.persistence.StockMovementRepository stockMovementRepository;
 
     private ItemServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new ItemServiceImpl(itemRepository, categoryRepository, unitRepository, itemMapper);
+        service = new ItemServiceImpl(itemRepository, categoryRepository, unitRepository, itemMapper, stockMovementService, stockMovementRepository);
     }
 
     @Test
@@ -92,6 +98,33 @@ class ItemServiceImplCompanyScopingTest {
         assertThatExceptionOfType(ItemNotFoundException.class)
                 .isThrownBy(() -> service.activateItem(TENANT_ID, COMPANY_ID, ITEM_ID))
                 .satisfies(ex -> assertThat(ex.getStatus().value()).isEqualTo(404));
+
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updating tracking flags on an item with existing stock movements throws IllegalStateException")
+    void cannotAlterTrackingFlagsWhenStockMovementsExist() {
+        Item existingItem = mock(Item.class);
+        when(existingItem.getSku()).thenReturn("SKU-1");
+        when(existingItem.getIsInventoryTracked()).thenReturn(true);
+
+        when(itemRepository.findByTenantIdAndCompanyIdAndId(TENANT_ID, COMPANY_ID, ITEM_ID))
+                .thenReturn(Optional.of(existingItem));
+        when(stockMovementRepository.existsByTenantIdAndCompanyIdAndItemId(TENANT_ID, COMPANY_ID, ITEM_ID))
+                .thenReturn(true);
+
+        UpdateItemRequest requestWithTrackingChange = new UpdateItemRequest(
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null,
+                false, // attempting to turn off inventory tracking
+                null, null, null, null, null, null, null, null, null
+        );
+
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> service.updateItem(TENANT_ID, COMPANY_ID, ITEM_ID, requestWithTrackingChange))
+                .withMessageContaining("Cannot alter inventory, batch, or expiry tracking flags for item [SKU-1] because stock movements already exist in ledger.");
 
         verify(itemRepository, never()).save(any());
     }
@@ -201,9 +234,38 @@ class ItemServiceImplCompanyScopingTest {
         verifyNoMoreInteractions(itemRepository);
     }
 
+    @Test
+    @DisplayName("creating item with opening stock posts initial stock movement to opening warehouse")
+    void createItemWithOpeningStockPostsStockMovement() {
+        com.erp.business.inventory.domain.Unit unit = mock(com.erp.business.inventory.domain.Unit.class);
+        when(unit.getId()).thenReturn(12L);
+        when(unitRepository.findByTenantIdAndCompanyIdAndId(TENANT_ID, COMPANY_ID, 12L)).thenReturn(Optional.of(unit));
+        when(itemRepository.save(any(Item.class))).thenAnswer(inv -> {
+            Item it = inv.getArgument(0);
+            ReflectionTestUtils.setField(it, "id", 501L);
+            return it;
+        });
+
+        CreateItemRequest request = new CreateItemRequest(
+                "SKU-OPEN-1", "BAR-01", "HS-1", "English Item", "Nepali Item",
+                "Desc En", "Desc Np", null, 12L, com.erp.business.inventory.domain.ItemType.GOODS,
+                TaxabilityType.TAXABLE, BigDecimal.valueOf(13), com.erp.business.inventory.domain.ExciseType.NONE,
+                null, null, BigDecimal.valueOf(150), null, null, null, null, null, BigDecimal.valueOf(160),
+                false, true, false, false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                true, true, false, false,
+                BigDecimal.valueOf(50), BigDecimal.valueOf(100), 77L
+        );
+
+        service.createItem(TENANT_ID, COMPANY_ID, request);
+
+        verify(stockMovementService).postReceipt(
+                eq(TENANT_ID), eq(COMPANY_ID), eq(77L), eq(501L), eq(12L),
+                eq(BigDecimal.valueOf(50)), eq("OPENING_BALANCE"), eq(501L),
+                eq("OB-SKU-OPEN-1"), any(Instant.class), eq("SYSTEM"), any(String.class)
+        );
+    }
+
     private static UpdateItemRequest renameRequest() {
-        // UpdateItemRequest is a 25-component record, so only the fields under test are
-        // named; every other component is left null, which means "leave unchanged".
         return new UpdateItemRequest(
                 null, null, null,
                 "Renamed",
@@ -211,7 +273,8 @@ class ItemServiceImplCompanyScopingTest {
                 null, null,
                 null, null, null,
                 null, null, null,
-                null, null, null,
+                null, null, null, null, null,
+                null, null,
                 null, null, null, null, null, null, null,
                 null, null, null, null);
     }
@@ -224,7 +287,10 @@ class ItemServiceImplCompanyScopingTest {
                 null, null, null,
                 null, null, null,
                 new BigDecimal("100.00"),
-                null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null,
+                null, null,
+                null, null, null, null,
+                null, null, null, null, null, null, null,
+                null, null, null);
     }
 }

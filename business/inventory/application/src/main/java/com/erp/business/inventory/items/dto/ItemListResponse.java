@@ -20,6 +20,10 @@ public record ItemListResponse(
         TaxabilityType taxabilityType,
         BigDecimal vatRate,
         BigDecimal sellingPrice,
+        BigDecimal wholesalePrice,
+        BigDecimal minSellingPrice,
+        String secondaryUomCode,
+        BigDecimal conversionFactor,
         BigDecimal purchasePrice,
         BigDecimal mrp,
         /** Whether this item may appear on a Purchase Order or Requisition. */

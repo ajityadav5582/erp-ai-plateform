@@ -59,6 +59,34 @@ public record PosTransactionResponse(
 
         BigDecimal subtotalAmount,
 
+        BigDecimal discountAmount,
+
+        BigDecimal serviceChargeAmount,
+
+        String discountReason,
+
+        String roomNumber,
+
+        String guestName,
+
+        String splitPaymentDetails,
+
+        BigDecimal splitCashAmount,
+
+        BigDecimal splitDigitalAmount,
+
+        String orderType,
+
+        String tokenNumber,
+
+        String deliveryPartner,
+
+        String deliveryAddress,
+
+        String customerPhone,
+
+        BigDecimal deliveryCharge,
+
         BigDecimal taxableAmount,
 
         BigDecimal exemptAmount,
@@ -96,6 +124,8 @@ public record PosTransactionResponse(
         String notes,
 
         List<PosTransactionLineResponse> lines,
+
+        Integer printCount,
 
         Integer version
 ) {

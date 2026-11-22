@@ -21,6 +21,8 @@ import com.erp.business.inventory.items.exception.ItemNotFoundException;
 import com.erp.business.inventory.items.exception.InvalidSearchTermException;
 import com.erp.business.inventory.items.mapper.ItemMapper;
 import com.erp.business.inventory.unit.exception.UnitNotFoundException;
+import com.erp.business.inventory.stock.StockMovementService;
+import com.erp.business.inventory.infrastructure.persistence.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,8 @@ public class ItemServiceImpl implements ItemService {
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
     private final ItemMapper itemMapper;
+    private final StockMovementService stockMovementService;
+    private final StockMovementRepository stockMovementRepository;
 
     @Override
     @Transactional
@@ -65,6 +70,29 @@ public class ItemServiceImpl implements ItemService {
                             "Category not found: " + request.categoryId()));
         }
 
+        // Default selling price to 0 if omitted (e.g. For non-sellable expense/service or raw materials)
+        BigDecimal effectiveSellingPrice = request.sellingPrice() != null
+                ? request.sellingPrice()
+                : BigDecimal.ZERO;
+
+        // If purchase price is omitted, default to opening cost price if provided
+        BigDecimal effectivePurchasePrice = request.purchasePrice() != null
+                ? request.purchasePrice()
+                : request.openingCostPrice();
+
+        // Auto-disable inventory tracking for services when not explicitly provided
+        Boolean isInventoryTracked = request.isInventoryTracked();
+        if (isInventoryTracked == null && request.itemType() == ItemType.SERVICE) {
+            isInventoryTracked = false;
+        }
+
+        Unit secondaryUom = null;
+        if (request.secondaryUomId() != null) {
+            secondaryUom = unitRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, request.secondaryUomId())
+                    .orElseThrow(() -> new UnitNotFoundException(
+                            "Secondary UOM not found: " + request.secondaryUomId()));
+        }
+
         // sku/nameEn/uom/sellingPrice stay explicit on create; everything else travels as
         // one validated change set so this path and updateItem share the same rules.
         Item item = Item.create(
@@ -73,7 +101,7 @@ public class ItemServiceImpl implements ItemService {
                 request.sku(),
                 request.nameEn(),
                 primaryUom,
-                request.sellingPrice(),
+                effectiveSellingPrice,
                 Item.ItemChanges.builder()
                         .nameNp(request.nameNp())
                         .hsCode(request.hsCode())
@@ -81,16 +109,20 @@ public class ItemServiceImpl implements ItemService {
                         .descriptionEn(request.descriptionEn())
                         .descriptionNp(request.descriptionNp())
                         .category(category)
+                        .secondaryUom(secondaryUom)
+                        .conversionFactor(request.conversionFactor())
                         .itemType(request.itemType())
                         .taxabilityType(request.taxabilityType())
                         .vatRate(request.vatRate())
                         .exciseType(request.exciseType())
                         .exciseRate(request.exciseRate())
                         .exciseAmount(request.exciseAmount())
-                        .purchasePrice(request.purchasePrice())
+                        .wholesalePrice(request.wholesalePrice())
+                        .minSellingPrice(request.minSellingPrice())
+                        .purchasePrice(effectivePurchasePrice)
                         .mrp(request.mrp())
                         .isVatInclusive(request.isVatInclusive())
-                        .isInventoryTracked(request.isInventoryTracked())
+                        .isInventoryTracked(isInventoryTracked)
                         .isBatchTracked(request.isBatchTracked())
                         .isExpiryTracked(request.isExpiryTracked())
                         .minStockLevel(request.minStockLevel())
@@ -105,6 +137,30 @@ public class ItemServiceImpl implements ItemService {
         );
 
         Item saved = itemRepository.save(item);
+
+        // Auto-post initial opening stock if provided and inventory tracking is enabled
+        if (Boolean.TRUE.equals(saved.getIsInventoryTracked())
+                && request.openingQuantity() != null
+                && request.openingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            if (request.openingWarehouseId() == null) {
+                throw new IllegalArgumentException("Opening warehouse is required when initial opening stock quantity is provided");
+            }
+            stockMovementService.postReceipt(
+                    tenantId,
+                    companyId,
+                    request.openingWarehouseId(),
+                    saved.getId(),
+                    primaryUom.getId(),
+                    request.openingQuantity(),
+                    "OPENING_BALANCE",
+                    saved.getId(),
+                    "OB-" + saved.getSku(),
+                    Instant.now(),
+                    "SYSTEM",
+                    "Initial opening stock on item creation"
+            );
+        }
+
         return itemMapper.toResponse(saved);
     }
 
@@ -261,6 +317,23 @@ public class ItemServiceImpl implements ItemService {
                             "Primary UOM not found: " + request.uomId()));
         }
 
+        Unit secondaryUom = null;
+        if (request.secondaryUomId() != null) {
+            secondaryUom = unitRepository.findByTenantIdAndCompanyIdAndId(tenantId, companyId, request.secondaryUomId())
+                    .orElseThrow(() -> new UnitNotFoundException(
+                            "Secondary UOM not found: " + request.secondaryUomId()));
+        }
+
+        // Immutability Guard: Cannot alter inventory, batch, or expiry tracking flags if stock transactions already exist
+        boolean hasTrackingChange = (request.isInventoryTracked() != null && !request.isInventoryTracked().equals(item.getIsInventoryTracked()))
+                || (request.isBatchTracked() != null && !request.isBatchTracked().equals(item.getIsBatchTracked()))
+                || (request.isExpiryTracked() != null && !request.isExpiryTracked().equals(item.getIsExpiryTracked()));
+
+        if (hasTrackingChange && stockMovementRepository.existsByTenantIdAndCompanyIdAndItemId(tenantId, companyId, itemId)) {
+            throw new IllegalStateException("Cannot alter inventory, batch, or expiry tracking flags for item ["
+                    + item.getSku() + "] because stock movements already exist in ledger.");
+        }
+
         item.applyChanges(Item.ItemChanges.builder()
                 .sku(newSku)
                 .barcode(request.barcode() == null ? null : request.barcode())
@@ -271,6 +344,8 @@ public class ItemServiceImpl implements ItemService {
                 .descriptionNp(request.descriptionNp())
                 .category(category)
                 .uom(uom)
+                .secondaryUom(secondaryUom)
+                .conversionFactor(request.conversionFactor())
                 .itemType(request.itemType())
                 .taxabilityType(request.taxabilityType())
                 .vatRate(request.vatRate())
@@ -278,6 +353,8 @@ public class ItemServiceImpl implements ItemService {
                 .exciseRate(request.exciseRate())
                 .exciseAmount(request.exciseAmount())
                 .sellingPrice(request.sellingPrice())
+                .wholesalePrice(request.wholesalePrice())
+                .minSellingPrice(request.minSellingPrice())
                 .purchasePrice(request.purchasePrice())
                 .mrp(request.mrp())
                 .isVatInclusive(request.isVatInclusive())

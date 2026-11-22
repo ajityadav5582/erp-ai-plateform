@@ -43,6 +43,32 @@ public interface PosTransactionRepository extends JpaRepository<PosTransaction, 
                                 @Param("term") String term,
                                 Pageable pageable);
 
+    @Query("SELECT t FROM PosTransaction t WHERE t.tenantId = :tenantId AND t.companyId = :companyId "
+            + "AND (:status IS NULL OR t.status = :status) "
+            + "AND (:registerId IS NULL OR t.registerId = :registerId) "
+            + "AND (:sessionId IS NULL OR t.sessionId = :sessionId)")
+    Page<PosTransaction> filterTransactionsNoTerm(@Param("tenantId") Long tenantId,
+                                                 @Param("companyId") Long companyId,
+                                                 @Param("status") PosTransactionStatus status,
+                                                 @Param("registerId") Long registerId,
+                                                 @Param("sessionId") Long sessionId,
+                                                 Pageable pageable);
+
+    @Query("SELECT t FROM PosTransaction t WHERE t.tenantId = :tenantId AND t.companyId = :companyId "
+            + "AND (:status IS NULL OR t.status = :status) "
+            + "AND (:registerId IS NULL OR t.registerId = :registerId) "
+            + "AND (:sessionId IS NULL OR t.sessionId = :sessionId) "
+            + "AND (LOWER(t.transactionNumber) LIKE :pattern "
+            + "     OR LOWER(t.customerName) LIKE :pattern "
+            + "     OR (t.customerPanNumber IS NOT NULL AND LOWER(t.customerPanNumber) LIKE :pattern))")
+    Page<PosTransaction> filterTransactionsWithPattern(@Param("tenantId") Long tenantId,
+                                                       @Param("companyId") Long companyId,
+                                                       @Param("status") PosTransactionStatus status,
+                                                       @Param("registerId") Long registerId,
+                                                       @Param("sessionId") Long sessionId,
+                                                       @Param("pattern") String pattern,
+                                                       Pageable pageable);
+
     // -----------------------------------------------------------------------
     // CBMS outbox (used by PosCbmsSyncWorker)
     // -----------------------------------------------------------------------

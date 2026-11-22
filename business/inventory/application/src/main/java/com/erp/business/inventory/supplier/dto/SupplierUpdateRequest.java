@@ -3,6 +3,7 @@ package com.erp.business.inventory.supplier.dto;
 import com.erp.business.inventory.domain.SupplierType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class SupplierUpdateRequest {
@@ -18,11 +19,17 @@ public class SupplierUpdateRequest {
     private String email;
     private String phone;
     private String address;
+
+    @Pattern(regexp = "^$|^[0-9]{9}$", message = "Supplier PAN must be exactly 9 digits")
     private String taxId;
+
     private Integer paymentTermsDays;
     private String currency;
     private com.erp.business.inventory.domain.Supplier.VatRegistrationStatus vatRegistrationStatus;
+
+    @Pattern(regexp = "^$|^[0-9]{9}$", message = "VAT registration number must be exactly 9 digits")
     private String vatRegistrationNumber;
+
     private java.time.LocalDate vatEffectiveFrom;
     private java.time.LocalDate vatEffectiveTo;
 

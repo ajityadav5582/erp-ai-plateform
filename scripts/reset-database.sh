@@ -27,18 +27,17 @@ if [[ "$CONFIRM" != "$DB_NAME" ]]; then
     exit 1
 fi
 
-echo "Terminating connections to '$DB_NAME'..."
+echo "Terminating connections, dropping, and recreating '$DB_NAME'..."
 docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d postgres \
     -v db_name="$DB_NAME" <<'SQL'
+SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', :'db_name')
+WHERE EXISTS (SELECT 1 FROM pg_database WHERE datname = :'db_name') \gexec
+
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE datname = :'db_name' AND pid <> pg_backend_pid();
-SQL
 
-echo "Dropping and recreating '$DB_NAME'..."
-docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d postgres \
-    -v db_name="$DB_NAME" <<'SQL'
-SELECT format('DROP DATABASE IF EXISTS %I', :'db_name') \gexec
+SELECT format('DROP DATABASE IF EXISTS %I WITH (FORCE)', :'db_name') \gexec
 SELECT format('CREATE DATABASE %I', :'db_name') \gexec
 SQL
 

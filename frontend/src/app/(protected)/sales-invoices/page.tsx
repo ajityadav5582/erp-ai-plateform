@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { MoreVertical, Eye, Send, X, Plus, Receipt, Coins, Printer, Undo } from "lucide-react";
+import { MoreVertical, Eye, Send, X, Plus, Receipt, Coins, Printer, Undo, Zap } from "lucide-react";
 import {
   useGetInvoicesQuery,
   useGetInvoicedOrderIdsQuery,
@@ -21,6 +21,7 @@ import { ListPagination } from "@/components/common/list-pagination";
 import { SalesInvoiceStatusBadge, SalesOrderStatusBadge } from "@/components/sales/sales-status-badge";
 import { SalesDetailsSheet, type DetailField } from "@/components/sales/sales-details-sheet";
 import { CreateInvoiceDialog } from "@/components/sales/create-invoice-dialog";
+import { CreateDirectSalesInvoiceDialog } from "@/components/sales/create-direct-sales-invoice-dialog";
 import { CreateReceiptDialog } from "@/components/sales/create-receipt-dialog";
 import { TaxInvoiceViewDialog } from "@/components/sales/tax-invoice-view-dialog";
 import { CreateReturnDialog } from "@/components/sales/create-return-dialog";
@@ -42,6 +43,7 @@ export default function SalesInvoicesPage() {
   const [activeTab, setActiveTab] = React.useState<"invoices" | "pending">("invoices");
   const [selected, setSelected] = React.useState<SalesInvoice | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [directOpen, setDirectOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<SalesOrder | null>(null);
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const [receiptInvoice, setReceiptInvoice] = React.useState<SalesInvoice | null>(null);
@@ -106,9 +108,14 @@ export default function SalesInvoicesPage() {
         count={activeTab === "invoices" ? data?.totalElements : pendingOrders.length}
         countLabel={activeTab === "invoices" ? "Invoices" : "Pending Orders"}
         actions={
-          <Button onClick={() => { setSelectedOrder(null); setCreateOpen(true); }}>
-            <Plus className="mr-1 h-4 w-4" />New Invoice
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setDirectOpen(true)} className="gap-1.5">
+              <Zap className="size-4 text-amber-500" />Direct / Cash Sale
+            </Button>
+            <Button onClick={() => { setSelectedOrder(null); setCreateOpen(true); }}>
+              <Plus className="mr-1 h-4 w-4" />From Sales Order
+            </Button>
+          </div>
         }
       />
 
@@ -279,6 +286,12 @@ export default function SalesInvoicesPage() {
           </Table>
         </div>
       )}
+
+      <CreateDirectSalesInvoiceDialog
+        open={directOpen}
+        onOpenChange={setDirectOpen}
+        onSuccess={() => setActiveTab("invoices")}
+      />
 
       <CreateInvoiceDialog
         order={selectedOrder}

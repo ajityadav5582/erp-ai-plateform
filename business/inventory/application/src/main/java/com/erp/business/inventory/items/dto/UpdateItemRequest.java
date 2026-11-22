@@ -41,6 +41,12 @@ public record UpdateItemRequest(
         @DecimalMin(value = "0.0", message = "Selling price must not be negative")
         BigDecimal sellingPrice,
 
+        BigDecimal wholesalePrice,
+        BigDecimal minSellingPrice,
+
+        Long secondaryUomId,
+        BigDecimal conversionFactor,
+
         BigDecimal purchasePrice,
         BigDecimal mrp,
 

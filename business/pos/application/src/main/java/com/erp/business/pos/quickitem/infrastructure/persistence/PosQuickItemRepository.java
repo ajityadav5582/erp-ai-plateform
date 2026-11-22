@@ -49,6 +49,23 @@ public interface PosQuickItemRepository extends JpaRepository<PosQuickItem, Long
                               @Param("term") String term,
                               Pageable pageable);
 
+    @Query("SELECT q FROM PosQuickItem q WHERE q.tenantId = :tenantId AND q.companyId = :companyId "
+            + "AND (:registerId IS NULL OR q.registerId = :registerId)")
+    Page<PosQuickItem> filterQuickItemsNoTerm(@Param("tenantId") Long tenantId,
+                                             @Param("companyId") Long companyId,
+                                             @Param("registerId") Long registerId,
+                                             Pageable pageable);
+
+    @Query("SELECT q FROM PosQuickItem q WHERE q.tenantId = :tenantId AND q.companyId = :companyId "
+            + "AND (:registerId IS NULL OR q.registerId = :registerId) "
+            + "AND (LOWER(q.itemName) LIKE :pattern "
+            + "     OR LOWER(q.itemCode) LIKE :pattern)")
+    Page<PosQuickItem> filterQuickItemsWithPattern(@Param("tenantId") Long tenantId,
+                                                  @Param("companyId") Long companyId,
+                                                  @Param("registerId") Long registerId,
+                                                  @Param("pattern") String pattern,
+                                                  Pageable pageable);
+
     // -----------------------------------------------------------------------
     // Tab / page aware queries
     // -----------------------------------------------------------------------

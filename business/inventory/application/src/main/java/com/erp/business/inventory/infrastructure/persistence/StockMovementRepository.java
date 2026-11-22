@@ -32,6 +32,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     Page<StockMovement> findByTenantIdAndCompanyIdAndItemId(
             Long tenantId, Long companyId, Long itemId, Pageable pageable);
 
+    boolean existsByTenantIdAndCompanyIdAndItemId(Long tenantId, Long companyId, Long itemId);
+
     Page<StockMovement> findByTenantIdAndCompanyIdAndWarehouseIdAndItemId(
             Long tenantId, Long companyId, Long warehouseId, Long itemId, Pageable pageable);
 

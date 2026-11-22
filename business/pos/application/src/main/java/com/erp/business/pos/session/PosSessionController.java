@@ -56,10 +56,13 @@ public class PosSessionController {
 
     @GetMapping
     public ResponseEntity<Page<PosSessionResponse>> listSessions(
+            @RequestParam(value = "status", required = false) PosSessionStatus status,
+            @RequestParam(value = "registerId", required = false) Long registerId,
+            @RequestParam(value = "term", required = false) String term,
             @PageableDefault(size = 20, sort = {"openedAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(sessionService.listSessions(
-                context.getTenantId(), context.getCompanyId(), pageable));
+        return ResponseEntity.ok(sessionService.filterSessions(
+                context.getTenantId(), context.getCompanyId(), status, registerId, term, pageable));
     }
 
     @GetMapping("/search")
@@ -67,8 +70,8 @@ public class PosSessionController {
             @RequestParam("term") String term,
             @PageableDefault(size = 20, sort = {"openedAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(sessionService.searchSessions(
-                context.getTenantId(), context.getCompanyId(), term, pageable));
+        return ResponseEntity.ok(sessionService.filterSessions(
+                context.getTenantId(), context.getCompanyId(), null, null, term, pageable));
     }
 
     @GetMapping("/by-status")
@@ -76,8 +79,8 @@ public class PosSessionController {
             @RequestParam("status") PosSessionStatus status,
             @PageableDefault(size = 20, sort = {"openedAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(sessionService.listSessionsByStatus(
-                context.getTenantId(), context.getCompanyId(), status, pageable));
+        return ResponseEntity.ok(sessionService.filterSessions(
+                context.getTenantId(), context.getCompanyId(), status, null, null, pageable));
     }
 
     @GetMapping("/by-register")
@@ -85,8 +88,8 @@ public class PosSessionController {
             @RequestParam("registerId") Long registerId,
             @PageableDefault(size = 20, sort = {"openedAt", "id"}, direction = Sort.Direction.DESC)
             Pageable pageable) {
-        return ResponseEntity.ok(sessionService.listSessionsByRegister(
-                context.getTenantId(), context.getCompanyId(), registerId, pageable));
+        return ResponseEntity.ok(sessionService.filterSessions(
+                context.getTenantId(), context.getCompanyId(), null, registerId, null, pageable));
     }
 
     @GetMapping("/open-for-register")

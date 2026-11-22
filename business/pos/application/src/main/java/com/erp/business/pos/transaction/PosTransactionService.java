@@ -98,4 +98,11 @@ public interface PosTransactionService {
 
     Page<PosTransactionResponse> searchTransactions(Long tenantId, Long companyId, String term,
                                                     Pageable pageable);
+
+    Page<PosTransactionResponse> filterTransactions(Long tenantId, Long companyId,
+                                                    PosTransactionStatus status,
+                                                    Long registerId,
+                                                    Long sessionId,
+                                                    String term,
+                                                    Pageable pageable);
 }

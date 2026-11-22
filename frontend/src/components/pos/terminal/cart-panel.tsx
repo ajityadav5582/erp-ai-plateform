@@ -106,7 +106,7 @@ export function CartPanel({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9"
+                    className="h-9 w-9 border-border bg-card hover:bg-accent hover:text-accent-foreground text-foreground"
                     onClick={() => onQuantityChange(line.itemId, line.quantity - 1)}
                     aria-label={`Decrease ${line.itemName} quantity`}
                   >
@@ -120,13 +120,13 @@ export function CartPanel({
                       const next = Number(event.target.value);
                       if (Number.isFinite(next)) onQuantityChange(line.itemId, next);
                     }}
-                    className="h-9 w-14 text-center"
+                    className="h-9 w-14 text-center font-semibold"
                     aria-label={`${line.itemName} quantity`}
                   />
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9"
+                    className="h-9 w-9 border-border bg-card hover:bg-accent hover:text-accent-foreground text-foreground"
                     onClick={() => onQuantityChange(line.itemId, line.quantity + 1)}
                     aria-label={`Increase ${line.itemName} quantity`}
                   >

@@ -56,6 +56,19 @@ public class SalesInvoiceController {
                 .body(response);
     }
 
+    @PostMapping("/direct")
+    public ResponseEntity<SalesInvoiceResponse> createDirectInvoice(
+            @Valid @RequestBody com.erp.business.sales.invoice.dto.CreateDirectSalesInvoiceRequest request,
+            UriComponentsBuilder uriBuilder) {
+
+        SalesInvoiceResponse response = salesInvoiceService.createDirectInvoice(
+                context.getTenantId(), context.getCompanyId(), request);
+
+        return ResponseEntity
+                .created(uriBuilder.path(BASE_PATH + "/{id}").buildAndExpand(response.id()).toUri())
+                .body(response);
+    }
+
     @PostMapping("/pos")
     public ResponseEntity<SalesInvoiceResponse> createPosInvoice(
             @Valid @RequestBody CreatePosInvoiceRequest request,

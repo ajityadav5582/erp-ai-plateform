@@ -1,6 +1,7 @@
 package com.erp.business.procurement.purchaseinvoice.dto;
 
 import com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceStatus;
+import com.erp.business.procurement.purchaseinvoice.domain.PurchaseInvoiceType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,12 +16,13 @@ public record PurchaseInvoiceResponse(
         Long companyId,
         Long branchId,
         Long fiscalYearId,
+        PurchaseInvoiceType invoiceType,
 
-        /** The order whose goods were billed. */
+        /** The order whose goods were billed, or null for direct invoices. */
         Long purchaseOrderId,
         String poNumber,
 
-        /** The delivery being billed. One invoice per delivery. */
+        /** The delivery being billed, or null for direct invoices. */
         Long goodsReceiptId,
         String grnNumber,
 
@@ -34,6 +36,10 @@ public record PurchaseInvoiceResponse(
         BigDecimal subtotalAmount,
         BigDecimal taxAmount,
         BigDecimal totalAmount,
+        Boolean isTdsApplicable,
+        BigDecimal tdsRate,
+        BigDecimal tdsAmount,
+        BigDecimal netPayableAmount,
 
         /** How much has been settled so far. */
         BigDecimal paidAmount,

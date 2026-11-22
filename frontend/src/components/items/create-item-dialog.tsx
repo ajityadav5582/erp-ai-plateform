@@ -9,6 +9,7 @@ import { useCreateItemMutation } from "@/services/item.service";
 import { getApiErrorMessage } from "@/services/error-handler";
 import { useSelectedCompany } from "@/config/company-context";
 import {
+  getDefaultItemFormValues,
   itemFormDefaults,
   itemFormSchema,
   toCreateItemRequest,
@@ -38,16 +39,17 @@ export function CreateItemDialog({ open, onOpenChange }: CreateItemDialogProps) 
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
-    defaultValues: itemFormDefaults,
+    defaultValues: getDefaultItemFormValues(selectedCompany?.businessType),
   });
 
-  // Reset whenever the dialog closes so stale input does not leak into the next
-  // open cycle.
+  // Re-seed with company-adapted defaults when opened; reset when closed.
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      form.reset(getDefaultItemFormValues(selectedCompany?.businessType));
+    } else {
       form.reset(itemFormDefaults);
     }
-  }, [open, form]);
+  }, [open, selectedCompany?.businessType, form]);
 
   const onSubmit = async (values: ItemFormValues) => {
     if (!selectedCompany) {
@@ -65,7 +67,7 @@ export function CreateItemDialog({ open, onOpenChange }: CreateItemDialogProps) 
       toast.success(`Item "${result.nameEn}" created successfully!`, {
         description: `SKU: ${result.sku}`,
       });
-      form.reset(itemFormDefaults);
+      form.reset(getDefaultItemFormValues(selectedCompany?.businessType));
       onOpenChange(false);
     } catch (err) {
       toast.error("Failed to create item", {
@@ -97,6 +99,7 @@ export function CreateItemDialog({ open, onOpenChange }: CreateItemDialogProps) 
             <ItemFormFields
               control={form.control}
               watch={form.watch}
+              setValue={form.setValue}
               disabled={isLoading}
             />
 

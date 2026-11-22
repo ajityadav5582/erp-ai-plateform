@@ -41,4 +41,26 @@ public interface PosSessionRepository extends JpaRepository<PosSession, Long> {
                             @Param("companyId") Long companyId,
                             @Param("term") String term,
                             Pageable pageable);
+
+    @Query("SELECT s FROM PosSession s WHERE s.tenantId = :tenantId AND s.companyId = :companyId "
+            + "AND (:status IS NULL OR s.status = :status) "
+            + "AND (:registerId IS NULL OR s.registerId = :registerId)")
+    Page<PosSession> filterSessionsNoTerm(@Param("tenantId") Long tenantId,
+                                         @Param("companyId") Long companyId,
+                                         @Param("status") PosSessionStatus status,
+                                         @Param("registerId") Long registerId,
+                                         Pageable pageable);
+
+    @Query("SELECT s FROM PosSession s WHERE s.tenantId = :tenantId AND s.companyId = :companyId "
+            + "AND (:status IS NULL OR s.status = :status) "
+            + "AND (:registerId IS NULL OR s.registerId = :registerId) "
+            + "AND (LOWER(s.sessionNumber) LIKE :pattern "
+            + "     OR LOWER(s.cashierName) LIKE :pattern "
+            + "     OR LOWER(s.registerName) LIKE :pattern)")
+    Page<PosSession> filterSessionsWithPattern(@Param("tenantId") Long tenantId,
+                                               @Param("companyId") Long companyId,
+                                               @Param("status") PosSessionStatus status,
+                                               @Param("registerId") Long registerId,
+                                               @Param("pattern") String pattern,
+                                               Pageable pageable);
 }

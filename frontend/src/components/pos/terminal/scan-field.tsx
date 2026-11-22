@@ -5,6 +5,7 @@ import { Camera, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
+import { useGetItemsQuery, type ItemListResponse } from "@/services/item.service";
 
 interface ScanFieldProps {
   /** Called with the resolved code, from either the camera or a scanner burst. */
@@ -27,6 +28,30 @@ interface ScanFieldProps {
 export function ScanField({ onScan, enabled = true, error, onClearError }: ScanFieldProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [value, setValue] = React.useState("");
+  const [debouncedQuery, setDebouncedQuery] = React.useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      const q = value.trim();
+      setDebouncedQuery(q);
+      setIsDropdownOpen(q.length >= 2);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [value]);
+
+  const { data: searchResults } = useGetItemsQuery(
+    { search: debouncedQuery, size: 5 },
+    { skip: debouncedQuery.length < 2 }
+  );
+  const suggestions: ItemListResponse[] = searchResults?.content ?? [];
+
+  const handleSelectSuggestion = (item: ItemListResponse) => {
+    onScan(item.barcode || item.sku);
+    setValue("");
+    setDebouncedQuery("");
+    setIsDropdownOpen(false);
+  };
 
   const { onKeyDown, videoRef, isCameraSupported, isScanning, cameraError, startCamera, stopCamera } =
     useBarcodeScanner({
@@ -70,14 +95,43 @@ export function ScanField({ onScan, enabled = true, error, onClearError }: ScanF
               setValue(event.target.value);
               if (error) onClearError?.();
             }}
-            onKeyDown={onKeyDown}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setIsDropdownOpen(false);
+              }
+              onKeyDown(e);
+            }}
             disabled={!enabled}
             autoComplete="off"
             enterKeyHint="go"
-            placeholder="Scan barcode or type item code…"
+            placeholder="Scan barcode or type item name / SKU…"
             className="h-12 pl-10 text-base"
             aria-label="Scan barcode or item code"
           />
+          {isDropdownOpen && suggestions.length > 0 && (
+            <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
+              {suggestions.map((item) => (
+                <li
+                  key={item.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur
+                    handleSelectSuggestion(item);
+                  }}
+                  className="flex items-center justify-between cursor-pointer rounded px-3 py-2 text-sm hover:bg-accent"
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="truncate font-medium">{item.nameEn}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {item.sku} {item.barcode ? `· ${item.barcode}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-semibold text-xs">
+                    Rs {Number(item.sellingPrice || 0).toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         {isCameraSupported && (
           <Button

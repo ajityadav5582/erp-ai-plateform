@@ -73,6 +73,15 @@ public class CompanyFiscalYear {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Column(name = "is_locked", nullable = false)
+    private boolean locked;
+
+    @Column(name = "locked_at")
+    private Instant lockedAt;
+
+    @Column(name = "locked_by", length = 100)
+    private String lockedBy;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -102,6 +111,25 @@ public class CompanyFiscalYear {
 
     public void deactivate() {
         active = false;
+    }
+
+    public void lock(String lockedBy) {
+        this.locked = true;
+        this.lockedAt = Instant.now();
+        this.lockedBy = lockedBy;
+    }
+
+    public void unlock() {
+        this.locked = false;
+        this.lockedAt = null;
+        this.lockedBy = null;
+    }
+
+    public boolean isDateWithinFiscalPeriod(LocalDate date) {
+        if (date == null) return false;
+        if (startDateAd != null && date.isBefore(startDateAd)) return false;
+        if (endDateAd != null && date.isAfter(endDateAd)) return false;
+        return true;
     }
 
     @PrePersist

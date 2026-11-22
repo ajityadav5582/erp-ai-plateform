@@ -23,6 +23,11 @@ export interface Company {
   provinceId?: number | null;
   districtId?: number | null;
   localLevelId?: number | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNumber?: string | null;
+  bankBranch?: string | null;
+  qrCodeUrl?: string | null;
   status: "ACTIVE" | "INACTIVE";
 }
 
@@ -70,6 +75,11 @@ export interface CreateCompanyRequest {
   provinceId?: number;
   districtId?: number;
   localLevelId?: number;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankBranch?: string;
+  qrCodeUrl?: string;
 }
 
 export interface UpdateCompanyRequest {
@@ -93,6 +103,11 @@ export interface UpdateCompanyRequest {
   vatRegistrationNumber?: string;
   vatEffectiveFrom?: string;
   vatEffectiveTo?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankBranch?: string;
+  qrCodeUrl?: string;
 }
 
 export interface CompanyFiscalYear {
@@ -107,6 +122,9 @@ export interface CompanyFiscalYear {
   endDateAd: string | null;
   calendarType: FiscalYearType;
   active: boolean;
+  locked?: boolean;
+  lockedAt?: string | null;
+  lockedBy?: string | null;
 }
 
 export interface MasterFiscalYear {
@@ -163,6 +181,14 @@ export const companyApi = api.injectEndpoints({
       query: ({ companyId, fiscalYearId }) => ({ url: `/identity/companies/${companyId}/fiscal-years/${fiscalYearId}/activate`, method: "PUT" }),
       invalidatesTags: (_result, _error, { companyId }) => [{ type: "CompanyFiscalYear", id: companyId }],
     }),
+    lockCompanyFiscalYear: build.mutation<CompanyFiscalYear, { companyId: number; fiscalYearId: number }>({
+      query: ({ companyId, fiscalYearId }) => ({ url: `/identity/companies/${companyId}/fiscal-years/${fiscalYearId}/lock`, method: "PUT" }),
+      invalidatesTags: (_result, _error, { companyId }) => [{ type: "CompanyFiscalYear", id: companyId }],
+    }),
+    unlockCompanyFiscalYear: build.mutation<CompanyFiscalYear, { companyId: number; fiscalYearId: number }>({
+      query: ({ companyId, fiscalYearId }) => ({ url: `/identity/companies/${companyId}/fiscal-years/${fiscalYearId}/unlock`, method: "PUT" }),
+      invalidatesTags: (_result, _error, { companyId }) => [{ type: "CompanyFiscalYear", id: companyId }],
+    }),
   }),
 });
 
@@ -173,6 +199,9 @@ export const {
   useUpdateCompanyMutation,
   useGetMasterFiscalYearsQuery,
   useGetCompanyFiscalYearsQuery,
+  useLazyGetCompanyFiscalYearsQuery,
   useCreateCompanyFiscalYearMutation,
   useActivateCompanyFiscalYearMutation,
+  useLockCompanyFiscalYearMutation,
+  useUnlockCompanyFiscalYearMutation,
 } = companyApi;

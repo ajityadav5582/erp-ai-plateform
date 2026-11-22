@@ -17,6 +17,8 @@ export const PURCHASE_INVOICE_STATUSES = [
 ] as const;
 export type PurchaseInvoiceStatus = (typeof PURCHASE_INVOICE_STATUSES)[number];
 
+export type PurchaseInvoiceType = "GOODS_RECEIPT" | "DIRECT";
+
 export const PURCHASE_INVOICE_STATUS_LABELS: Record<PurchaseInvoiceStatus, string> = {
   APPROVED: "Approved",
   PARTIALLY_PAID: "Partially Paid",
@@ -41,7 +43,7 @@ export function formatPurchaseInvoiceStatus(
 export interface PurchaseInvoiceLine {
   id: number;
   lineNumber: number;
-  goodsReceiptLineId: number;
+  goodsReceiptLineId: number | null;
   itemId: number;
   itemCode: string;
   itemName: string;
@@ -62,14 +64,15 @@ export interface PurchaseInvoice {
   invoiceNumber: string;
   tenantId: number;
   companyId: number;
-  branchId: number;
-  fiscalYearId: number;
-  /** The order whose goods were billed. */
-  purchaseOrderId: number;
-  poNumber: string;
-  /** The delivery being billed. One invoice per delivery. */
-  goodsReceiptId: number;
-  grnNumber: string;
+  branchId: number | null;
+  fiscalYearId: number | null;
+  invoiceType?: PurchaseInvoiceType;
+  /** The order whose goods were billed, or null for direct invoices. */
+  purchaseOrderId: number | null;
+  poNumber: string | null;
+  /** The delivery being billed, or null for direct invoices. */
+  goodsReceiptId: number | null;
+  grnNumber: string | null;
   invoiceDate: string;
   dueDate: string | null;
   supplierId: number;
@@ -83,6 +86,10 @@ export interface PurchaseInvoice {
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
+  isTdsApplicable?: boolean;
+  tdsRate?: number;
+  tdsAmount?: number;
+  netPayableAmount?: number;
   /** How much has been settled so far. */
   paidAmount: number;
   /** What is still owed: total minus paid. */
@@ -95,7 +102,11 @@ export interface PurchaseInvoice {
 
 /** Mirrors the nested `CreateInvoiceRequest.Line` record. */
 export interface CreateInvoiceLineRequest {
-  goodsReceiptLineId: number;
+  goodsReceiptLineId?: number | null;
+  itemId?: number;
+  itemCode?: string;
+  itemName?: string;
+  uomCode?: string;
   /** Omitted, the received quantity is used. */
   quantity?: number;
   /** Omitted, the received unit price is used. */
@@ -103,24 +114,26 @@ export interface CreateInvoiceLineRequest {
   discountPercentage?: number;
   taxRate?: number;
   description?: string;
+  taxCategory?: "TAXABLE" | "EXEMPT" | "ZERO_RATED" | "NON_TAXABLE";
 }
 
 /**
  * Mirrors the backend `CreateInvoiceRequest` record.
- *
- * **Prices come from the supplier, not the order.** That is the whole point of a
- * three-way match: the amount owed is what the supplier says they charged, and holding
- * it against the order is what surfaces a discrepancy. A form that pre-filled the
- * ordered price and let the user accept it would make a mismatch impossible to see.
- * The form therefore pre-fills for *speed only* and every field stays editable.
  */
 export interface CreateInvoiceRequest {
-  goodsReceiptId: number;
+  goodsReceiptId?: number | null;
+  invoiceType?: PurchaseInvoiceType;
+  supplierId?: number;
+  branchId?: number | null;
+  fiscalYearId?: number | null;
+  currency?: string;
   /** The supplier's own invoice number, not a number this system issued. */
   invoiceNumber: string;
   /** Defaults to today server-side when omitted. */
   invoiceDate?: string;
   dueDate?: string;
+  isTdsApplicable?: boolean;
+  tdsRate?: number;
   lines: CreateInvoiceLineRequest[];
   notes?: string;
 }
@@ -129,6 +142,17 @@ export interface GetPurchaseInvoicesParams {
   page?: number;
   size?: number;
   sort?: string;
+  supplierId?: number;
+}
+
+export interface FastMatchPoRequest {
+  purchaseOrderId: number;
+  invoiceNumber: string;
+  invoiceDate?: string;
+  dueDate?: string;
+  warehouseId?: number;
+  deliveryChallanNo?: string;
+  notes?: string;
 }
 
 const BASE_URL = "/procurement/purchase-invoices";
@@ -189,6 +213,16 @@ export const purchaseInvoiceApi = api.injectEndpoints({
       }),
       invalidatesTags: ["PurchaseInvoice", "GoodsReceipt"],
     }),
+
+    /** Fast-match flow: simultaneously creates Goods Receipt and Purchase Invoice against approved PO. */
+    fastMatchPo: build.mutation<PurchaseInvoice, FastMatchPoRequest>({
+      query: (body) => ({
+        url: `${BASE_URL}/fast-match-po`,
+        method: "POST",
+        data: body,
+      }),
+      invalidatesTags: ["PurchaseInvoice", "GoodsReceipt", "PurchaseOrder"],
+    }),
   }),
 });
 
@@ -197,4 +231,5 @@ export const {
   useGetPurchaseInvoiceQuery,
   useGetOutstandingInvoicesQuery,
   useCreatePurchaseInvoiceMutation,
+  useFastMatchPoMutation,
 } = purchaseInvoiceApi;

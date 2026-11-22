@@ -4,10 +4,15 @@ import com.erp.platform.identity.application.dto.CreateCompanyRequest;
 import com.erp.platform.identity.application.dto.CompanyResponse;
 import com.erp.platform.identity.domain.Branch;
 import com.erp.platform.identity.domain.Company;
+import com.erp.platform.identity.domain.CompanyFiscalYear;
+import com.erp.platform.identity.domain.FiscalYearType;
+import com.erp.platform.identity.domain.MasterFiscalYear;
 import com.erp.platform.identity.domain.User;
 import com.erp.platform.identity.domain.UserBranch;
 import com.erp.platform.identity.infrastructure.persistence.BranchRepository;
+import com.erp.platform.identity.infrastructure.persistence.CompanyFiscalYearRepository;
 import com.erp.platform.identity.infrastructure.persistence.CompanyRepository;
+import com.erp.platform.identity.infrastructure.persistence.MasterFiscalYearRepository;
 import com.erp.platform.identity.infrastructure.persistence.UserBranchRepository;
 import com.erp.platform.identity.infrastructure.persistence.UserRepository;
 import com.erp.business.inventory.interfaces.warehouse.WarehouseService;
@@ -18,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,6 +47,8 @@ public class CompanyServiceImpl implements CompanyService {
     private final UserBranchRepository userBranchRepository;
     private final WarehouseService warehouseService;
     private final CurrentTenantProvider currentTenantProvider;
+    private final MasterFiscalYearRepository masterFiscalYearRepository;
+    private final CompanyFiscalYearRepository companyFiscalYearRepository;
 
     public CompanyServiceImpl(
             CompanyRepository companyRepository,
@@ -47,13 +56,17 @@ public class CompanyServiceImpl implements CompanyService {
             UserRepository userRepository,
             UserBranchRepository userBranchRepository,
             @org.springframework.beans.factory.annotation.Autowired(required = false) WarehouseService warehouseService,
-            CurrentTenantProvider currentTenantProvider) {
+            CurrentTenantProvider currentTenantProvider,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) MasterFiscalYearRepository masterFiscalYearRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) CompanyFiscalYearRepository companyFiscalYearRepository) {
         this.companyRepository = companyRepository;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
         this.userBranchRepository = userBranchRepository;
         this.warehouseService = warehouseService;
         this.currentTenantProvider = currentTenantProvider;
+        this.masterFiscalYearRepository = masterFiscalYearRepository;
+        this.companyFiscalYearRepository = companyFiscalYearRepository;
     }
 
     @Override
@@ -93,6 +106,9 @@ public class CompanyServiceImpl implements CompanyService {
         company.updateLocation(request.provinceId(), request.districtId(), request.localLevelId(), request.wardNo(), request.toleStreet());
         if (request.address() != null && !request.address().isBlank()) {
             company.updateDetails(null, null, null, null, request.address());
+        }
+        if (request.bankName() != null || request.bankAccountName() != null || request.bankAccountNumber() != null || request.bankBranch() != null || request.qrCodeUrl() != null) {
+            company.updateBankDetails(request.bankName(), request.bankAccountName(), request.bankAccountNumber(), request.bankBranch(), request.qrCodeUrl());
         }
 
         Company savedCompany = companyRepository.save(company);
@@ -175,6 +191,43 @@ public class CompanyServiceImpl implements CompanyService {
                     log.info("Created primary user-branch assignment for user {} on branch {}", resolvedCreatorUserId, savedBranch.getId());
                 }
             });
+        }
+
+        // ==================== BOOTSTRAP: Active Fiscal Year ====================
+        if (masterFiscalYearRepository != null && companyFiscalYearRepository != null) {
+            try {
+                LocalDate today = LocalDate.now();
+                List<MasterFiscalYear> activeMasters = masterFiscalYearRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
+                MasterFiscalYear matchingMaster = activeMasters.stream()
+                        .filter(fy -> !today.isBefore(fy.getStartDateAd()) && !today.isAfter(fy.getEndDateAd()))
+                        .findFirst()
+                        .orElse(activeMasters.isEmpty() ? null : activeMasters.get(activeMasters.size() - 1));
+
+                if (matchingMaster != null) {
+                    FiscalYearType calendarType = savedCompany.getFiscalYearType() != null
+                            ? savedCompany.getFiscalYearType()
+                            : FiscalYearType.NEPALI_BS;
+
+                    CompanyFiscalYear fiscalYear = CompanyFiscalYear.create(
+                            resolvedTenantId,
+                            savedCompany.getId(),
+                            matchingMaster.getId(),
+                            matchingMaster.getName(),
+                            matchingMaster.getCode(),
+                            matchingMaster.getStartDateBs(),
+                            matchingMaster.getEndDateBs(),
+                            matchingMaster.getStartDateAd(),
+                            matchingMaster.getEndDateAd(),
+                            calendarType
+                    );
+                    fiscalYear.activate();
+                    CompanyFiscalYear savedFiscalYear = companyFiscalYearRepository.save(fiscalYear);
+                    log.info("Bootstrapped and activated fiscal year {} (id={}) for company {}",
+                            savedFiscalYear.getCode(), savedFiscalYear.getId(), savedCompany.getId());
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to auto-bootstrap fiscal year for company {}: {}", savedCompany.getId(), ex.getMessage(), ex);
+            }
         }
 
         return CompanyResponse.from(savedCompany);

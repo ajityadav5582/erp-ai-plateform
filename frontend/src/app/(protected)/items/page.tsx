@@ -14,6 +14,8 @@ import {
   PauseCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   useGetItemsQuery,
@@ -21,6 +23,7 @@ import {
   useActivateItemMutation,
   useDeactivateItemMutation,
   formatTaxabilityType,
+  exportItemsCsv,
   type ItemListResponse,
 } from "@/services/item.service";
 import { ItemStatusBadge } from "@/components/items/item-status-badge";
@@ -81,6 +84,13 @@ const DeleteItemDialog = dynamic(
     })),
   { ssr: false, loading: () => null }
 );
+const ImportItemsDialog = dynamic(
+  () =>
+    import("@/components/items/import-items-dialog").then((mod) => ({
+      default: mod.ImportItemsDialog,
+    })),
+  { ssr: false, loading: () => null }
+);
 
 
 export default function ItemsPage() {
@@ -90,6 +100,8 @@ export default function ItemsPage() {
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedItemIdForDetails, setSelectedItemIdForDetails] = useState<string | null>(null);
   const [selectedItemIdForEdit, setSelectedItemIdForEdit] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<ItemListResponse | null>(null);
@@ -129,6 +141,18 @@ export default function ItemsPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      await exportItemsCsv();
+      toast.success("Items exported to CSV successfully");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to export items to CSV"));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const items = data?.content ?? [];
   const totalElements = data?.totalElements ?? 0;
   const totalPages = data?.totalPages ?? 1;
@@ -151,13 +175,36 @@ export default function ItemsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsCreateOpen(true)}
-          className="gap-2 self-start shadow-sm sm:self-auto"
-        >
-          <Plus className="size-4" />
-          Add Item
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="gap-1.5"
+          >
+            <Download className="size-4" />
+            {isExporting ? "Exporting..." : "Export CSV"}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsImportOpen(true)}
+            className="gap-1.5 border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200"
+          >
+            <FileSpreadsheet className="size-4 text-emerald-600" />
+            Import CSV
+          </Button>
+
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="gap-2 shadow-sm"
+          >
+            <Plus className="size-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Filter Toolbar */}
@@ -242,7 +289,18 @@ export default function ItemsPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground">{item.nameEn}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate font-medium text-foreground">{item.nameEn}</p>
+                            {item.itemType === "SERVICE" ? (
+                              <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                                Service
+                              </span>
+                            ) : item.itemType === "RAW_MATERIAL" ? (
+                              <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                Raw Material
+                              </span>
+                            ) : null}
+                          </div>
                           <p className="truncate text-xs text-muted-foreground">
                             {item.nameNp ?? `ID: ${item.id}`}
                           </p>
@@ -263,7 +321,15 @@ export default function ItemsPage() {
                     </TableCell>
 
                     <TableCell className="text-right text-sm font-medium text-foreground">
-                      {item.sellingPrice?.toLocaleString()}
+                      {Number(item.sellingPrice) > 0 ? (
+                        `NPR ${Number(item.sellingPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                      ) : Number(item.purchasePrice) > 0 ? (
+                        <span className="text-xs text-muted-foreground font-normal">
+                          Cost: NPR {Number(item.purchasePrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
 
                     <TableCell className="text-sm text-muted-foreground">
@@ -423,6 +489,12 @@ export default function ItemsPage() {
         onOpenChange={(open) => {
           if (!open) setItemToDelete(null);
         }}
+      />
+
+      <ImportItemsDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onSuccess={() => refetch()}
       />
     </div>
   );

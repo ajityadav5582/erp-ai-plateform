@@ -72,8 +72,55 @@ public class KitchenOrder extends TenantScopedEntity<Long> {
     @Column(name = "waiter", length = 100)
     private String waiter;
 
+    @Column(name = "kot_number", length = 50)
+    private String kotNumber;
+
+    @Column(name = "order_type", length = 32)
+    @Builder.Default
+    private String orderType = "DINE_IN";
+
+    @Column(name = "token_number", length = 32)
+    private String tokenNumber;
+
+    @Column(name = "delivery_partner", length = 64)
+    private String deliveryPartner;
+
+    @Column(name = "customer_phone", length = 32)
+    private String customerPhone;
+
     public void markPreparing() { this.status = Status.PREPARING; }
     public void markReady() { this.status = Status.READY; }
     public void markServed() { this.status = Status.SERVED; }
     public void cancel() { this.status = Status.CANCELLED; }
+
+    public void assignKotNumber(String kotNumber) {
+        this.kotNumber = kotNumber;
+    }
+
+    public void assignTakeawayDetails(String tokenNumber, String customerPhone) {
+        this.tokenNumber = tokenNumber;
+        this.customerPhone = customerPhone;
+        this.orderType = "TAKEAWAY";
+    }
+
+    public void assignDeliveryDetails(String deliveryPartner, String customerPhone, String tokenNumber) {
+        this.deliveryPartner = deliveryPartner;
+        this.customerPhone = customerPhone;
+        this.tokenNumber = tokenNumber;
+        this.orderType = "DELIVERY";
+    }
+
+    public void linkTransaction(Long posTransactionId) {
+        this.posTransactionId = posTransactionId;
+        if (this.status != Status.CANCELLED) {
+            this.status = Status.SERVED;
+        }
+    }
+
+    public void transferToTable(Long targetTableId, Long targetSessionId) {
+        this.tableId = targetTableId;
+        if (targetSessionId != null) {
+            this.sessionId = targetSessionId;
+        }
+    }
 }

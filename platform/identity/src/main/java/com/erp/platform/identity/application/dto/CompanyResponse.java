@@ -29,6 +29,11 @@ public record CompanyResponse(
         Short provinceId,
         Short districtId,
         Short localLevelId,
+        String bankName,
+        String bankAccountName,
+        String bankAccountNumber,
+        String bankBranch,
+        String qrCodeUrl,
         CompanyStatus status
 ) {
     public static CompanyResponse from(Company company) {
@@ -55,6 +60,11 @@ public record CompanyResponse(
                 company.getProvinceId(),
                 company.getDistrictId(),
                 company.getLocalLevelId(),
+                company.getBankName(),
+                company.getBankAccountName(),
+                company.getBankAccountNumber(),
+                company.getBankBranch(),
+                company.getQrCodeUrl(),
                 company.getStatus()
         );
     }

@@ -101,7 +101,9 @@ export function EditItemDialog({ item, open, onOpenChange }: EditItemDialogProps
             <ItemFormFields
               control={form.control}
               watch={form.watch}
+              setValue={form.setValue}
               disabled={isLoading}
+              isEdit={true}
             />
 
             <DialogFooter className="pt-4">

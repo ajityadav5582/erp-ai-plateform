@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Info,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,21 +53,6 @@ const COMPANY_TYPES: { value: CompanyType; label: string }[] = [
   { value: "TRUST", label: "Trust" },
   { value: "COOPERATIVE", label: "Cooperative" },
   { value: "GOVERNMENT_ENTITY", label: "Government Entity" },
-];
-
-const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
-  { value: "RESTAURANT", label: "Restaurant" },
-  { value: "CAFE", label: "Cafe" },
-  { value: "HOTEL", label: "Hotel & Hospitality" },
-  { value: "SWEETS_RETAIL", label: "Sweets Retail" },
-  { value: "GENERAL_RETAIL", label: "General Retail" },
-  { value: "GROCERY", label: "Grocery / Supermarket" },
-  { value: "HARDWARE", label: "Hardware" },
-  { value: "SANITARY", label: "Sanitary" },
-  { value: "PHARMACY", label: "Pharmacy" },
-  { value: "CLOTHING", label: "Clothing & Apparel" },
-  { value: "SERVICES", label: "Professional Services" },
-  { value: "OTHER", label: "Other" },
 ];
 
 export default function CompanySettingsPage() {
@@ -112,6 +98,13 @@ export default function CompanySettingsPage() {
   const [vatEffectiveFrom, setVatEffectiveFrom] = useState("");
   const [vatEffectiveTo, setVatEffectiveTo] = useState("");
 
+  // Bank & Payment QR
+  const [bankName, setBankName] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankBranch, setBankBranch] = useState("");
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+
   // Populate state when company data arrives
   useEffect(() => {
     if (company) {
@@ -138,6 +131,12 @@ export default function CompanySettingsPage() {
       setVatRegistrationNumber(company.vatRegistrationNumber ?? "");
       setVatEffectiveFrom(company.vatEffectiveFrom ?? "");
       setVatEffectiveTo(company.vatEffectiveTo ?? "");
+
+      setBankName(company.bankName ?? "");
+      setBankAccountName(company.bankAccountName ?? "");
+      setBankAccountNumber(company.bankAccountNumber ?? "");
+      setBankBranch(company.bankBranch ?? "");
+      setQrCodeUrl(company.qrCodeUrl ?? "");
     }
   }, [company]);
 
@@ -172,6 +171,7 @@ export default function CompanySettingsPage() {
         label: "FINANCIAL & TAX",
         items: [
           { key: "tax", label: "Tax & VAT Registration", icon: Receipt },
+          { key: "banking", label: "Bank Details & Payment QR", icon: CreditCard },
           { key: "fiscal", label: "Fiscal Years", icon: Calendar },
         ],
       },
@@ -220,6 +220,12 @@ export default function CompanySettingsPage() {
       return;
     }
 
+    if (panNumber.trim() && !/^\d{9}$/.test(panNumber.trim())) {
+      setErrorMessage("Nepal PAN number must be exactly 9 numeric digits.");
+      toast.error("Nepal PAN number must be exactly 9 numeric digits.");
+      return;
+    }
+
     try {
       await updateCompany({
         id: companyId,
@@ -244,6 +250,11 @@ export default function CompanySettingsPage() {
           vatRegistrationNumber: vatRegistered && vatRegistrationNumber.trim() ? vatRegistrationNumber.trim() : undefined,
           vatEffectiveFrom: vatRegistered && vatEffectiveFrom ? vatEffectiveFrom : undefined,
           vatEffectiveTo: vatRegistered && vatEffectiveTo ? vatEffectiveTo : undefined,
+          bankName: bankName.trim() || undefined,
+          bankAccountName: bankAccountName.trim() || undefined,
+          bankAccountNumber: bankAccountNumber.trim() || undefined,
+          bankBranch: bankBranch.trim() || undefined,
+          qrCodeUrl: qrCodeUrl.trim() || undefined,
         },
       }).unwrap();
 
@@ -492,9 +503,15 @@ export default function CompanySettingsPage() {
                         maxLength={9}
                         className="h-10 font-mono text-base sm:text-sm tracking-wider"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Must match your Permanent Account Number issued by Nepal IRD.
-                      </p>
+                      {panNumber.length > 0 && panNumber.length < 9 ? (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                          Nepal PAN must be exactly 9 digits ({panNumber.length}/9 entered)
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Must match your Permanent Account Number issued by Nepal IRD.
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -531,11 +548,26 @@ export default function CompanySettingsPage() {
                         <option value="" disabled>
                           Select business industry
                         </option>
-                        {BUSINESS_TYPES.map((b) => (
-                          <option key={b.value} value={b.value}>
-                            {b.label}
-                          </option>
-                        ))}
+                        <optgroup label="Food & Hospitality">
+                          <option value="RESTAURANT">Restaurant</option>
+                          <option value="CAFE">Cafe</option>
+                          <option value="HOTEL">Hotel & Hospitality</option>
+                          <option value="SWEETS_RETAIL">Sweets Retail</option>
+                        </optgroup>
+                        <optgroup label="Retail & Wholesale">
+                          <option value="GENERAL_RETAIL">General Retail</option>
+                          <option value="GROCERY">Grocery / Supermarket</option>
+                          <option value="HARDWARE">Hardware</option>
+                          <option value="SANITARY">Sanitary</option>
+                          <option value="CLOTHING">Clothing & Apparel</option>
+                        </optgroup>
+                        <optgroup label="Healthcare">
+                          <option value="PHARMACY">Pharmacy</option>
+                        </optgroup>
+                        <optgroup label="Services & Other">
+                          <option value="SERVICES">Professional Services</option>
+                          <option value="OTHER">Other</option>
+                        </optgroup>
                       </select>
                       {isRestaurantOrHospitality && (
                         <p className="text-xs text-primary font-medium flex items-center gap-1.5 mt-1.5">
@@ -848,7 +880,12 @@ export default function CompanySettingsPage() {
                     <Switch
                       id="vatRegisteredSwitch"
                       checked={vatRegistered}
-                      onCheckedChange={setVatRegistered}
+                      onCheckedChange={(checked) => {
+                        setVatRegistered(checked);
+                        if (checked && !vatRegistrationNumber.trim()) {
+                          setVatRegistrationNumber(panNumber.trim());
+                        }
+                      }}
                     />
                   </div>
 
@@ -901,6 +938,103 @@ export default function CompanySettingsPage() {
                       Tax invoices generated under VAT registered companies require valid 9-digit PAN/VAT numbers and must sync with the IRD Central Billing Monitoring System (CBMS).
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tab: Bank Details & Payment QR */}
+            {activeTab === "banking" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <CreditCard className="size-5 text-primary" />
+                    Bank Accounts & Payment QR
+                  </CardTitle>
+                  <CardDescription>
+                    Bank accounts and payment QR codes displayed on customer tax invoices and sales receipts for electronic settlement.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="e.g. Nabil Bank Ltd, NIC Asia Bank"
+                        maxLength={100}
+                        className="h-10 text-base sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankBranch">Branch</Label>
+                      <Input
+                        id="bankBranch"
+                        value={bankBranch}
+                        onChange={(e) => setBankBranch(e.target.value)}
+                        placeholder="e.g. New Road, Kathmandu"
+                        maxLength={100}
+                        className="h-10 text-base sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankAccountName">Account Name</Label>
+                      <Input
+                        id="bankAccountName"
+                        value={bankAccountName}
+                        onChange={(e) => setBankAccountName(e.target.value)}
+                        placeholder="e.g. Himalayan Enterprises Pvt. Ltd."
+                        maxLength={150}
+                        className="h-10 text-base sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bankAccountNumber">Account Number</Label>
+                      <Input
+                        id="bankAccountNumber"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="e.g. 01201017500012"
+                        maxLength={50}
+                        className="h-10 font-mono text-base sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label htmlFor="qrCodeUrl">Fonepay / Payment QR Image URL</Label>
+                      <Input
+                        id="qrCodeUrl"
+                        type="url"
+                        value={qrCodeUrl}
+                        onChange={(e) => setQrCodeUrl(e.target.value)}
+                        placeholder="https://storage.yourdomain.com/qr/fonepay-qr.png"
+                        maxLength={500}
+                        className="h-10 text-base sm:text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        URL to the company&apos;s dynamic or static payment QR code (Fonepay, NepalPay, SmartQR) printed on invoices.
+                      </p>
+                    </div>
+                  </div>
+
+                  {qrCodeUrl && (
+                    <div className="rounded-lg border bg-muted/20 p-4 flex flex-col sm:flex-row items-center gap-4">
+                      <div className="size-28 rounded-md border bg-white p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrCodeUrl} alt="Payment QR Preview" className="size-full object-contain" />
+                      </div>
+                      <div className="space-y-1 text-center sm:text-left">
+                        <h4 className="text-sm font-semibold">Payment QR Code Preview</h4>
+                        <p className="text-xs text-muted-foreground">
+                          This QR code will be embedded into PDF tax invoices and POS thermal printouts so customers can scan and pay instantly.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

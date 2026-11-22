@@ -23,6 +23,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * An item / product in inventory with full support for Nepal IRD tax & billing compliance rules.
@@ -149,6 +150,20 @@ public class Item extends TenantScopedEntity<Long> {
     @NotNull(message = "Selling price is required")
     @Column(name = "selling_price", nullable = false, precision = 15, scale = 4)
     private BigDecimal sellingPrice;
+
+    @Column(name = "wholesale_price", precision = 15, scale = 4)
+    private BigDecimal wholesalePrice;
+
+    @Column(name = "min_selling_price", precision = 15, scale = 4)
+    private BigDecimal minSellingPrice;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "secondary_uom_id")
+    @ToString.Exclude
+    private Unit secondaryUom;
+
+    @Column(name = "conversion_factor", precision = 15, scale = 4)
+    private BigDecimal conversionFactor;
 
     @Column(name = "purchase_price", precision = 15, scale = 4)
     private BigDecimal purchasePrice;
@@ -282,6 +297,10 @@ public class Item extends TenantScopedEntity<Long> {
             BigDecimal exciseRate,
             BigDecimal exciseAmount,
             BigDecimal sellingPrice,
+            BigDecimal wholesalePrice,
+            BigDecimal minSellingPrice,
+            Unit secondaryUom,
+            BigDecimal conversionFactor,
             BigDecimal purchasePrice,
             BigDecimal mrp,
             Boolean isVatInclusive,
@@ -320,6 +339,8 @@ public class Item extends TenantScopedEntity<Long> {
         validateMaxLength(changes.hsCode(), MAX_HS_CODE_LENGTH, "HS Code");
         validateMaxLength(changes.nameNp(), MAX_NAME_NP_LENGTH, "Nepali item name");
         requireNonNegative(changes.sellingPrice(), "Selling price");
+        requireNonNegative(changes.wholesalePrice(), "Wholesale price");
+        requireNonNegative(changes.minSellingPrice(), "Minimum selling price");
         requireNonNegative(changes.purchasePrice(), "Purchase price");
         requireNonNegative(changes.mrp(), "MRP");
         requireNonNegative(changes.minStockLevel(), "Minimum stock level");
@@ -328,6 +349,15 @@ public class Item extends TenantScopedEntity<Long> {
         requireTaxRate(changes.vatRate(), "VAT rate");
         requireTaxRate(changes.exciseRate(), "Excise rate");
         requireNonNegative(changes.exciseAmount(), "Excise amount");
+
+        if (changes.conversionFactor() != null && changes.conversionFactor().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Conversion factor must be greater than zero");
+        }
+        BigDecimal effectiveSelling = changes.sellingPrice() != null ? changes.sellingPrice() : this.sellingPrice;
+        BigDecimal effectiveMin = changes.minSellingPrice() != null ? changes.minSellingPrice() : this.minSellingPrice;
+        if (effectiveSelling != null && effectiveMin != null && effectiveMin.compareTo(effectiveSelling) > 0) {
+            throw new IllegalArgumentException("Minimum selling price cannot exceed selling price");
+        }
 
         // Tax and excise rules are checked against the state the item would end up in,
         // not against the fields that happened to be supplied. Checking only the supplied
@@ -399,6 +429,18 @@ public class Item extends TenantScopedEntity<Long> {
         }
         if (changes.sellingPrice() != null) {
             this.sellingPrice = changes.sellingPrice();
+        }
+        if (changes.wholesalePrice() != null) {
+            this.wholesalePrice = changes.wholesalePrice();
+        }
+        if (changes.minSellingPrice() != null) {
+            this.minSellingPrice = changes.minSellingPrice();
+        }
+        if (changes.secondaryUom() != null) {
+            this.secondaryUom = changes.secondaryUom();
+        }
+        if (changes.conversionFactor() != null) {
+            this.conversionFactor = changes.conversionFactor();
         }
         if (changes.purchasePrice() != null) {
             this.purchasePrice = changes.purchasePrice();
@@ -528,7 +570,7 @@ public class Item extends TenantScopedEntity<Long> {
             }
             return switch (type) {
                 case GOODS         -> new UsageFlags(true,  true,  false, false);
-                case SERVICE       -> new UsageFlags(false, true,  false, false);
+                case SERVICE       -> new UsageFlags(true,  true,  false, false); // Services can be purchased (direct expenses) and/or sold
                 case RAW_MATERIAL  -> new UsageFlags(true,  false, true,  false);
                 case FINISHED_GOODS-> new UsageFlags(false, true,  false, true);
                 case CONSUMABLE    -> new UsageFlags(true,  false, false, false);
@@ -661,5 +703,35 @@ public class Item extends TenantScopedEntity<Long> {
 
     private static String trimToNull(String value) {
         return value == null ? null : (value.trim().isEmpty() ? null : value.trim());
+    }
+
+    /**
+     * Converts a quantity given in the item's secondary UOM into its equivalent primary (base) UOM quantity.
+     * E.g. If 1 Box = 12 Pieces (conversionFactor = 12), then 5 Boxes -> 60 Pieces.
+     * If no secondary UOM or conversion factor is configured, returns the given quantity directly.
+     */
+    public BigDecimal toBaseQuantity(BigDecimal secondaryQuantity) {
+        if (secondaryQuantity == null) {
+            return BigDecimal.ZERO;
+        }
+        if (conversionFactor == null || conversionFactor.compareTo(BigDecimal.ZERO) <= 0) {
+            return secondaryQuantity;
+        }
+        return secondaryQuantity.multiply(conversionFactor);
+    }
+
+    /**
+     * Converts a quantity given in the item's primary (base) UOM into its secondary UOM quantity.
+     * E.g. If 1 Box = 12 Pieces (conversionFactor = 12), then 60 Pieces -> 5 Boxes.
+     * If no secondary UOM or conversion factor is configured, returns the given quantity directly.
+     */
+    public BigDecimal toSecondaryQuantity(BigDecimal baseQuantity) {
+        if (baseQuantity == null) {
+            return BigDecimal.ZERO;
+        }
+        if (conversionFactor == null || conversionFactor.compareTo(BigDecimal.ZERO) <= 0) {
+            return baseQuantity;
+        }
+        return baseQuantity.divide(conversionFactor, 4, RoundingMode.HALF_UP);
     }
 }

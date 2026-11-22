@@ -42,6 +42,20 @@ public class PosTransactionMapper {
                 transaction.getWarehouseName(),
                 transaction.getCurrency(),
                 transaction.getSubtotalAmount(),
+                transaction.getDiscountAmount(),
+                transaction.getServiceChargeAmount(),
+                transaction.getDiscountReason(),
+                transaction.getRoomNumber(),
+                transaction.getGuestName(),
+                transaction.getSplitPaymentDetails(),
+                transaction.getSplitCashAmount(),
+                transaction.getSplitDigitalAmount(),
+                transaction.getOrderType(),
+                transaction.getTokenNumber(),
+                transaction.getDeliveryPartner(),
+                transaction.getDeliveryAddress(),
+                transaction.getCustomerPhone(),
+                transaction.getDeliveryCharge(),
                 transaction.getTaxableAmount(),
                 transaction.getExemptAmount(),
                 transaction.getZeroRatedAmount(),
@@ -61,6 +75,7 @@ public class PosTransactionMapper {
                 transaction.getCbmsRetryCount(),
                 transaction.getNotes(),
                 toLineResponses(transaction.getLines()),
+                transaction.getPrintCount(),
                 transaction.getVersion()
         );
     }
